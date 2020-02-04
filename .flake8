@@ -1,0 +1,16 @@
+[flake8]
+
+ignore =
+    # H401: docstring should not start with a space
+    H401,
+
+exclude =
+    .git,
+    __pycache__,
+    # legacy code, it just works
+    DAN.py,
+    csmapi.py,
+    # venv dir
+    ctlboard,
+
+max-line-length = 92
