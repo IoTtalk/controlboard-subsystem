@@ -186,15 +186,18 @@ def odf_data_handler(actuator_alias, sensor_alias, order):
     return
 
 
-def on_check(actuator_alias):
-    sensor_alias = shared_vars.mappings[actuator_alias][0]
-    order = shared_vars.mappings[actuator_alias][1]
+def on_check():
 
     while shared_vars.pushing_flag:
-        if shared_vars.rule_info[actuator_alias]['rule_type'] == 'sensor':
-            odf_data_handler(actuator_alias, sensor_alias, order)
-        else:
-            time_checker(actuator_alias, sensor_alias, order)
+        
+        for actuator_alias in shared_vars.rule_info:
+            sensor_alias = shared_vars.mappings[actuator_alias][0]
+            order = shared_vars.mappings[actuator_alias][1]
+
+            if shared_vars.rule_info[actuator_alias]['rule_type'] == 'sensor':
+                odf_data_handler(actuator_alias, sensor_alias, order)
+            else:
+                time_checker(actuator_alias, sensor_alias, order)
 
         time.sleep(3)
 

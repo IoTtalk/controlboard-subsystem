@@ -32,13 +32,6 @@ def init():
     models.rule_db.generate_mapping(create_tables=True)
     # set_sql_debug(True)
 
-    # Wait for registration done
-    """
-    while DAN.state == 'SUSPEND':
-        print('Please bind Control Board Device on Iottalk GUI first')
-        time.sleep(2)
-    """
-
     # restore rules from database 
     rules = models.UserRule.select_all()
     for rule in rules:
@@ -57,15 +50,13 @@ def init():
             shared_vars.mappings[alias_out] = (alias_in, i)
     print('mappings:', shared_vars.mappings)
 
-    # create a thread to pull sensors' datum from IoTTalk Server
+    # create a thread to pull sensors' datum from IoTTalk Server.
     t = threading.Thread(target=on_data, daemon=True)
     t.start()
 
-    # Create corresponding thread for each rules stored in database
-    for actuator in shared_vars.rule_info:
-        t = threading.Thread(target=on_check, args=(actuator, ), daemon=True)
-        shared_vars.pushing_thread_dict[actuator] = t
-        t.start()
+    # create a thread to push actuator trigger status.
+    t = threading.Thread(target=on_check,  daemon=True)
+    t.start()
 
     return
 
@@ -112,12 +103,12 @@ def get_setting_condition():
         shared_vars.rule_info[actuator_alias] = rule_settings
         shared_vars.rule_info[actuator_alias]['trigger'] = False
         shared_vars.rule_info[actuator_alias]['status'] = 'red'
-        if actuator_alias not in shared_vars.pushing_thread_dict:
-            t = threading.Thread(target=on_check, args=(actuator_alias,), daemon=True)
-            shared_vars.pushing_thread_dict[actuator_alias] = t
-            t.start()
-        else:
-            print (actuator_alias)
+        # if actuator_alias not in shared_vars.pushing_thread_dict:
+        #     t = threading.Thread(target=on_check, args=(actuator_alias,), daemon=True)
+        #     shared_vars.pushing_thread_dict[actuator_alias] = t
+        #     t.start()
+        # else:
+        #     print (actuator_alias)
 
     print (shared_vars.rule_info)
 
@@ -238,7 +229,6 @@ if '__main__' == __name__:
     DAN.profile = env_config.ctlboard_profile
     DAN.device_registration_with_retry(env_config.server_ip, env_config.mac_addr)
     # atexit.register(exit_handler)
-    os.chdir('/home/iottalk/controlboard')
     app.run(
         host=env_config.host,
         port=env_config.port,

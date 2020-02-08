@@ -6,8 +6,8 @@ class EnvironmentConfig():
     df_his_record_len = 200
     max_thresholds = 5
     sqlite_rule_db = 'UserRule.sqlite'
-    server_ip = 'http://farm.iottalk.tw:9999'
-    mac_addr = 'CES'
+    server_ip = 'http://140.113.199.182:9999'
+    mac_addr = 'CB_Subsystem'
     ctlboard_profile = {
         'd_name': 'ControlBoard',
         'dm_name': 'ControlBoard',
