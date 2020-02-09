@@ -11,7 +11,9 @@ import DAN
 import models
 import shared_vars
 
+
 instance_api = Blueprint('instance', __name__)
+
 
 @instance_api.route('/new_rules', methods=['POST'])
 def get_setting_condition():
@@ -50,12 +52,6 @@ def get_setting_condition():
         shared_vars.rule_info[actuator_alias] = rule_settings
         shared_vars.rule_info[actuator_alias]['trigger'] = False
         shared_vars.rule_info[actuator_alias]['status'] = 'red'
-        # if actuator_alias not in shared_vars.pushing_thread_dict:
-        #     t = threading.Thread(target=on_check, args=(actuator_alias,), daemon=True)
-        #     shared_vars.pushing_thread_dict[actuator_alias] = t
-        #     t.start()
-        # else:
-        #     print (actuator_alias)
 
     print (shared_vars.rule_info)
 

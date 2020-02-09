@@ -1,16 +1,16 @@
 import datetime
 
 
-from pony.orm import Database, Required, Optional, db_session
+from pony.orm import Database, Required, Optional, db_session, Json, StrArray
 
 
 from config import env_config
 
 
-rule_db = Database('sqlite', env_config.sqlite_rule_db, create_db=True)
+cb_db = Database('sqlite', env_config.sqlite_rule_db, create_db=True)
 
 
-class UserRule(rule_db.Entity):
+class UserRule(cb_db.Entity):
     rule_type = Required(str)
     actuator_alias = Required(str)
     sensor_alias = Optional(str)
@@ -40,3 +40,15 @@ class UserRule(rule_db.Entity):
     @db_session
     def select_all(cls):
         return cls.select()[:]
+
+
+class CBInstance(cb_db.Entity):
+    cb_id = Required(str) # all uuids should be converted to strings at first!
+    mappings = Required(Json)
+    rule_ids = Required(StrArray) # rule_ids should be transformed from UUID to strings!
+
+
+class Account(cb_db.Entity):
+    account = Required(str)
+    keyword = Required(str)
+    cb_ids = Optional(StrArray)

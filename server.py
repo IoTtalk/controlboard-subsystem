@@ -27,10 +27,11 @@ from cb_manager import instance_api
 app = Flask(__name__)
 app.register_blueprint(instance_api)
 
+
 @app.before_first_request
 def init():
     shared_vars.mappings.clear()
-    models.rule_db.generate_mapping(create_tables=True)
+    models.cb_db.generate_mapping(create_tables=True)
     # set_sql_debug(True)
 
     # restore rules from database 
