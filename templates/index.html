@@ -52,25 +52,25 @@
           <div class="sensor-setting">
             <div class="sensor-trigger">
               <!-- color set: green yellow orange red purple -->
-              <div
+              <!-- <div
                 v-bind:class="['sensor-trigger-status', sensordata[rule.sensor_alias].triggered === true?'green':'red',(rule.comparison_open === 'notset' && rule.comparison_close === 'notset') || rule.exetime === 0?'grey':'']">
-              </div>
+              </div> -->
               <span class="sensor-trigger-item"><%rule.actuator_alias%></span>
               <div class="sensor-trigger-switch">
-                <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='sensor'}">sensor</span>
+                <!-- <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='sensor'}">sensor</span> -->
                 <label class="switch">
                   <input type="checkbox" v-on:click="sensorTypeHandler(index)"
                     v-bind:checked="rule.rule_type==='timer'">
                   <span class=" slider round"></span>
                 </label>
-                <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='timer'}">timer</span>
+                <!-- <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='timer'}">timer</span> -->
               </div>
             </div>
             <div class="sensor-setting-condition-container">
               <!-- open setting -->
               <div class="sensor-setting-condition-wrapper">
                 <p>
-                  <span><% rule.rule_type==='sensor' ? 'Value' : 'Time' %> </span>
+                  <!-- <span> <% rule.rule_type==='sensor' ? 'Value' : 'Time' %> </span> -->
                   <select class="comparison-select" v-if="rule.rule_type==='sensor'" name="conditionSymbol"
                     v-model="rule.comparison_open" @change="onChange(index)">
                     <option class="comparison-option" value="notset"></option>
@@ -99,14 +99,14 @@
                       <option v-for="second in minuteAndSecond" :value="second"><%second%></option>
                     </select>
                   </span>
-                  <span> turn on.</span>
+                  <span> on.</span>
                 </p>
               </div>
 
               <!-- close setting -->
               <div class=" sensor-setting-condition-wrapper">
                 <p>
-                  <span><% rule.rule_type==='sensor' ? 'Value': 'Time' %> </span>
+                  <!-- <span><% rule.rule_type==='sensor' ? 'Value': 'Time' %> </span> -->
                   <select class="comparison-select" v-if="rule.rule_type==='sensor'" name="conditionSymbol"
                     v-model="rule.comparison_close" @change="onChange(index)">
                     <option class="comparison-option" value="notset"></option>
@@ -135,7 +135,7 @@
                       <option v-for="second in minuteAndSecond" :value="second"><%second%></option>
                     </select>
                   </span>
-                  <span> turn off.</span>
+                  <span> off.</span>
                 </p>
               </div>
             </div>

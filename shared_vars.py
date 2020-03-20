@@ -32,7 +32,7 @@ dict with the following format
 '''
 mappings = dict()
 
-# collection of pushing-threads, may be used when individual controling of each pulling-thread is needed
+# collection of pushing-threads, used in individual controling of each pulling-thread is needed
 pushing_thread_dict = dict()
 
 # currently we use this flag to determine if all pushing-threads should terminate

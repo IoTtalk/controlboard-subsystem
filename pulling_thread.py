@@ -2,7 +2,6 @@ import time
 import logging
 
 
-from datetime import datetime
 from collections import deque
 
 
@@ -52,7 +51,7 @@ def on_data():
     for actuator_alias in shared_vars.mappings:
         sensor_alias = shared_vars.mappings[actuator_alias][0]
         order = shared_vars.mappings[actuator_alias][1]
-        sensor_name = 'Threshold' + str(order + 1) + '-O'
+        sensor_name = 'Threshold' + '-O' + str(order + 1)
         sensor_list.append((sensor_alias, sensor_name))
 
     while shared_vars.pulling_flag:
@@ -65,8 +64,8 @@ def on_data():
 
         except Exception as ep:
             logger.warn(ep)
-        time.sleep(3)
-        
+        time.sleep(5)
+
     print('Pulling Thread stops')
 
     return

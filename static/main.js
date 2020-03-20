@@ -81,10 +81,10 @@ var app = new Vue({
         if (rule_object.threshold_open < 0 || rule_object.threshold_close < 0) {
           console.log("negative error");
           return false;
-        } else if (rule_object.comparison_open != 'notset' && rule_object.threshold_open == null) {
+        } else if (rule_object.comparison_open !== 'notset' && (rule_object.threshold_open === null || rule_object.threshold_open.length === 0)) {
           console.log("missing open value");
           return false;
-        } else if (rule_object.comparison_close != 'notset' && rule_object.threshold_close == null) {
+        } else if (rule_object.comparison_close != 'notset' && (rule_object.threshold_close == null || rule_object.threshold_close.length === 0)) {
           console.log("missing close value");
           return false;
         }

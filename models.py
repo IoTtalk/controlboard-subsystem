@@ -1,16 +1,16 @@
 import datetime
 
 
-from pony.orm import Database, Required, Optional, db_session, Json, StrArray
+from pony.orm import Database, Required, Optional, db_session
 
 
 from config import env_config
 
 
-cb_db = Database('sqlite', env_config.sqlite_rule_db, create_db=True)
+rule_db = Database('sqlite', env_config.sqlite_rule_db, create_db=True)
 
 
-class UserRule(cb_db.Entity):
+class UserRule(rule_db.Entity):
     rule_type = Required(str)
     actuator_alias = Required(str)
     sensor_alias = Optional(str)
@@ -22,11 +22,10 @@ class UserRule(cb_db.Entity):
     time_close = Optional(datetime.time)
     exetime = Optional(int)
 
-
     @classmethod
     @db_session
     def update_rules(cls, **kwargs):
-        print ('db', kwargs)
+        print('db', kwargs)
         rule = cls.get(actuator_alias=kwargs['actuator_alias'])
         if rule is None:
             UserRule(rule_type=kwargs['rule_type'], actuator_alias=kwargs['actuator_alias'])
@@ -38,17 +37,23 @@ class UserRule(cb_db.Entity):
 
     @classmethod
     @db_session
+    def delete_actuator_alias(cls, alias):
+        rule = cls.get(actuator_alias=alias)
+        if rule is None:
+            return
+        rule.delete()
+        return
+
+    @classmethod
+    @db_session
+    def delete_sensor_alias(cls, alias):
+        rule = cls.get(sensor_alias=alias)
+        if rule is None:
+            return
+        rule.delete()
+        return
+
+    @classmethod
+    @db_session
     def select_all(cls):
         return cls.select()[:]
-
-
-class CBInstance(cb_db.Entity):
-    cb_id = Required(str) # all uuids should be converted to strings at first!
-    mappings = Required(Json)
-    rule_ids = Required(StrArray) # rule_ids should be transformed from UUID to strings!
-
-
-class Account(cb_db.Entity):
-    account = Required(str)
-    keyword = Required(str)
-    cb_ids = Optional(StrArray)
