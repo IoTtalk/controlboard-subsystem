@@ -9,6 +9,15 @@ from config import env_config
 
 rule_db = Database('sqlite', env_config.sqlite_rule_db, create_db=True)
 
+class Account(rule_db.Entity):
+    account = Required(str)
+    keyword = Required(str)
+    accessible_instances = Set('CB_Instances')  # Set(CB_Instances)
+
+class CB_Instances(rule_db.Entity):
+    cb_id = Required(str)
+    cb_name = Required(str)
+    owner = Required(Account)
 
 class UserRule(rule_db.Entity):
     rule_type = Required(str)
