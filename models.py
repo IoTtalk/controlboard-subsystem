@@ -14,10 +14,31 @@ class Account(rule_db.Entity):
     keyword = Required(str)
     accessible_instances = Set('CB_Instances')  # Set(CB_Instances)
 
+    @classmethod
+    @db_session
+    def add_account(cls, id, password):
+        pass
+
+    @classmethod
+    @db_session
+    def delete_account(cls, id):
+        pass
+
+    @classmethod
+    @db_session
+    def select_all(cls):
+        return cls.select()[:]
+
+
 class CB_Instances(rule_db.Entity):
     cb_id = Required(str)
     cb_name = Required(str)
     owner = Required(Account)
+    
+    @classmethod
+    @db_session
+    def select_all(cls):
+        return cls.select()[:]
 
 class UserRule(rule_db.Entity):
     rule_type = Required(str)
