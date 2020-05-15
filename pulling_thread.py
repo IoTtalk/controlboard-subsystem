@@ -64,7 +64,7 @@ def on_data():
     Returns:
         None
     """
-    logger.info(f'Creating Pulling Data Thread')
+    logger.info('Creating Pulling Data Thread')
     sensor_list = list()
 
     for actuator_alias in shared_vars.mappings:

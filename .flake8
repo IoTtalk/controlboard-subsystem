@@ -14,5 +14,6 @@ exclude =
     csmapi.py,
     # venv dir
     ctlboard,
-    .venv
+    .venv,
+    cb_venv
 

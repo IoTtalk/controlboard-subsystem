@@ -1,8 +1,7 @@
 __MACOSX
 .vscode/*.*
-.venv
+cb_venv
 .DS_Store
-ctlBoard
 *.py[co]
 *.sqlite
 Pulling.log

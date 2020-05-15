@@ -42,6 +42,7 @@ pushing_thread_dict = dict()
 pushing_flag = True
 pulling_flag = True
 
+
 def create_logger(logger_title, log_file_name):
     logger = logging.getLogger(f'[{logger_title}]')
     logger.setLevel(logging.INFO)

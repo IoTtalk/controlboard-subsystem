@@ -7,6 +7,7 @@ import utils
 
 from CB_DA import CB_DA
 
+
 def bigger(data, threshold, avg):
     """
     Check if data > threshold. Return comparison results as boolean, string.
@@ -134,8 +135,8 @@ class CB_SA():
             None
         '''
         self.rules = []
-        self.mappings = [] # List of (sensor, actuator)
-        self.DA = CB_DA(usr_session) # DA for this SA
+        self.mappings = []  # List of (sensor, actuator)
+        self.DA = CB_DA(usr_session)  # DA for this SA
         self.logger = logger
 
         if sa_id is None:
@@ -147,7 +148,6 @@ class CB_SA():
             self.sa_name = self.sa_id
         else:
             self.sa_name = sa_name
-
 
         return
 
@@ -185,7 +185,7 @@ class CB_SA():
         Args:
             actuator_alias: the alias of the actuator whose rule is to be updated.
             rule: rule content to be applied to the actuator.
-        
+
         Returns:
             Boolean indicating rule update procedure succeed or failed.
         '''
@@ -228,7 +228,6 @@ class CB_SA():
 
         return to_trigger
 
-
     def time_checker(self, actuator_alias, sensor_alias, order):
         """
         Timer-type rule checking handler. Push to IoTTalk server accordingly
@@ -252,7 +251,7 @@ class CB_SA():
 
         if exetime == 0:  # timer set to not set
             if utils.rule_info[actuator_alias]['trigger'] is True:
-                DAN.push(actuator_name, 0) # TODO: use self.DA
+                DAN.push(actuator_name, 0)  # TODO: use self.DA
                 utils.rule_info[actuator_alias]['trigger'] = False
                 self.logger.info(f'disable timer to close {actuator_alias}')
         else:
@@ -261,7 +260,7 @@ class CB_SA():
                     utils.rule_info[actuator_alias]['trigger'] = True
                     DAN.push(actuator_name, 1)
                 utils.rule_info[actuator_alias]['status'] = 'red'
-                logger.info(f'timer trigger {actuator_alias}, current time: {current} rule start time: {time_open} rule end time: {time_close}')
+                self.logger.info(f'timer trigger {actuator_alias}, current time: {current} rule start time: {time_open} rule end time: {time_close}')
             else:
                 if utils.rule_info[actuator_alias]['trigger'] is True:
                     utils.rule_info[actuator_alias]['trigger'] = False
@@ -273,7 +272,6 @@ class CB_SA():
                 self.logger.info(f'timer close {actuator_alias}, current time: {current} rule start time: {time_open} rule end time: {time_close}')
 
         return
-
 
     def sensor_handler(self, actuator_alias, sensor_alias, order):
         """
