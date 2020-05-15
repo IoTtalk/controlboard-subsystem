@@ -1,6 +1,6 @@
 __MACOSX
 .vscode/*.*
-venv
+.venv
 .DS_Store
 ctlBoard
 *.py[co]

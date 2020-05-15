@@ -235,7 +235,7 @@ select {
 }
 
 .sensor-trigger-switch>span {
-  opacity: 0.5;
+  opacity: 1;
   transition: all .3s;
   -webkit-transition: all .3s;
 }
@@ -383,14 +383,17 @@ input:checked+.slider:before {
   color: #ffffff;
 }
 
-.asking-clear {
-  background-color: #545456;
+.asking-confirm {
+  background-color: #105acf;
   margin-right: 40px;
 }
 
-.asking-confirm {
-  background-color: #105acf;
+.asking-clear {
+  background-color: #545456;
 }
+
+
+
 
 @media(max-width:1200px) {
   html {
@@ -550,8 +553,7 @@ input:checked+.slider:before {
   .asking-wrapper>button {
     width: 60%;
   }
-
-  .asking-clear {
+  .asking-confirm {
     margin: 0 0 1rem 0;
   }
 }

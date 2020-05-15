@@ -12,7 +12,8 @@ rule_info: User-defined rules in dictionary to avoid huge querying rules resulti
       "comparison_open": string, required
       "time_open": datetime string, required if Type is "timer"
       "time_close": datetime string, required if Type is "timer"
-      "trigger": whether this actuator is triggered or not
+      "trigger": whether this actuator is triggered or not,
+      "status": the color(green/yellow/red) this rule should present
   },
   ...
 }
@@ -32,7 +33,7 @@ dict with the following format
 '''
 mappings = dict()
 
-# collection of pushing-threads, may be used when individual controling of each pulling-thread is needed
+# collection of pushing-threads, used in individual controling of each pulling-thread is needed
 pushing_thread_dict = dict()
 
 # currently we use this flag to determine if all pushing-threads should terminate

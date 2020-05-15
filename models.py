@@ -22,11 +22,10 @@ class UserRule(rule_db.Entity):
     time_close = Optional(datetime.time)
     exetime = Optional(int)
 
-
     @classmethod
     @db_session
     def update_rules(cls, **kwargs):
-        print ('db', kwargs)
+        print('db', kwargs)
         rule = cls.get(actuator_alias=kwargs['actuator_alias'])
         if rule is None:
             UserRule(rule_type=kwargs['rule_type'], actuator_alias=kwargs['actuator_alias'])
@@ -34,6 +33,24 @@ class UserRule(rule_db.Entity):
 
         rule.set(**kwargs)
 
+        return
+
+    @classmethod
+    @db_session
+    def delete_actuator_alias(cls, alias):
+        rule = cls.get(actuator_alias=alias)
+        if rule is None:
+            return
+        rule.delete()
+        return
+
+    @classmethod
+    @db_session
+    def delete_sensor_alias(cls, alias):
+        rule = cls.get(sensor_alias=alias)
+        if rule is None:
+            return
+        rule.delete()
         return
 
     @classmethod

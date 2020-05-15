@@ -3,6 +3,8 @@
 ignore =
     # H401: docstring should not start with a space
     H401,
+    # E501: line too long
+    E501,
 
 exclude =
     .git,
@@ -12,5 +14,5 @@ exclude =
     csmapi.py,
     # venv dir
     ctlboard,
+    .venv
 
-max-line-length = 92
