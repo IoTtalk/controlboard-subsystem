@@ -131,13 +131,44 @@ class CB_SA():
             sa_id: If specified, use this ID to recover a previous created CB SA from Database.
             sa_name: If specified, use this name as the name of this SA in log. Else use sa_id instead
 
+        Class variables:
+            rules: User-defined rules in dictionary to avoid huge querying rules resulting from checking rule satisfaction.
+            {
+                actuator_alias1:
+                {
+                    "rule_type": "timer" or "sensor", required.
+                    "actuator_alias": string, required.
+                    "sensor_alias": string, required if Type is "sensor".
+                    "threshold_close": integer, required if Type is "sensor".
+                    "threshold_open": integer, required if Type is "sensor".
+                    "comparison_close": string, required.
+                    "comparison_open": string, required.
+                    "time_open": datetime string, required if Type is "timer".
+                    "time_close": datetime string, required if Type is "timer".
+                    "trigger": whether this actuator is triggered or not.
+                    "status": the color(green/yellow/red) this rule should present.
+                }
+            }
+            mappings: A dictionary of the following format.
+            {
+                'actuator_alias1': (sensor_alias1, DF order on IoTTalk GUI)
+            }
+            da: Registered DA for this SA.
+            logger: Logger for this SA to write checking and pushing logs.
+            sa_id: ID for this SA, used in Database querying.
+            sa_name: Name for this SA, used for user-friendly management and logs.
+            df_hist_val: History values of sensors manipulated by this SA.
+            df_hist_len: # recorded history values.
+
         Returns:
             None
         '''
-        self.rules = []
-        self.mappings = []  # List of (sensor, actuator)
+        self.rules = dict()
+        self.mappings = dict()
         self.da = CB_DA(usr_session)  # DA for this SA
         self.logger = logger
+        self.df_hist_val = dict()
+        self.df_hist_len = dict()
 
         if sa_id is None:
             self.sa_id = uuid4()
@@ -175,6 +206,11 @@ class CB_SA():
         Returns:
             None
         '''
+        for rule in self.rules:
+            if rule.rule_type == "timer":
+                CB_SA.time_checker(self.da, self.logger, rule)
+            else:
+                CB_SA.sensor_handler(self.da, self.logger, rule)
 
         return
 
@@ -192,7 +228,8 @@ class CB_SA():
 
         return True
 
-    def sensor_checker(self, comparison, threshold, data, action, actuator_alias, sensor_alias):
+    @staticmethod
+    def sensor_checker(comparison, threshold, data, action, actuator_alias, sensor_alias):
         """
         Sensor-type rule checking worker.
 
@@ -228,7 +265,8 @@ class CB_SA():
 
         return to_trigger
 
-    def time_checker(self, actuator_alias, sensor_alias, order):
+    @staticmethod
+    def time_checker(da, actuator_alias, sensor_alias, order):
         """
         Timer-type rule checking handler. Push to IoTTalk server accordingly
 
@@ -251,7 +289,7 @@ class CB_SA():
 
         if exetime == 0:  # timer set to not set
             if utils.rule_info[actuator_alias]['trigger'] is True:
-                self.da.push(actuator_name, 0)
+                da.push(actuator_name, 0)
                 utils.rule_info[actuator_alias]['trigger'] = False
                 self.logger.info(f'disable timer to close {actuator_alias}')
         else:
@@ -273,7 +311,8 @@ class CB_SA():
 
         return
 
-    def sensor_handler(self, actuator_alias, sensor_alias, order):
+    @staticmethod
+    def sensor_handler(da, actuator_alias, sensor_alias, order):
         """
         Sensor-type rule checking handler. Push to IoTTalk server accordingly.
 
