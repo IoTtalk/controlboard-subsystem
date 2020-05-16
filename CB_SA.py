@@ -136,7 +136,7 @@ class CB_SA():
         '''
         self.rules = []
         self.mappings = []  # List of (sensor, actuator)
-        self.DA = CB_DA(usr_session)  # DA for this SA
+        self.da = CB_DA(usr_session)  # DA for this SA
         self.logger = logger
 
         if sa_id is None:
@@ -251,20 +251,20 @@ class CB_SA():
 
         if exetime == 0:  # timer set to not set
             if utils.rule_info[actuator_alias]['trigger'] is True:
-                DAN.push(actuator_name, 0)  # TODO: use self.DA
+                self.da.push(actuator_name, 0)
                 utils.rule_info[actuator_alias]['trigger'] = False
                 self.logger.info(f'disable timer to close {actuator_alias}')
         else:
             if current > time_open and current < time_close:
                 if utils.rule_info[actuator_alias]['trigger'] is False:
                     utils.rule_info[actuator_alias]['trigger'] = True
-                    DAN.push(actuator_name, 1)
+                    self.da.push(actuator_name, 1)
                 utils.rule_info[actuator_alias]['status'] = 'red'
                 self.logger.info(f'timer trigger {actuator_alias}, current time: {current} rule start time: {time_open} rule end time: {time_close}')
             else:
                 if utils.rule_info[actuator_alias]['trigger'] is True:
                     utils.rule_info[actuator_alias]['trigger'] = False
-                    DAN.push(actuator_name, 0)
+                    self.da.push(actuator_name, 0)
                 if abs((time_open - current).total_seconds()) < 600 and time_open > current:
                     utils.rule_info[actuator_alias]['status'] = 'yellow'
                 else:
@@ -323,13 +323,13 @@ class CB_SA():
 
             if to_trigger == 'CLOSE':
                 if utils.rule_info[actuator_alias]['trigger'] is True:
-                    DAN.push(actuator_name, 0)
+                    self.da.push(actuator_name, 0)
                 self.logger.info(f'sensor {sensor_alias} close {actuator_alias}, comparison: {comparison_close}, threshold: {threshold_close}, data pulled: {data}')
                 utils.rule_info[actuator_alias]['trigger'] = False
 
             elif to_trigger == 'OPEN':
                 if utils.rule_info[actuator_alias]['trigger'] is False:
-                    DAN.push(actuator_name, 1)
+                    self.da.push(actuator_name, 1)
                 self.logger.info(f'sensor {sensor_alias} trigger {actuator_alias}, comparison: {comparison_open}, threshold: {threshold_open}, data pulled: {data}')
                 utils.rule_info[actuator_alias]['trigger'] = True
 
