@@ -1,6 +1,4 @@
 import DAN
-
-
 class CB_DA():
     def __init__(self, usr_session):
         '''
@@ -25,3 +23,27 @@ class CB_DA():
         DAN.push(actuator, value)
 
         return
+    def pull(self, sensor_list, logger):
+        """
+        Pull sensor value from IoTTalk server. 
+
+        Args:
+            sensor_list: pair of (sensor_alias, sensor_name).
+            logger: log of this SA.
+
+        Returns:
+            sensor_data: a dictionary of sensor_alias with data
+            {
+                'sensor_alias': data
+            }
+        """
+        sensor_data = dict()
+        try:
+            for sensor_alias, sensor_name in sensor_list:
+                data = DAN.pull(sensor_name)
+                sensor_data[sensor_alias] = data[0]
+                if data is not None:
+                    logger.info(f"Pull data {data[0]} from {sensor_alias}")
+        except Exception as ep:
+            logger.warn(ep)
+        return sensor_data
