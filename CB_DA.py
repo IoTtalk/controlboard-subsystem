@@ -9,7 +9,8 @@ class CB_DA():
         '''
         pass
 
-    def push(self, actuator, value):
+    @staticmethod
+    def push(actuator, value):
         '''
         Push value passed from SA to actuator on IoTTalk server.
 
@@ -23,7 +24,9 @@ class CB_DA():
         DAN.push(actuator, value)
 
         return
-    def pull(self, sensor_list, logger):
+
+    @staticmethod
+    def pull(sensor_list, logger):
         """
         Pull sensor value from IoTTalk server. 
 
@@ -46,4 +49,5 @@ class CB_DA():
                     logger.info(f"Pull data {data[0]} from {sensor_alias}")
         except Exception as ep:
             logger.warn(ep)
+
         return sensor_data
