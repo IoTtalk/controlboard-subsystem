@@ -1,4 +1,6 @@
 import DAN
+
+
 class CB_DA():
     def __init__(self, usr_session):
         '''
@@ -28,7 +30,7 @@ class CB_DA():
     @staticmethod
     def pull(sensor_list, logger):
         """
-        Pull sensor value from IoTTalk server. 
+        Pull sensor value from IoTTalk server.
 
         Args:
             sensor_list: pair of (sensor_alias, sensor_name).

@@ -6,3 +6,4 @@ cb_venv
 *.sqlite
 Pulling.log
 Pushing.log
+logs
