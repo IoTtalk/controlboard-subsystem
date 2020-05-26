@@ -15,5 +15,5 @@ exclude =
     # venv dir
     ctlboard,
     .venv,
-    cb_venv
+    cbvenv
 

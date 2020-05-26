@@ -78,7 +78,7 @@ def connect_db(config, logger, cb_db):
 def recover_sa(config, logger):
     '''
     Recover SAs stored in Database.
-
+    TODO: Apply AG DA generation after AG subsystem complete.
     Args:
         config: Config object read from user specified .ini file.
         logger: Logger object to write log in.
@@ -92,6 +92,8 @@ def recover_sa(config, logger):
     config.read(config_path)
 
     print(config['IoTtalk']['serverip'])
+
+    return
 
 
 if __name__ == "__main__":
@@ -115,11 +117,7 @@ if __name__ == "__main__":
 
     connect_db(config, system_logger, models.cb_db)
 
-    test = {
-        'rule_type': 'hello',
-        'actuator_alias': 'world'
-    }
-    models.UserRule.update_rules(**test)
+
 
     app.run(
         host=config['env']['host'],
