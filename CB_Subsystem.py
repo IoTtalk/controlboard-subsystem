@@ -12,6 +12,9 @@ from flask import request
 from flask import render_template
 
 
+import models
+
+
 from eventhandler import apis
 
 
@@ -46,6 +49,32 @@ def make_logger(log_name, log_file):
     return logger
 
 
+def connect_db(config, logger, cb_db):
+    '''
+    Create a connection to MySQL Database specified in config
+
+    Args:
+        config: Config object read from user specified .ini file.
+        logger: Logger object to write log in.
+        cb_db: Database object to be bind. 
+
+    Returns:
+        cb_db: MySQL Database Connection
+    '''
+    cb_db.bind(
+        provider='mysql',
+        host=config['db']['host'],
+        user=config['db']['user'],
+        passwd=config['db']['pwd'],
+        db=config['db']['dbname']
+    )
+    cb_db.generate_mapping(create_tables=True)
+
+    logger.info('\tConnecting to Database......done')
+
+    return
+
+
 def recover_sa(config, logger):
     '''
     Recover SAs stored in Database.
@@ -71,7 +100,7 @@ if __name__ == "__main__":
     config = configparser.ConfigParser()
     config.read(config_path)
 
-    log_root = config['local']['logroot']
+    log_root = config['env']['logroot']
     if not os.path.isdir(log_root):
         os.makedirs(log_root)
     
@@ -79,12 +108,18 @@ if __name__ == "__main__":
     system_logger.info('Start Launching ControlBoard Subsystem......')
 
     app = Flask(__name__)
-    system_logger.info('Create Server......done')
+    system_logger.info('\tCreating Server......done')
 
     app.register_blueprint(apis)
-    system_logger.info('Create EventHandler......done')
+    system_logger.info('\tCreating EventHandler......done')
 
+    connect_db(config, system_logger, models.cb_db)
 
+    test = {
+        'rule_type': 'hello',
+        'actuator_alias': 'world'
+    }
+    models.UserRule.update_rules(**test)
 
     app.run(
         host=config['env']['host'],

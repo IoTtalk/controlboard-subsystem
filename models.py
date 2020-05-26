@@ -4,13 +4,10 @@ import datetime
 from pony.orm import Database, Required, Optional, db_session
 
 
-from config import env_config
+cb_db = Database()
 
 
-rule_db = Database('sqlite', env_config.sqlite_rule_db, create_db=True)
-
-
-class UserRule(rule_db.Entity):
+class UserRule(cb_db.Entity):
     rule_type = Required(str)
     actuator_alias = Required(str)
     sensor_alias = Optional(str)

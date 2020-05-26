@@ -1,6 +1,6 @@
 __MACOSX
 .vscode/*.*
-cb_venv
+cbvenv
 .DS_Store
 *.py[co]
 *.sqlite
