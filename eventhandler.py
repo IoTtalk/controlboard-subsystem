@@ -84,4 +84,54 @@ def get_datum(cb_id):
     return 
 
 
-@apis.route('/')
+@apis.route('/subsystem/create_sa', methods=['POST'])
+def create_sa():
+    '''
+    Creates SA with specified actuator/sensor alias.
+
+    Args:
+
+
+    Returns:
+        Status code: 200.
+        proj_name: Project name for user to choose input sensors and output actuators.
+    '''
+    pass
+
+
+@apis.route('/subsystem/delete_sa/<cb_id>', methods=['GET'])
+def delete_sa(cb_id):
+    '''
+    Delete SA with specified cb_id.
+        1. Deregister DA.
+        2. Remove corresponding project on IoTtalk.
+        3. Clear Database records.
+        
+    Args:
+        cb_id: ID of the requester SA.
+
+    Returns:
+        Status code: 200.
+        message: 'SA deleted successfully'.
+    '''
+    pass
+
+
+@apis.route('/subsystem/get_sa/<usr_account>', methods=['GET'])
+def get_sa(usr_account):
+    '''
+    Get accessible cb_ids and cb_names of the specified user. Called when rendering SAs available to the user.
+
+    Args:
+        usr_account: the account of the user.
+
+    Returns:
+        Status code: 200.
+        avail_sa: A list of CB SAs, each element is composed of cb_id and cb_name of the corresponging SA.
+    '''
+    pass
+
+
+@apis.route('/account/create', methods=['POST'])
+def create_account():
+    pass
