@@ -1,61 +1,110 @@
-import logging
-
-
-'''
-rule_info: User-defined rules in dictionary to avoid huge querying rules resulting from pulling-threads
-{
-actuator_alias1: {
-    "rule_type": "timer" or "sensor", required
-    "actuator_alias": string, required
-    "sensor_alias": string, required if Type is "sensor"
-    "threshold_close": integer, required if Type is "sensor"
-    "threshold_open": integer, required if Type is "sensor"
-    "comparison_close": string, required
-    "comparison_open": string, required
-    "time_open": datetime string, required if Type is "timer"
-    "time_close": datetime string, required if Type is "timer"
-    "trigger": whether this actuator is triggered or not,
-    "status": the color(green/yellow/red) this rule should present
-},
-...
+condition_handler = {
+    'bigger': bigger,
+    'smaller': smaller,
+    'biggerandequal': bigger_equal,
+    'smallerandequal': smaller_equal
 }
-'''
-rule_info = dict()
-
-# variables used in part-2: checking actuator succeeded
-df_hist_val = dict()
-df_hist_len = dict()
 
 
-'''
-dict with the following format
-{
-    'actuator_alias1': (sensor_alias, order on IoTTalk GUI)
-}
-'''
-mappings = dict()
+def bigger(data, threshold, avg):
+    """
+    Check if data > threshold. Return comparison results as boolean, string.
 
-# collection of pushing-threads, used in individual controling of each pulling-thread is needed
-pushing_thread_dict = dict()
+    Args:
+        data: data pulled from IoTTalk server.
+        threshold: threshold settings from rule_info in memory.
+        avg: the average of history data stored in memory.
 
-# currently we use this flag to determine if all pushing-threads should terminate
-pushing_flag = True
-pulling_flag = True
+    Returns:
+        triggered: whether the rule is satisfied by arg data
+        color: Card color in UI.
+    """
+    if data > threshold:
+        triggered = True
+        color = 'green'
+    else:
+        triggered = False
+        print('bigger', 0.5 * (threshold - avg) + avg)
+        if data > 0.5 * (threshold - avg) + avg:
+            color = 'yellow'
+        else:
+            color = 'unchanged'
+
+    return triggered, color
 
 
-def create_logger(logger_title, log_file_name):
-    logger = logging.getLogger(f'[{logger_title}]')
-    logger.setLevel(logging.INFO)
+def smaller(data, threshold, avg):
+    """Check if data < threshold. Return comparison results as boolean, string.
 
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
+    Args:
+        data: data pulled from IoTTalk server.
+        threshold: threshold settings from rule_info in memory.
+        avg: the average of history data stored in memory.
 
-    fh = logging.FileHandler(f'{log_file_name}.log')
-    fh.setLevel(logging.INFO)
+    Returns:
+        triggered: whether the rule is satisfied by arg data
+        color: Card color in UI.
+    """
+    if data < threshold:
+        triggered = True
+        color = 'green'
+    else:
+        triggered = False
+        print('smaller', 0.22 * (avg - threshold) + threshold)
+        if data < 0.22 * (avg - threshold) + threshold:
+            print(data, 'yellow')
+            color = 'yellow'
+        else:
+            color = 'unchanged'
+    return triggered, color
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
-    fh.setFormatter(formatter)
 
-    logger.addHandler(ch)
-    logger.addHandler(fh)
+def bigger_equal(data, threshold, avg):
+    """Check if data >= threshold. Return comparison results as boolean, string.
+
+    Args:
+        data: data pulled from IoTTalk server.
+        threshold: threshold settings from rule_info in memory.
+        avg: the average of history data stored in memory.
+
+    Returns:
+        triggered: whether the rule is satisfied by arg data
+        color: Card color in UI.
+    """
+    if data >= threshold:
+        triggered = True
+        color = 'green'
+    else:
+        print('biggerequal', 0.78 * (threshold - avg) + avg)
+        triggered = False
+        if data > 0.78 * (threshold - avg) + avg:
+            color = 'yellow'
+        else:
+            color = 'unchanged'
+
+    return triggered, color
+
+
+def smaller_equal(data, threshold, avg):
+    """Check if data <= threshold. Return comparison results as boolean, string.
+
+    Args:
+        data: data pulled from IoTTalk server.
+        threshold: threshold settings from rule_info in memory.
+        avg: the average of history data stored in memory.
+
+    Returns:
+        triggered: whether the rule is satisfied by arg data
+        color: Card color in UI.
+    """
+    if data <= threshold:
+        triggered = True
+        color = 'green'
+    else:
+        triggered = False
+        print('smallerequal', 0.22 * (avg - threshold) + threshold)
+        if data < 0.22 * (avg - threshold) + threshold:
+            color = 'yellow'
+        else:
+            color = 'unchanged'
+    return triggered, color
