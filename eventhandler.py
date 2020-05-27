@@ -7,7 +7,7 @@ from flask import request
 apis = Blueprint('api', __name__)
 
 
-@apis.route('/<cb_id>/')
+@apis.route('/sa/<cb_id>/')
 def render_SA(cb_id):
     '''
     Render SA template of the SA with specified cb_id.
@@ -22,7 +22,7 @@ def render_SA(cb_id):
     return 'Hello World'
 
 
-@apis.route('/<cb_id>/new_rules', methods=['POST'])
+@apis.route('/sa/<cb_id>/new_rules', methods=['POST'])
 def set_rules(cb_id):
     '''
     Set the rules contained in the request sent from the specified SA.
@@ -36,7 +36,7 @@ def set_rules(cb_id):
     pass
 
 
-@apis.route('/<cb_id>/stop', methods=['GET'])
+@apis.route('/sa/<cb_id>/stop', methods=['GET'])
 def stop_SA(cb_id):
     '''
     Stop all actuator execution and pends the SA with specified cb_id.
@@ -51,7 +51,7 @@ def stop_SA(cb_id):
     pass
 
 
-@apis.route('/<cb_id>/rules', methods=['GET'])
+@apis.route('/sa/<cb_id>/rules', methods=['GET'])
 def get_rules(cb_id):
     '''
     Get the rules contained in the specified SA.
@@ -68,7 +68,7 @@ def get_rules(cb_id):
     return jsonify()
 
 
-@apis.route('/<cb_id>/current_data', methods=['GET'])
+@apis.route('/sa/<cb_id>/current_data', methods=['GET'])
 def get_datum(cb_id):
     '''
     Get the datum of sensors manipulated by the specified SA.
@@ -84,3 +84,4 @@ def get_datum(cb_id):
     return 
 
 
+@apis.route('/')
