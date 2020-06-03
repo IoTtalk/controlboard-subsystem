@@ -1,5 +1,5 @@
 import datetime
-import uuid.UUID
+from uuid import UUID
 
 
 from pony.orm import Database
@@ -69,7 +69,7 @@ class CB_SA(cb_db.Entity):
 
 
 class CB_Account(cb_db.Entity):
-    account = Required(Str) # Account of this user.
+    account = Required(str) # Account of this user.
     privilige = Required(int) # User level of this user.
-    avail_sa = Set(CB_SA, reverse=cb_id) # SAs this user can see.
+    avail_sa = Set(CB_SA, reverse='cb_id') # SAs this user can see.
 
