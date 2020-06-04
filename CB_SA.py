@@ -104,7 +104,7 @@ class CB_SA():
 
     def update_rules(self, actuator_alias, rule):
         '''
-        Update open/close rule for designated  actuator
+        Update open/close rule for designated actuator
 
         Args:
             actuator_alias: the alias of the actuator whose rule is to be updated.

@@ -19,7 +19,9 @@ def render_SA(cb_id):
         Rendered HTML template of the SA.
         Status code: 200.
     '''
-    return 'Hello World'
+    
+    # js need to add get_rules(cb_id) first
+    return render_template("index.html"), 200
 
 
 @apis.route('/sa/<cb_id>/new_rules', methods=['POST'])
@@ -33,7 +35,44 @@ def set_rules(cb_id):
     Returns:
         Status code: 200.
     '''
-    pass
+    #iterate through the list of SA and find the one with cb_id == sa_id
+    invalid_list = list()
+    for rule_settings in request.json:
+        print(rule_settings)
+        if rule_settings["rule_type"] == "sensor":
+            if rule_settings['comparison_open'] != 'notset' and float(rule_settings["threshold_open"]) < 0.0:
+                invalid_list.append(rule_settings['sensor_alias'])
+            elif rule_settings['comparison_close'] != 'notset' and float(rule_settings["threshold_close"]) < 0.0:
+                invalid_list.append(rule_settings['sensor_alias'])
+
+    if invalid_list:
+        invalid_sensors = str()
+        for sensor_alias in invalid_list:
+            invalid_sensors += (sensor_alias + ' ')
+        print(invalid_sensors)
+        return jsonify({
+            'state': 'error',
+            'msg': f'Abnormal threshold setting of {invalid_sensors}detected, aborting all'
+        }), 400
+
+
+    for rule_settings in request.json:
+        print("dealing rule: ", rule_settings)
+        actuator_alias = rule_settings['actuator_alias']
+        if rule_settings['rule_type'] == 'timer':
+            time_open = datetime.datetime.strptime(rule_settings['time_open'], '%H:%M:%S').time()
+            time_close = datetime.datetime.strptime(rule_settings['time_close'], '%H:%M:%S').time()
+
+            rule_settings['time_open'] = time_open
+            rule_settings['time_close'] = time_close
+
+        models.UserRule.update_rules(**rule_settings, cb_id)
+        SA_dict[cb_id].update_rules(actuator_alias, rule_settings)
+
+    return jsonify({
+        'state': 'ok',
+        'msg': 'Setup Threshold Done'
+    }), 200
 
 
 @apis.route('/sa/<cb_id>/stop', methods=['GET'])
@@ -48,7 +87,13 @@ def stop_SA(cb_id):
         Status code: 200.
         message: 'Stop Done'.
     '''
-    pass
+
+    SA_dict[cb_id].terminate()
+
+    return jsonify({
+        'state': 'ok',
+        'msg': 'Stop execution succeeded'
+    }), 200
 
 
 @apis.route('/sa/<cb_id>/rules', methods=['GET'])
@@ -65,7 +110,40 @@ def get_rules(cb_id):
                    Each element of this list is a rule in dictionary format and it's current status and mode.
 
     '''
-    return jsonify()
+    #iterate through the list of SA and find the one with cb_id == sa_id, replace CB_SA with that one
+    res_list = list()
+    for actuator_alias, mappings in SA_dict[cb_id].mappings.items():
+        sensor_alias = mappings[0]
+        if actuator_alias in SA_dict[cb_id].rules:
+            rule = SA_dict[cb_id].rules[actuator_alias]
+            if rule['rule_type'] == 'sensor':
+                res_list.append({
+                    'sensor_alias': rule['sensor_alias'],
+                    'actuator_alias': rule['actuator_alias'],
+                    'comparison_open': rule['comparison_open'],
+                    'threshold_open': rule['threshold_open'] if rule['comparison_open'] != 'notset' else None,
+                    'comparison_close': rule['comparison_close'],
+                    'threshold_close': rule['threshold_close'] if rule['comparison_close'] != 'notset' else None,
+                    'rule_type': rule['rule_type']
+                })
+            else:
+                res_list.append({
+                    'sensor_alias': sensor_alias,
+                    'actuator_alias': rule['actuator_alias'],
+                    'time_open': rule['time_open'].strftime('%H:%M:%S'),
+                    'time_close': rule['time_close'].strftime('%H:%M:%S'),
+                    'exetime': rule['exetime'],
+                    'rule_type': rule['rule_type']
+                })
+        else:
+            res_list.append({
+                'sensor_alias': sensor_alias,
+                'actuator_alias': actuator_alias,
+                'rule_type': None
+            })
+        print(actuator_alias, found)
+
+    return jsonify(res_list), 200
 
 
 @apis.route('/sa/<cb_id>/current_data', methods=['GET'])
@@ -80,8 +158,35 @@ def get_datum(cb_id):
         Status code: 200.
         record_list: A json object containing the lastest data of each sensor.
     '''
+    #iterate through the list of SA and find the one with cb_id == sa_id
     record_list = list()
-    return 
+    for actuator_alias, rule_info in SA_dict[cb_id].mappings.items():
+        rule_type = None
+        sensor_alias = rule_info[0]
+        if sensor_alias in SA_dict[cb_id].df_hist_val:
+            val = SA_dict[cb_id].df_hist_val[sensor_alias][-1]
+        else:
+            val = None
+
+        if actuator_alias in SA_dict[cb_id].rules:
+            triggered = SA_dict[cb_id].rules[actuator_alias]['trigger']
+            rule_type = SA_dict[cb_id].rules[actuator_alias]['rule_type']
+            status = SA_dict[cb_id].rules[actuator_alias]['status']
+        else:
+            triggered = False
+            status = 'green'
+
+        time = datetime.datetime.now().strftime('%H:%M')
+
+        res_dict[sensor_alias] = {
+            "value": val,
+            "triggered": triggered,
+            'rule_type': rule_type,
+            'time': time,
+            'status': status
+        }
+
+    return jsonify(record_list), 200
 
 
 @apis.route('/subsystem/create_sa', methods=['POST'])
@@ -96,6 +201,10 @@ def create_sa():
         Status code: 200.
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
+    # for i, alias_info in enumerate(request.json):
+    #    new_sa = CB_SA(usr_session, owner, logger, sa_id, sa_name)
+    #    SA_dict[cb_id] = new_sa     # add sa to SA_dict 
+    #    SA_dict[cb_id].mappings['actuator_alias] = (alias_info['sensor_alias'], i)
     pass
 
 
@@ -114,6 +223,12 @@ def delete_sa(cb_id):
         Status code: 200.
         message: 'SA deleted successfully'.
     '''
+    #iterate through the list of SA and find the one with cb_id == sa_id, delete it with help of autogen(?)
+    SA_dict[cb_id].deregister()  # add deregister function
+    
+    models.UserRule.delete_sa(cb_id) #need to add this function
+    models.CB_SA.delete(cb_id)  #need to add this function
+    models.CB_Account.delete_avai_sa(cb_id) #need to add this function
     pass
 
 
@@ -129,11 +244,20 @@ def get_sa(usr_account):
         Status code: 200.
         avail_sa: A list of CB SAs, each element is composed of cb_id and cb_name of the corresponging SA.
     '''
+    usr_sa = list()
+    usr_sa = models.CB_Account.list_sa(usr_account) #need to add this function, return list (cb_id, cb_name)
+    return usr_sa, 200
     pass
 
 
 @apis.route('/account/create', methods=['POST'])
 def create_account():
+<<<<<<< HEAD
     pass
 
 
+=======
+    for account_info in request.json:
+        models.CB_Account.signup(account_info) #need to add this function
+    pass
+>>>>>>> 3823aecd546ddc122a0e1512281505fb3df336b1
