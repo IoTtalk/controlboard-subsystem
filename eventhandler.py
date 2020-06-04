@@ -4,6 +4,10 @@ from flask import render_template
 from flask import request
 
 
+from utils import make_logger
+
+
+api_logger = make_logger('API', 'API')
 apis = Blueprint('api', __name__)
 
 
@@ -249,12 +253,6 @@ def get_sa(usr_account):
 
 @apis.route('/account/create', methods=['POST'])
 def create_account():
-<<<<<<< HEAD
-    pass
-
-
-=======
     for account_info in request.json:
         models.CB_Account.signup(account_info) #need to add this function
     pass
->>>>>>> 3823aecd546ddc122a0e1512281505fb3df336b1

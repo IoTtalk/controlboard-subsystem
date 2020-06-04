@@ -65,11 +65,10 @@ class UserRule(cb_db.Entity):
 class CB_SA(cb_db.Entity):
     cb_id = Required(UUID) # uuid of this SA.
     cb_name = Required(str) # User-defined cb_name. Can be repeated. 
-    avail_account = Set('CB_Account', reverse='account') # Accounts that can access this SA.
+    avail_account = Set('CB_Account', reverse='avail_sa') # Accounts that can access this SA.
 
 
 class CB_Account(cb_db.Entity):
     account = Required(str) # Account of this user.
     privilige = Required(int) # User level of this user.
-    avail_sa = Set(CB_SA, reverse='cb_id') # SAs this user can see.
-
+    avail_sa = Set(CB_SA, reverse='avail_account') # SAs this user can see.
