@@ -66,7 +66,6 @@ def set_rules(cb_id):
             rule_settings['time_open'] = time_open
             rule_settings['time_close'] = time_close
 
-        models.UserRule.update_rules(**rule_settings, cb_id)
         SA_dict[cb_id].update_rules(actuator_alias, rule_settings)
 
     return jsonify({
@@ -225,9 +224,7 @@ def delete_sa(cb_id):
     '''
     #iterate through the list of SA and find the one with cb_id == sa_id, delete it with help of autogen(?)
     SA_dict[cb_id].deregister()  # add deregister function
-    
-    models.UserRule.delete_sa(cb_id) #need to add this function
-    models.CB_SA.delete(cb_id)  #need to add this function
+    models.CB_SA.delete_sa(cb_id)  #need to add this function
     models.CB_Account.delete_avai_sa(cb_id) #need to add this function
     pass
 
