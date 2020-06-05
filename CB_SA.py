@@ -1,29 +1,25 @@
-
-
-from uuid import uuid4
+import time
+import uuid
 from datetime import datetime, date, timedelta
 
-from utils import condition_handler
 
-from CB_DA import CB_DA
-
+import DAN
 
 class CB_SA():
-    def __init__(self, usr_session, owner, logger, sa_id=None, sa_name=None):
+    def __init__(self, owner, sa_id=None, sa_name=None):
         '''
         Initialization of a CB SA
 
         Args:
-            usr_session: current logined user's CCM session
             owner: Account of the user who owns this CB SA.
             sa_id: If specified, use this ID to recover a previous created CB SA from Database.
             sa_name: If specified, use this name as the name of this SA in log. Else use sa_id instead
 
         Class variables:
             rules: User-defined rules in dictionary to avoid huge querying rules resulting from checking rule satisfaction.
-            {
+            {{
                 actuator_alias1:
-                {
+                {{
                     "rule_type": "timer" or "sensor", required.
                     "actuator_alias": string, required.
                     "sensor_alias": string, required if Type is "sensor".
@@ -35,14 +31,13 @@ class CB_SA():
                     "time_close": datetime string, required if Type is "timer".
                     "trigger": whether this actuator is triggered or not.
                     "status": the color(green/yellow/red) this rule should present.
-                }
-            }
+                }}
+            }}
             mappings: A dictionary of the following format.
-            {
+            {{
                 'actuator_alias1': (sensor_alias1, DF order on IoTTalk GUI)
-            }
+            }}
             da: Registered DA for this SA.
-            logger: Logger for this SA to write checking and pushing logs.
             sa_id: ID for this SA, used in Database querying.
             sa_name: Name for this SA, used for user-friendly management and logs.
             df_hist_val: History values of sensors manipulated by this SA.
@@ -51,15 +46,40 @@ class CB_SA():
         Returns:
             None
         '''
+        import uuid
+        from datetime import datetime, date, timedelta
+
+        import DAN
+
+        self.DAN = DAN
+
+        condition_handler = {{
+            'bigger': self.bigger,
+            'smaller': self.smaller,
+            'biggerandequal': self.bigger_equal,
+            'smallerandequal': self.smaller_equal
+        }}
+
+        ctlboard_profile = {{
+            'd_name': 'DMTEST',
+            'dm_name': 'ControlBoard',
+            'u_name': 'yb',
+            'is_sim': False,
+            'df_list': ['Threshold-O1', 'Trigger-I1', 'Threshold-O2', 'Trigger-I2',
+                        'Threshold-O3', 'Trigger-I3', 'Threshold-O4', 'Trigger-I4',
+                        'Threshold-O5', 'Trigger-I5']
+        }}
+        
+        DAN.profile = ctlboard_profile
+        DAN.device_registration_with_retry('http://farm.iottalk.tw:9999', 'ALIASTESTING')
+
         self.rules = dict()
         self.mappings = dict()
-        self.da = CB_DA(usr_session)  # DA for this SA
-        self.logger = logger
         self.df_hist_val = dict()
         self.df_hist_len = dict()
 
         if sa_id is None:
-            self.sa_id = uuid4()
+            self.sa_id = uuid.uuid4()
         else:
             self.sa_id = sa_id
 
@@ -93,35 +113,28 @@ class CB_SA():
 
         Returns:
             None
-        '''
-        for rule in self.rules:
-            if rule.rule_type == "timer":
-                CB_SA.time_checker(self.da, self.logger, rule)
-            else:
-                CB_SA.sensor_handler(self.da, self.logger, rule)
+        # '''
+        # for rule in self.rules:
+        #     if rule.rule_type == "timer":
+        #         CB_SA.time_checker(self.da, self.logger, rule)
+        #     else:
+        #         CB_SA.sensor_handler(self.da, self.logger, rule)
+        data = self.DAN.pull('Threshold-O1')
+
+        print('Pulled from AG:', data)
+
+        self.DAN.push('Trigger-I1', 1)
 
         return
 
-    def update_rules(self, actuator_alias, rule):
-        '''
-        Update open/close rule for designated actuator
 
-        Args:
-            actuator_alias: the alias of the actuator whose rule is to be updated.
-            rule: rule content to be applied to the actuator.
-
-        Returns:
-            Boolean indicating rule update procedure succeed or failed.
-        '''
-
-        return True
-
-    @staticmethod
-    def sensor_checker(comparison, threshold, data, action, actuator_alias, sensor_alias):
+    @classmethod
+    def sensor_checker(cls, comparison, threshold, data, action, actuator_alias, sensor_alias):
         """
         Sensor-type rule checking worker.
 
         Args:
+            cls: The SA that calls this method
             comparison: the comparison type. Represented as a String like 'bigger', 'smaller'...
             threshold: threshold settings from rule_info in memory.
             data: data pulled from IoTTalk server.
@@ -136,7 +149,7 @@ class CB_SA():
                 'STAY': Do nothing
 
         """
-        avg = sum(list(utils.df_hist_val[sensor_alias])) / len(utils.df_hist_val[sensor_alias])
+        avg = sum(list(cls.df_hist_val[sensor_alias])) / len(cls.df_hist_val[sensor_alias])
         print('current avg:', avg)
         triggered, color = condition_handler[comparison](float(data), float(threshold), avg)
         to_trigger = 'STAY'
@@ -179,14 +192,15 @@ class CB_SA():
             if utils.rule_info[actuator_alias]['trigger'] is True:
                 da.push(actuator_name, 0)
                 utils.rule_info[actuator_alias]['trigger'] = False
-                self.logger.info(f'disable timer to close {actuator_alias}')
+                # self.logger.info(f'disable timer to close {{actuator_alias}}')
         else:
             if current > time_open and current < time_close:
                 if utils.rule_info[actuator_alias]['trigger'] is False:
                     utils.rule_info[actuator_alias]['trigger'] = True
                     self.da.push(actuator_name, 1)
                 utils.rule_info[actuator_alias]['status'] = 'red'
-                self.logger.info(f'timer trigger {actuator_alias}, current time: {current} rule start time: {time_open} rule end time: {time_close}')
+                # self.logger.info(f'timer trigger {{actuator_alias}}, current time: {{current}} rule start time: {{time_open}} 
+                # rule end time: {{time_close}}')
             else:
                 if utils.rule_info[actuator_alias]['trigger'] is True:
                     utils.rule_info[actuator_alias]['trigger'] = False
@@ -195,7 +209,8 @@ class CB_SA():
                     utils.rule_info[actuator_alias]['status'] = 'yellow'
                 else:
                     utils.rule_info[actuator_alias]['status'] = 'green'
-                self.logger.info(f'timer close {actuator_alias}, current time: {current} rule start time: {time_open} rule end time: {time_close}')
+                # self.logger.info(f'timer close {{actuator_alias}}, current time: {{current}} rule start time: {{time_open}} 
+                # rule end time: {{time_close}}')
 
         return
 
@@ -232,7 +247,7 @@ class CB_SA():
             if 'notset' in comparison_open and 'notset' in comparison_close:
                 utils.rule_info[actuator_alias]['trigger'] = False
                 utils.rule_info[actuator_alias]['status'] = 'red'
-                self.logger.info(f'Change all comparison to notset, close actuator {actuator_alias} and corresponding pushing thread')
+                # self.logger.info(f'Change all comparison to notset, close actuator {{actuator_alias}} and corresponding pushing thread')
                 utils.pushing_thread_dict[actuator_alias][1] = False
                 utils.pushing_thread_dict.pop(actuator_alias, None)
                 to_trigger = 'NOTSET'
@@ -251,13 +266,14 @@ class CB_SA():
             if to_trigger == 'CLOSE':
                 if utils.rule_info[actuator_alias]['trigger'] is True:
                     self.da.push(actuator_name, 0)
-                self.logger.info(f'sensor {sensor_alias} close {actuator_alias}, comparison: {comparison_close}, threshold: {threshold_close}, data pulled: {data}')
+                # self.logger.info(f'sensor {{sensor_alias}} close {{actuator_alias}}, comparison: {{comparison_close}}, 
+                # threshold: {{threshold_close}}, data pulled: {{data}}')
                 utils.rule_info[actuator_alias]['trigger'] = False
 
             elif to_trigger == 'OPEN':
                 if utils.rule_info[actuator_alias]['trigger'] is False:
                     self.da.push(actuator_name, 1)
-                self.logger.info(f'sensor {sensor_alias} trigger {actuator_alias}, comparison: {comparison_open}, threshold: {threshold_open}, data pulled: {data}')
+                # self.logger.info(f'sensor {{sensor_alias}} trigger {{actuator_alias}}, comparison: {{comparison_open}}, threshold: {{threshold_open}}, data pulled: {{data}}')
                 utils.rule_info[actuator_alias]['trigger'] = True
 
             print(utils.rule_info[actuator_alias]['trigger'], actuator_alias)
@@ -265,3 +281,113 @@ class CB_SA():
             self.logger.error(ep)
 
         return
+    
+    @staticmethod
+    def bigger(data, threshold, avg):
+        """
+        Check if data > threshold. Return comparison results as boolean, string.
+
+        Args:
+            data: data pulled from IoTTalk server.
+            threshold: threshold settings from rule_info in memory.
+            avg: the average of history data stored in memory.
+
+        Returns:
+            triggered: whether the rule is satisfied by arg data
+            color: Card color in UI.
+        """
+        if data > threshold:
+            triggered = True
+            color = 'green'
+        else:
+            triggered = False
+            print('bigger', 0.5 * (threshold - avg) + avg)
+            if data > 0.5 * (threshold - avg) + avg:
+                color = 'yellow'
+            else:
+                color = 'unchanged'
+
+        return triggered, color
+
+    @staticmethod
+    def smaller(data, threshold, avg):
+        """Check if data < threshold. Return comparison results as boolean, string.
+
+        Args:
+            data: data pulled from IoTTalk server.
+            threshold: threshold settings from rule_info in memory.
+            avg: the average of history data stored in memory.
+
+        Returns:
+            triggered: whether the rule is satisfied by arg data
+            color: Card color in UI.
+        """
+        if data < threshold:
+            triggered = True
+            color = 'green'
+        else:
+            triggered = False
+            print('smaller', 0.22 * (avg - threshold) + threshold)
+            if data < 0.22 * (avg - threshold) + threshold:
+                print(data, 'yellow')
+                color = 'yellow'
+            else:
+                color = 'unchanged'
+        return triggered, color
+
+    @staticmethod
+    def bigger_equal(data, threshold, avg):
+        """Check if data >= threshold. Return comparison results as boolean, string.
+
+        Args:
+            data: data pulled from IoTTalk server.
+            threshold: threshold settings from rule_info in memory.
+            avg: the average of history data stored in memory.
+
+        Returns:
+            triggered: whether the rule is satisfied by arg data
+            color: Card color in UI.
+        """
+        if data >= threshold:
+            triggered = True
+            color = 'green'
+        else:
+            print('biggerequal', 0.78 * (threshold - avg) + avg)
+            triggered = False
+            if data > 0.78 * (threshold - avg) + avg:
+                color = 'yellow'
+            else:
+                color = 'unchanged'
+
+        return triggered, color
+
+    @staticmethod
+    def smaller_equal(data, threshold, avg):
+        """Check if data <= threshold. Return comparison results as boolean, string.
+
+        Args:
+            data: data pulled from IoTTalk server.
+            threshold: threshold settings from rule_info in memory.
+            avg: the average of history data stored in memory.
+
+        Returns:
+            triggered: whether the rule is satisfied by arg data
+            color: Card color in UI.
+        """
+        if data <= threshold:
+            triggered = True
+            color = 'green'
+        else:
+            triggered = False
+            print('smallerequal', 0.22 * (avg - threshold) + threshold)
+            if data < 0.22 * (avg - threshold) + threshold:
+                color = 'yellow'
+            else:
+                color = 'unchanged'
+        return triggered, color
+
+
+sa = CB_SA('{account}')
+while True:
+    sa.check_rules()
+    time.sleep(5)

@@ -1,3 +1,6 @@
+import requests
+
+
 from flask import Blueprint
 from flask import jsonify
 from flask import render_template
@@ -208,7 +211,17 @@ def create_sa():
     #    new_sa = CB_SA(usr_session, owner, logger, sa_id, sa_name)
     #    SA_dict[cb_id] = new_sa     # add sa to SA_dict 
     #    SA_dict[cb_id].mappings['actuator_alias] = (alias_info['sensor_alias'], i)
-    pass
+    new_sa = open('./CB_SA.py', 'r').read().format(account='test')
+    api_logger.info('Create New SA')
+
+    data={
+        'version': 1,
+        'code': new_sa
+    }
+
+    requests.post('http://iottalk2.haohao.in:8080/autogen/create_device', data=data)
+
+    return new_sa, 200
 
 
 @apis.route('/subsystem/delete_sa/<cb_id>', methods=['GET'])

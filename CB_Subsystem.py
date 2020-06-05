@@ -51,7 +51,7 @@ if __name__ == "__main__":
     app.register_blueprint(apis)
     system_logger.info('\tCreating EventHandler\t......done')
 
-    connect_db(system_logger, models.cb_db)
+    # connect_db(system_logger, models.cb_db)
 
 
 
