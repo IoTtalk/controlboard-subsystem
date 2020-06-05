@@ -1,7 +1,7 @@
 import time
 import uuid
 from datetime import datetime, date, timedelta
-
+test = 9487
 
 import DAN
 
@@ -52,7 +52,7 @@ class CB_SA():
         import DAN
 
         self.DAN = DAN
-
+        print(test)
         condition_handler = {{
             'bigger': self.bigger,
             'smaller': self.smaller,
