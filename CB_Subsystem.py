@@ -1,14 +1,4 @@
-import datetime
-import logging
-import os
-import sys
-import time
-
-
 from flask import Flask
-from flask import jsonify
-from flask import request
-from flask import render_template
 
 
 import models
@@ -18,6 +8,7 @@ from eventhandler import apis
 from utils import config
 from utils import connect_db
 from utils import make_logger
+from utils import test_db
 
 
 def recover_sa(config, logger):
@@ -31,17 +22,11 @@ def recover_sa(config, logger):
     Returns:
         None
     '''
-    config_path = str(sys.argv[1])
-
-    config = configparser.ConfigParser()
-    config.read(config_path)
-
-    print(config['IoTtalk']['serverip'])
 
     return
 
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     system_logger = make_logger('System', 'system')
     system_logger.info('Start Launching ControlBoard Subsystem......')
 
@@ -52,8 +37,7 @@ if __name__ == "__main__":
     system_logger.info('\tCreating EventHandler\t......done')
 
     connect_db(system_logger, models.cb_db)
-
-
+    test_db(system_logger, models.cb_db)
 
     app.run(
         host=config['env']['host'],

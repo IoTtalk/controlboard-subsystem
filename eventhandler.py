@@ -26,7 +26,7 @@ def render_SA(cb_id):
         Rendered HTML template of the SA.
         Status code: 200.
     '''
-    
+
     # js need to add get_rules(cb_id) first
     return render_template("index.html"), 200
 
@@ -38,11 +38,11 @@ def set_rules(cb_id):
 
     Args:
         cb_id: ID of the requester SA.
-        
+
     Returns:
         Status code: 200.
     '''
-    #iterate through the list of SA and find the one with cb_id == sa_id
+    # Iterate through the list of SA and find the one with cb_id == sa_id
     invalid_list = list()
     for rule_settings in request.json:
         print(rule_settings)
@@ -61,7 +61,6 @@ def set_rules(cb_id):
             'state': 'error',
             'msg': f'Abnormal threshold setting of {invalid_sensors}detected, aborting all'
         }), 400
-
 
     for rule_settings in request.json:
         print("dealing rule: ", rule_settings)
