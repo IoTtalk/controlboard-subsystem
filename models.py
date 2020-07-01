@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pony.orm import Database
 from pony.orm import Required
+from pony.orm import PrimaryKey
 from pony.orm import Optional
 from pony.orm import Set
 from pony.orm import db_session
@@ -23,7 +24,8 @@ class UserRule(cb_db.Entity):
     comparison_close = Optional(str) # Comparison method to decide close actuator or not.
     time_open = Optional(datetime.time) # Trigger actuator every when current time exceeds time_open.
     time_close = Optional(datetime.time) # Close actuator every when current time exceeds time_open.
-    exetime = Optional(int) # 
+    exetime = Optional(int) # execution time for periodically execution
+    sa = Required("CB_SA") # which SA it belongs to
 
     @classmethod
     @db_session
@@ -63,12 +65,13 @@ class UserRule(cb_db.Entity):
 
 
 class CB_SA(cb_db.Entity):
-    cb_id = Required(UUID) # uuid of this SA.
+    cb_id = PrimaryKey(int, auto=True) # id of this SA.
     cb_name = Required(str) # User-defined cb_name. Can be repeated. 
-    avail_account = Set('CB_Account', reverse='avail_sa') # Accounts that can access this SA.
+    rule_set = Set(UserRule)
+    account_set = Set("CB_Account") # accounts that can access this SA.
 
 
 class CB_Account(cb_db.Entity):
     account = Required(str) # Account of this user.
     privilige = Required(int) # User level of this user.
-    avail_sa = Set(CB_SA, reverse='avail_account') # SAs this user can see.
+    sa_set = Set(CB_SA) # SAs this user can see.

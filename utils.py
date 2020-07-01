@@ -4,6 +4,9 @@ import os
 import sys
 
 
+from pony import orm
+
+
 config_path = str(sys.argv[1])
 
 config = configparser.ConfigParser()
@@ -57,15 +60,20 @@ def connect_db(logger, cb_db):
     Returns:
         cb_db: MySQL Database Connection
     '''
-    cb_db.bind(
-        provider='mysql',
-        host=config['db']['host'],
-        user=config['db']['user'],
-        passwd=config['db']['pwd'],
-        db=config['db']['dbname']
-    )
-    cb_db.generate_mapping(create_tables=True)
+    try:
+        cb_db.bind(
+            provider='mysql',
+            host=config['db']['host'],
+            user=config['db']['user'],
+            passwd=config['db']['pwd'],
+            db=config['db']['dbname']
+        )
+        cb_db.generate_mapping(create_tables=True)
 
-    logger.info('\tConnecting to Database\t......done')
+        logger.info('\tConnecting to Database\t......done')
+        
+    except orm.dbapiprovider.InternalError:
+        logger.info('\t\tInternal Error Encountered, try remove tables and reconnect...')
+        cb_db.disconnect()
 
     return

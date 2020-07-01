@@ -46,12 +46,12 @@ if __name__ == "__main__":
     system_logger.info('Start Launching ControlBoard Subsystem......')
 
     app = Flask(__name__)
-    system_logger.info('\tCreating Server\t\t\t......done')
+    system_logger.info('\tCreating Server\t\t......done')
 
     app.register_blueprint(apis)
     system_logger.info('\tCreating EventHandler\t......done')
 
-    # connect_db(system_logger, models.cb_db)
+    connect_db(system_logger, models.cb_db)
 
 
 
