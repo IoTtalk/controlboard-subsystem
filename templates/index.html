@@ -4,6 +4,7 @@
   <head>
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.css">
     <link rel="stylesheet" type="text/css" href="/static/control_board.css">
+    <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css">
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"></script>
     <script src="https://unpkg.com/semantic-ui-vue/dist/umd/semantic-ui-vue.min.js"></script>
@@ -37,7 +38,10 @@
             </li>
           </ul>
         </nav>
+
       </header>
+
+
       <!-- sensorItem-->
       <div class="sensor-container">
         <div class="sensor-wrapper" v-for="(rule, index) in rules">
@@ -55,16 +59,33 @@
               <!-- <div
                 v-bind:class="['sensor-trigger-status', sensordata[rule.sensor_alias].triggered === true?'green':'red',(rule.comparison_open === 'notset' && rule.comparison_close === 'notset') || rule.exetime === 0?'grey':'']">
               </div> -->
+              <sui-button-group class="button-group">
+                <sui-button toggle
+                content="On"
+                :active="rule.mode === 'on'"
+                @click="click('on', 0, index)"
+                class="button-item"></sui-button>
+                <sui-button toggle
+                content="Off"
+                :active="rule.mode === 'off'"
+                @click="click('off', 1, index)"
+                class="button-item"></sui-button>
+                <sui-button toggle
+                content="Auto"
+                :active="rule.mode === 'auto'"
+                @click="click('auto', 2, index)"
+                class="button-item"></sui-button>
+              </sui-button-group>
               <span class="sensor-trigger-item"><%rule.actuator_alias%></span>
               <div class="sensor-trigger-switch">
-                <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='sensor'}">sensor</span> 
+                <!-- <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='sensor'}">sensor</span> -->
                 <label class="switch">
                   <input type="checkbox" v-on:click="sensorTypeHandler(index)"
-                    v-bind:checked="rule.rule_type==='timer'"> 
+                    v-bind:checked="rule.rule_type==='timer'">
                   <span class=" slider round"></span>
                 </label>
-                <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='timer'}">timer</span>
-                <!-- span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='timer'}"><% rule.rule_type %></span-->
+                <!-- <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='timer'}">timer</span> -->
+                <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='timer'}"><% rule.rule_type %></span>
               </div>
             </div>
             <div class="sensor-setting-condition-container">
@@ -145,8 +166,28 @@
       </div>
       <div class="asking-wrapper" v-if="rules.length!==0 && Object.keys(sensordata).length!==0">
         <button class="asking-confirm" v-on:click="askingConfirm">Confirm</button>
-        <button class="asking-clear" v-on:click="askingClear">Clear</button>
+        <button class="asking-clear" v-on:click="askingClear">Reset All</button>
       </div>
+
+      <!-- illustration -->
+      <div></div>
+      <div class="illu">
+        <div class="illu green"></div>
+        <div class="illu text">已達預設值條件，啟動器已被觸發 Actuator has been triggered as condition has been reached</div>
+      </div>
+
+      <div class="illu">
+        <div class="illu yellow"></div>
+        <div class="illu text">靠近預設值條件，啟動器擁有較高機率被觸發 Actuator may be triggered soon as condition has almost been reached</div>
+      
+      </div>
+      <div class="illu">
+        <div class="illu red"></div>
+        <div class="illu text">未達預設值條件，啟動器未被觸發 Actuator is not triggered</div>
+      </div>
+
+      <div class="pad"></div>
+
       <script type="text/javascript" src="/static/main.js"></script>
     </div>
   </body>
