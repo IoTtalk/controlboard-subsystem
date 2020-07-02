@@ -8,6 +8,7 @@ from flask import request
 
 
 from utils import make_logger
+from utils import config
 
 
 api_logger = make_logger('API', 'API')
@@ -206,11 +207,12 @@ def create_sa():
         Status code: 200.
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
-    # for i, alias_info in enumerate(request.json):
-    #    new_sa = CB_SA(usr_session, owner, logger, sa_id, sa_name)
-    #    SA_dict[cb_id] = new_sa     # add sa to SA_dict 
-    #    SA_dict[cb_id].mappings['actuator_alias] = (alias_info['sensor_alias'], i)
-    new_sa = open('./CB_SA.py', 'r').read().format(account='test')
+    test_mappings = {
+        'test_actuator_alias': ('test_sensor_alias', 0)
+    }
+    db_info = config['db']
+    print(db_info)
+    new_sa = open('./CB_SA.py', 'r').read().format(account='test', mappings=test_mappings, db_info=db_info)
     api_logger.info('Create New SA')
 
     data={
@@ -218,7 +220,7 @@ def create_sa():
         'code': new_sa
     }
 
-    requests.post('http://iottalk2.haohao.in:8080/autogen/create_device', data=data)
+    requests.post('http://127.0.0.1:8000/autogen/create_device', data=data)
 
     return new_sa, 200
 

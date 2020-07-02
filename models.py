@@ -26,41 +26,41 @@ class UserRule(cb_db.Entity):
     exetime = Optional(int)  # execution time for periodically execution
     sa = Required("CB_SA")  # which SA it belongs to
 
-    @classmethod
-    @db_session
-    def update_rules(cls, **kwargs):
-        print('db', kwargs)
-        rule = cls.get(actuator_alias=kwargs['actuator_alias'])
-        if rule is None:
-            UserRule(rule_type=kwargs['rule_type'], actuator_alias=kwargs['actuator_alias'])
-            rule = cls.get(actuator_alias=kwargs['actuator_alias'])
+    # @classmethod
+    # @db_session
+    # def update_rules(cls, **kwargs):
+    #     print('db', kwargs)
+    #     rule = cls.get(actuator_alias=kwargs['actuator_alias'])
+    #     if rule is None:
+    #         UserRule(rule_type=kwargs['rule_type'], actuator_alias=kwargs['actuator_alias'])
+    #         rule = cls.get(actuator_alias=kwargs['actuator_alias'])
 
-        rule.set(**kwargs)
+    #     rule.set(**kwargs)
 
-        return
+    #     return
 
-    @classmethod
-    @db_session
-    def delete_actuator_alias(cls, alias):
-        rule = cls.get(actuator_alias=alias)
-        if rule is None:
-            return
-        rule.delete()
-        return
+    # @classmethod
+    # @db_session
+    # def delete_actuator_alias(cls, alias):
+    #     rule = cls.get(actuator_alias=alias)
+    #     if rule is None:
+    #         return
+    #     rule.delete()
+    #     return
 
-    @classmethod
-    @db_session
-    def delete_sensor_alias(cls, alias):
-        rule = cls.get(sensor_alias=alias)
-        if rule is None:
-            return
-        rule.delete()
-        return
+    # @classmethod
+    # @db_session
+    # def delete_sensor_alias(cls, alias):
+    #     rule = cls.get(sensor_alias=alias)
+    #     if rule is None:
+    #         return
+    #     rule.delete()
+    #     return
 
-    @classmethod
-    @db_session
-    def select_all(cls):
-        return cls.select()[:]
+    # @classmethod
+    # @db_session
+    # def select_all(cls):
+    #     return cls.select()[:]
 
 
 class CB_SA(cb_db.Entity):

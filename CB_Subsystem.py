@@ -22,6 +22,8 @@ def recover_sa(config, logger):
     Returns:
         None
     '''
+    logger.info('Start Recovering SAs in Database...')
+    
 
     return
 
@@ -38,6 +40,8 @@ if __name__ == "__main__":
 
     connect_db(system_logger, models.cb_db)
     test_db(system_logger, models.cb_db)
+
+    recover_sa(config, system_logger)
 
     app.run(
         host=config['env']['host'],

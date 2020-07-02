@@ -63,22 +63,23 @@ def connect_db(logger, cb_db):
         cb_db: MySQL Database Connection
     '''
     retry_times = 0
+    cb_db.bind(
+        provider='mysql',
+        host=config['db']['host'],
+        user=config['db']['user'],
+        passwd=config['db']['pwd'],
+        db=config['db']['dbname'],
+        port=int(config['db']['port'])
+    )
     while (retry_times < 3):
         try:
-            cb_db.bind(
-                provider='mysql',
-                host=config['db']['host'],
-                user=config['db']['user'],
-                passwd=config['db']['pwd'],
-                db=config['db']['dbname']
-            )
             cb_db.generate_mapping(create_tables=True)
 
             logger.info('\tConnecting to Database\t......done')
-
+            break
         except orm.dbapiprovider.InternalError:
-            logger.warn('\t\tInternal Error Encountered, try remove tables and reconnect...')
-            cb_db.drop_all_tables()
+            logger.error('\t\tInternal Error Encountered, try remove tables and reconnect...')
+            cb_db.drop_all_tables(with_all_data=True)
             cb_db.disconnect()
             retry_times += 1
 
@@ -120,4 +121,5 @@ def test_db(logger, cb_db):
         logger.info('\tTest database connection \t......done')
     except Exception as err:
         logger.error(err)
+
     return

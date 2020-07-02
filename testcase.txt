@@ -1,0 +1,13 @@
+Type: Sensor/Timer
+mode: on/off/auto
+
+1. 同Type 開啟關閉
+2. 不同Type 開啟關閉
+3. 不同Type on/off -> auto開啟關閉  
+4. 不同Type auto開啟關閉 -> on/off
+5. 
+6.
+7.
+8.
+9.
+10.

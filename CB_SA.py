@@ -1,21 +1,26 @@
 import time
 import uuid
+
+
 from datetime import datetime, date, timedelta
-test = 9487
+
+
+import pony.orm
 
 import DAN
 
+
 class CB_SA():
-    def __init__(self, owner, sa_id=None, sa_name=None):
+    def __init__(self, sa_id, mappings, db_info):
         '''
-        Initialization of a CB SA
+        Initialization of a CB_SA
 
         Args:
-            owner: Account of the user who owns this CB SA.
-            sa_id: If specified, use this ID to recover a previous created CB SA from Database.
-            sa_name: If specified, use this name as the name of this SA in log. Else use sa_id instead
+            sa_id: ID of this CB_SA from Database.
+            mappings: Mapping of actuator to sensors.
+            db_info: Infomation for connecting to Subsystem, should contain IP, port, username, password.
 
-        Class variables:
+        Instance variables:
             rules: User-defined rules in dictionary to avoid huge querying rules resulting from checking rule satisfaction.
             {{
                 actuator_alias1:
@@ -37,7 +42,6 @@ class CB_SA():
             {{
                 'actuator_alias1': (sensor_alias1, DF order on IoTTalk GUI)
             }}
-            da: Registered DA for this SA.
             sa_id: ID for this SA, used in Database querying.
             sa_name: Name for this SA, used for user-friendly management and logs.
             df_hist_val: History values of sensors manipulated by this SA.
@@ -46,13 +50,15 @@ class CB_SA():
         Returns:
             None
         '''
-        import uuid
-        from datetime import datetime, date, timedelta
+        connect_db(db_info)
 
-        import DAN
+        self.rules = dict()
+        self.mappings = dict()
+        self.df_hist_val = dict()
+        self.df_hist_len = dict()
+        self.sa_id = sa_id
+        self.mac_addr = uuid.uuid4()
 
-        self.DAN = DAN
-        print(test)
         condition_handler = {{
             'bigger': self.bigger,
             'smaller': self.smaller,
@@ -61,7 +67,7 @@ class CB_SA():
         }}
 
         ctlboard_profile = {{
-            'd_name': 'DMTEST',
+            'd_name': str(sa_id) + 'Controlboard',
             'dm_name': 'ControlBoard',
             'u_name': 'yb',
             'is_sim': False,
@@ -69,26 +75,33 @@ class CB_SA():
                         'Threshold-O3', 'Trigger-I3', 'Threshold-O4', 'Trigger-I4',
                         'Threshold-O5', 'Trigger-I5']
         }}
-        
+
         DAN.profile = ctlboard_profile
-        DAN.device_registration_with_retry('http://farm.iottalk.tw:9999', 'ALIASTESTING')
-
-        self.rules = dict()
-        self.mappings = dict()
-        self.df_hist_val = dict()
-        self.df_hist_len = dict()
-
-        if sa_id is None:
-            self.sa_id = uuid.uuid4()
-        else:
-            self.sa_id = sa_id
-
-        if sa_name is None:
-            self.sa_name = self.sa_id
-        else:
-            self.sa_name = sa_name
+        DAN.device_registration_with_retry('http://140.113.199.182:9999', self.mac_addr)
 
         return
+
+    @staticmethod
+    def connect_db(db_info):
+        '''
+        Connect to correspoinding database
+
+        Args:
+            db_info: Database config containing
+                host: IP address of the database.
+                port: Port of the database.
+                user: Account provided to connect the database.
+                pwd: Password provided to connect the database.
+                dbname: Which Database to use.
+
+        Returns:
+            subsystem_db: connected db session of the database.
+        '''
+        try:
+            pass
+        except Exception as err:
+            print(err)
+        pass
 
     def terminate(self):
         '''
@@ -192,15 +205,12 @@ class CB_SA():
             if utils.rule_info[actuator_alias]['trigger'] is True:
                 da.push(actuator_name, 0)
                 utils.rule_info[actuator_alias]['trigger'] = False
-                # self.logger.info(f'disable timer to close {{actuator_alias}}')
         else:
             if current > time_open and current < time_close:
                 if utils.rule_info[actuator_alias]['trigger'] is False:
                     utils.rule_info[actuator_alias]['trigger'] = True
                     self.da.push(actuator_name, 1)
                 utils.rule_info[actuator_alias]['status'] = 'red'
-                # self.logger.info(f'timer trigger {{actuator_alias}}, current time: {{current}} rule start time: {{time_open}} 
-                # rule end time: {{time_close}}')
             else:
                 if utils.rule_info[actuator_alias]['trigger'] is True:
                     utils.rule_info[actuator_alias]['trigger'] = False
@@ -209,8 +219,6 @@ class CB_SA():
                     utils.rule_info[actuator_alias]['status'] = 'yellow'
                 else:
                     utils.rule_info[actuator_alias]['status'] = 'green'
-                # self.logger.info(f'timer close {{actuator_alias}}, current time: {{current}} rule start time: {{time_open}} 
-                # rule end time: {{time_close}}')
 
         return
 
@@ -387,7 +395,7 @@ class CB_SA():
         return triggered, color
 
 
-sa = CB_SA('{account}')
+sa = CB_SA('{account}', {mappings}, {db_info})
 while True:
     sa.check_rules()
     time.sleep(5)
