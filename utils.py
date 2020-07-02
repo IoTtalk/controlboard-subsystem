@@ -7,6 +7,8 @@ import sys
 from pony import orm
 
 
+from models import UserRule, CB_Account, CB_SA
+
 config_path = str(sys.argv[1])
 
 config = configparser.ConfigParser()
@@ -55,25 +57,67 @@ def connect_db(logger, cb_db):
     Args:
         config: Config object read from user specified .ini file.
         logger: Logger object to write log in.
-        cb_db: Database object to be bind. 
+        cb_db: Database object to be bind.
+
+    Returns:
+        cb_db: MySQL Database Connection
+    '''
+    retry_times = 0
+    while (retry_times < 3):
+        try:
+            cb_db.bind(
+                provider='mysql',
+                host=config['db']['host'],
+                user=config['db']['user'],
+                passwd=config['db']['pwd'],
+                db=config['db']['dbname']
+            )
+            cb_db.generate_mapping(create_tables=True)
+
+            logger.info('\tConnecting to Database\t......done')
+
+        except orm.dbapiprovider.InternalError:
+            logger.warn('\t\tInternal Error Encountered, try remove tables and reconnect...')
+            cb_db.drop_all_tables()
+            cb_db.disconnect()
+            retry_times += 1
+
+    return
+
+
+@orm.db_session
+def test_db(logger, cb_db):
+    '''
+    Write dummy data to database for testing connection.
+
+    Args:
+        logger: Logger object to write log in.
+        cb_db: Database object to be bind.
 
     Returns:
         cb_db: MySQL Database Connection
     '''
     try:
-        cb_db.bind(
-            provider='mysql',
-            host=config['db']['host'],
-            user=config['db']['user'],
-            passwd=config['db']['pwd'],
-            db=config['db']['dbname']
+        test_account = CB_Account(
+            account='test_account',
+            privilige='1',
         )
-        cb_db.generate_mapping(create_tables=True)
 
-        logger.info('\tConnecting to Database\t......done')
-        
-    except orm.dbapiprovider.InternalError:
-        logger.info('\t\tInternal Error Encountered, try remove tables and reconnect...')
-        cb_db.disconnect()
+        test_sa = CB_SA(
+            cb_name='test_sa',
+            account_set=test_account
+        )
 
+        test_rule = UserRule(
+            rule_type='Sensor',
+            actuator_alias='test_actuator',
+            sa=test_sa
+        )
+
+        test_account.sa_set.add(test_sa)
+        test_sa.rule_set.add(test_rule)
+
+        logger.info('\tTest database connection \t......done')
+    except Exception as err:
+        logger.error(err)
     return
