@@ -87,16 +87,14 @@ def connect_db(logger, cb_db):
 
 
 @orm.db_session
-def test_db(logger, cb_db):
+def test_db(logger):
     '''
     Write dummy data to database for testing connection.
 
     Args:
         logger: Logger object to write log in.
-        cb_db: Database object to be bind.
 
-    Returns:
-        cb_db: MySQL Database Connection
+    Returns: None
     '''
     try:
         test_account = CB_Account(

@@ -210,7 +210,14 @@ def create_sa():
     test_mappings = {
         'test_actuator_alias': ('test_sensor_alias', 0)
     }
-    db_info = config['db']
+    db_info = {
+        'host': config['db']['host'],
+        'user': config['db']['user'],
+        'pwd': config['db']['pwd'],
+        'dbname': config['db']['dbname'],
+        'port':  config['db']['port'],
+
+    }
     print(db_info)
     new_sa = open('./CB_SA.py', 'r').read().format(account='test', mappings=test_mappings, db_info=db_info)
     api_logger.info('Create New SA')

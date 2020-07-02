@@ -1,16 +1,15 @@
 import time
 import uuid
+import datetime
 
 
-from datetime import datetime, date, timedelta
+from pony import orm
 
-
-import pony.orm
 
 import DAN
 
 
-class CB_SA():
+class AG_SA():       
     def __init__(self, sa_id, mappings, db_info):
         '''
         Initialization of a CB_SA
@@ -43,21 +42,28 @@ class CB_SA():
                 'actuator_alias1': (sensor_alias1, DF order on IoTTalk GUI)
             }}
             sa_id: ID for this SA, used in Database querying.
-            sa_name: Name for this SA, used for user-friendly management and logs.
             df_hist_val: History values of sensors manipulated by this SA.
             df_hist_len: # recorded history values.
+            db_info: Database config containing the following information.
+                host: IP address of the database.
+                port: Port of the database.
+                user: Account provided to connect the database.
+                pwd: Password provided to connect the database.
+                dbname: Which Database to use.
+            cb_db: Database session for this SA.
+            mac_addr: Mac address of this SA.
 
         Returns:
             None
         '''
-        connect_db(db_info)
-
         self.rules = dict()
         self.mappings = dict()
         self.df_hist_val = dict()
         self.df_hist_len = dict()
         self.sa_id = sa_id
-        self.mac_addr = uuid.uuid4()
+        self.mac_addr = str(uuid.uuid4())
+        self.db_info = db_info
+        self.cb_db = orm.Database()
 
         condition_handler = {{
             'bigger': self.bigger,
@@ -79,10 +85,40 @@ class CB_SA():
         DAN.profile = ctlboard_profile
         DAN.device_registration_with_retry('http://140.113.199.182:9999', self.mac_addr)
 
-        return
+        class UserRule(self.cb_db.Entity):
+            rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
+            rule_type = orm.Required(str)  # Sensor / Timer.
+            actuator_alias = orm.Required(str)  # Alias of the actuator in this rule.
+            sensor_alias = orm.Optional(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
+            threshold_open = orm.Optional(float)  # Sensor value to decide trigger actuator or not.
+            threshold_close = orm.Optional(float)  # Sensor value to decide close actuator or not.
+            comparison_open = orm.Optional(str)  # Comparison method to decide trigger actuator or not.
+            comparison_close = orm.Optional(str)  # Comparison method to decide close actuator or not.
+            time_open = orm.Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
+            time_close = orm.Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
+            exetime = orm.Optional(int)  # execution time for periodically execution
+            sa = orm.Required("CB_SA")  # which SA it belongs to
 
-    @staticmethod
-    def connect_db(db_info):
+        class CB_SA(self.cb_db.Entity):
+            cb_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
+            cb_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
+            rule_set = orm.Set("UserRule")
+            account_set = orm.Set("CB_Account")  # accounts that can access this SA.
+
+
+        class CB_Account(self.cb_db.Entity):
+            account = orm.Required(str)  # Account of this user.
+            privilige = orm.Required(int)  # User level of this user.
+            sa_set = orm.Set("CB_SA")  # SAs this user can see.
+
+
+        class CB_Status(self.cb_db.Entity):
+            rule_id = orm.Required(int)  # For Subsystem to findout which rule this status entry represent.
+            status = orm.Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
+            value = orm.Required(float)  # The sensory value received from IoTtalk.
+
+
+    def connect_db(self):
         '''
         Connect to correspoinding database
 
@@ -97,11 +133,24 @@ class CB_SA():
         Returns:
             subsystem_db: connected db session of the database.
         '''
-        try:
-            pass
-        except Exception as err:
-            print(err)
-        pass
+        retry_times = 0
+        self.cb_db.bind(
+            provider='mysql',
+            host=self.db_info['host'],
+            user=self.db_info['user'],
+            passwd=self.db_info['pwd'],
+            db=self.db_info['dbname'],
+            port=int(self.db_info['port'])
+        )
+        while (retry_times < 3):
+            try:
+                self.cb_db.generate_mapping(create_tables=True)
+                break
+            except orm.dbapiprovider.InternalError:
+                self.cb_db.disconnect()
+                retry_times += 1
+
+        return
 
     def terminate(self):
         '''
@@ -132,11 +181,11 @@ class CB_SA():
         #         CB_SA.time_checker(self.da, self.logger, rule)
         #     else:
         #         CB_SA.sensor_handler(self.da, self.logger, rule)
-        data = self.DAN.pull('Threshold-O1')
+        data = DAN.pull('Threshold-O1')
 
         print('Pulled from AG:', data)
 
-        self.DAN.push('Trigger-I1', 1)
+        DAN.push('Trigger-I1', 1)
 
         return
 
@@ -192,14 +241,14 @@ class CB_SA():
         Returns:
             None
         """
-        current = datetime.now()
+        current = datetime.datetime.now()
         actuator_name = 'Trigger' + '-I' + str(order + 1)
-        time_open = datetime.combine(date.today(), utils.rule_info[actuator_alias]['time_open'])
-        time_close = datetime.combine(date.today(), utils.rule_info[actuator_alias]['time_close'])
+        time_open = datetime.datetime.combine(datetime.date.today(), utils.rule_info[actuator_alias]['time_open'])
+        time_close = datetime.datetime.combine(datetime.date.today(), utils.rule_info[actuator_alias]['time_close'])
         exetime = utils.rule_info[actuator_alias]['exetime']
 
         if time_open > time_close:
-            time_close = time_close + timedelta(days=1)
+            time_close = time_close + datetime.timedelta(days=1)
 
         if exetime == 0:  # timer set to not set
             if utils.rule_info[actuator_alias]['trigger'] is True:
@@ -395,7 +444,8 @@ class CB_SA():
         return triggered, color
 
 
-sa = CB_SA('{account}', {mappings}, {db_info})
+sa = AG_SA('{account}', {mappings}, {db_info})
+sa.connect_db()
 while True:
     sa.check_rules()
     time.sleep(5)

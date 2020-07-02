@@ -23,7 +23,7 @@ def recover_sa(config, logger):
         None
     '''
     logger.info('Start Recovering SAs in Database...')
-    
+
 
     return
 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     system_logger.info('\tCreating EventHandler\t......done')
 
     connect_db(system_logger, models.cb_db)
-    test_db(system_logger, models.cb_db)
+    test_db(system_logger)
 
     recover_sa(config, system_logger)
 
