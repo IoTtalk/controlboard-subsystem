@@ -106,10 +106,18 @@ def stop_SA(cb_id):
     '''
 
     sa = CB_SA[cb_id]
-    rule = UserRule.get(sa = sa)
-    rule.set(stop)  # TODO write a condition of "stop" for both sensor type and timer type  i.e. comparison_open='notset', comparison_close='notset'
+    rules = UserRule.get(sa = sa)
+    
+    for rule in rules:
+        if rule['rule_type'] == "sensor":
+            rule.set(comparison_close = 'notset', comparison_open='notset')
+        else:
+            rule.set(exetime=0)
+        order = SA_dict[cb_id].mappings[rule.actuator_alias][1]
+        actuat_name = 'Trigger' + '-I' + str(order + 1)
+        DAN.push(actuat_name, 0)
+
     SA_dict[cb_id].rules.clear()
-    # TODO actuator push 0
 
     return jsonify({
         'state': 'ok',
