@@ -11,14 +11,14 @@ import DAN
 
 
 class AG_SA():       
-    def __init__(self, cb_id, db_info, mac_addr):
+    def __init__(self, cb_id, config, mac_addr):
         '''
         Initialization of a CB_SA
 
         Args:
             cb_id: ID of this CB_SA from Database.
             mappings: Mapping of actuator to sensors.
-            db_info: Infomation for connecting to Subsystem, should contain IP, port, username, password.
+            config: Infomation for connecting to Subsystem, should contain IP, port, username, password.
 
         Instance variables:
             rules: User-defined rules in dictionary to avoid huge querying rules resulting from checking rule satisfaction.
@@ -45,7 +45,7 @@ class AG_SA():
             cb_id: ID for this SA, used in Database querying.
             df_hist_val: History values of sensors manipulated by this SA.
             df_hist_len: # recorded history values.
-            db_info: Database config containing the following information.
+            config: Database config containing the following information.
                 host: IP address of the database.
                 port: Port of the database.
                 user: Account provided to connect the database.
@@ -62,7 +62,7 @@ class AG_SA():
         self.df_hist_val = dict()
         self.df_hist_len = dict()
         self.cb_id = cb_id
-        self.db_info = db_info
+        self.config = config
         self.cb_db = orm.Database()
         if mac_addr is not 'None':
             self.mac_addr = mac_addr
@@ -87,7 +87,7 @@ class AG_SA():
         }}
 
         DAN.profile = ctlboard_profile
-        DAN.device_registration_with_retry('http://140.113.199.182:9999', self.mac_addr)
+        DAN.device_registration_with_retry(f"http://{{config['iottalk_server']}}:9999", self.mac_addr)
 
         class UserRule(self.cb_db.Entity):
             rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
@@ -127,7 +127,7 @@ class AG_SA():
         Connect to correspoinding database
 
         Args:
-            db_info: Database config containing
+            config: Database config containing
                 host: IP address of the database.
                 port: Port of the database.
                 user: Account provided to connect the database.
@@ -140,11 +140,11 @@ class AG_SA():
         retry_times = 0
         self.cb_db.bind(
             provider='mysql',
-            host=self.db_info['host'],
-            user=self.db_info['user'],
-            passwd=self.db_info['pwd'],
-            db=self.db_info['dbname'],
-            port=int(self.db_info['port'])
+            host=self.config['host'],
+            user=self.config['user'],
+            passwd=self.config['pwd'],
+            db=self.config['dbname'],
+            port=int(self.config['port'])
         )
 
         while (retry_times < 3):
@@ -173,14 +173,16 @@ class AG_SA():
             print('Bind first')
             time.sleep(1)
         
-        alias_in = DAN.get_alias('Threshold-O' + str(0))
-        alias_out = DAN.get_alias('Trigger-I' + str(0))
+        alias_in = DAN.get_alias('Threshold-O' + str(1))
+        alias_out = DAN.get_alias('Trigger-I' + str(1))
 
-        print(alias_in)
-        i = 0
+        print(alias_in, alias_out)
+        print(self.mac_addr)
+        i = 1
         while len(alias_in):
             try:
-                self.mappings[alias_out[0]] = (alias_in[0], i)
+                if 'Threshold' not in alias_in[0] and 'Trigger' not in alias_out[0]:
+                    self.mappings[alias_out[0]] = (alias_in[0], i)
 
                 i += 1
                 alias_in = DAN.get_alias('Threshold-O' + str(i))
@@ -188,10 +190,7 @@ class AG_SA():
             except IndexError as err:
                 print('End of finding alias')
 
-        alias_in = DAN.get_alias('Threshold-O' + str(i))
-        alias_out = DAN.get_alias('Trigger-I' + str(i))
-        print(alias_in, alias_out)
-        print(self.mappings)
+        
 
         return 
 
@@ -206,7 +205,6 @@ class AG_SA():
         Returns:
             Boolean indicating termination succeed or failed.
         '''
-        DAN.deregister()
         return
 
     def check_rules(self):
@@ -480,7 +478,7 @@ class AG_SA():
         return triggered, color
 
 
-sa = AG_SA('{account}', {db_info}, '{mac_addr}')
+sa = AG_SA('{account}', {config}, '{mac_addr}')
 sa.connect_db()
 sa.recover()
 

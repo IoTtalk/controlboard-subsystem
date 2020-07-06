@@ -5,10 +5,14 @@ from flask import Blueprint
 from flask import jsonify
 from flask import render_template
 from flask import request
+from pony import orm
 
 
+from utils import running_sa
 from utils import make_logger
 from utils import config
+from models import cb_db
+from models import UserRule, CB_Account, CB_SA, CB_Status
 
 
 api_logger = make_logger('API', 'API')
@@ -201,29 +205,33 @@ def create_sa():
     Creates SA with specified actuator/sensor alias.
 
     Args:
-
+        account: The user's account who requests for this new SA.
+        cb_name: Name of this SA given by the user.
 
     Returns:
         Status code: 200.
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
-    db_info = {
+    conf = {
         'host': config['db']['host'],
         'user': config['db']['user'],
         'pwd': config['db']['pwd'],
         'dbname': config['db']['dbname'],
         'port':  config['db']['port'],
+        'iottalk_server': config['IoTtalk']['ServerIP']
     }
-    print(db_info)
-    new_sa = open('./CB_SA.py', 'r').read().format(account='test', db_info=db_info, mac_addr='test123456')
+    new_sa = open('./CB_SA.py', 'r').read().format(account='test', config=conf, mac_addr='test123456')
     api_logger.info('Create New SA')
 
-    data={
+    data = {
         'version': 1,
         'code': new_sa
     }
 
-    requests.post('http://127.0.0.1:8000/autogen/create_device', data=data)
+    response = requests.post('http://127.0.0.1:8000/autogen/create_device', data=data).text
+    with orm.db_session():
+        sa = CB_SA(cb_name='TestSA', ag_token=response)
+        running_sa[sa.cb_id] = response
 
     return new_sa, 200
 

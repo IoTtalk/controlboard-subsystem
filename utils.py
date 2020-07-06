@@ -9,6 +9,8 @@ from pony import orm
 
 from models import UserRule, CB_Account, CB_SA
 
+
+running_sa = dict() # used to record AG SA. in format {sa_id: AG SA token}
 config_path = str(sys.argv[1])
 
 config = configparser.ConfigParser()
@@ -71,10 +73,10 @@ def connect_db(logger, cb_db):
         db=config['db']['dbname'],
         port=int(config['db']['port'])
     )
+    cb_db.generate_mapping(check_tables=False)
     while (retry_times < 3):
         try:
-            cb_db.generate_mapping(create_tables=True)
-
+            cb_db.create_tables()
             logger.info('\tConnecting to Database\t......done')
             break
         except orm.dbapiprovider.InternalError:
