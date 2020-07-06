@@ -1,5 +1,5 @@
 import requests
-
+import datetime
 
 from flask import Blueprint
 from flask import jsonify
@@ -8,16 +8,14 @@ from flask import request
 from pony import orm
 
 
-from utils import running_sa
+from utils import running_sa, SA_dict
 from utils import make_logger
 from utils import config
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB_Status
 
-
 api_logger = make_logger('API', 'API')
 apis = Blueprint('api', __name__)
-
 
 @apis.route('/sa/<cb_id>/')
 def render_SA(cb_id):
@@ -31,8 +29,6 @@ def render_SA(cb_id):
         Rendered HTML template of the SA.
         Status code: 200.
     '''
-
-    # js need to add get_rules(cb_id) first
     return render_template("index.html"), 200
 
 
@@ -47,7 +43,7 @@ def set_rules(cb_id):
     Returns:
         Status code: 200.
     '''
-    # Iterate through the list of SA and find the one with cb_id == sa_id
+    # Iterate through the list of SA and find the one with cb_id == cb_id
     invalid_list = list()
     for rule_settings in request.json:
         print(rule_settings)
@@ -76,8 +72,19 @@ def set_rules(cb_id):
 
             rule_settings['time_open'] = time_open
             rule_settings['time_close'] = time_close
+        sa = CB_SA[cb_id]
+        rule = UserRule.get(sa = sa)
+        rule.set(rule_settings)
 
-        SA_dict[cb_id].update_rules(actuator_alias, rule_settings)
+        if actuator_alias not in SA_dict[cb_id].rules:
+            SA_dict[cb_id].rules[actuator_alias] = rule_settings
+            SA_dict[cb_id].rules[actuator_alias]['trigger'] = False
+            SA_dict[cb_id].rules[actuator_alias]['status'] = 'green'
+        else:
+            trigger, status = SA_dict[cb_id].rules[actuator_alias]['trigger'], SA_dict[cb_id].rules[actuator_alias]['status']
+            SA_dict[cb_id].rules[actuator_alias] = rule_settings
+            SA_dict[cb_id].rules[actuator_alias]['trigger'] = trigger
+            SA_dict[cb_id].rules[actuator_alias]['status'] = status
 
     return jsonify({
         'state': 'ok',
@@ -98,11 +105,15 @@ def stop_SA(cb_id):
         message: 'Stop Done'.
     '''
 
-    SA_dict[cb_id].terminate()
+    sa = CB_SA[cb_id]
+    rule = UserRule.get(sa = sa)
+    rule.set(stop)  # TODO write a condition of "stop" for both sensor type and timer type  i.e. comparison_open='notset', comparison_close='notset'
+    SA_dict[cb_id].rules.clear()
+    # TODO actuator push 0
 
     return jsonify({
         'state': 'ok',
-        'msg': 'Stop execution succeeded'
+        'msg': 'Stop Done'
     }), 200
 
 
@@ -120,7 +131,6 @@ def get_rules(cb_id):
                    Each element of this list is a rule in dictionary format and it's current status and mode.
 
     '''
-    #iterate through the list of SA and find the one with cb_id == sa_id, replace CB_SA with that one
     res_list = list()
     for actuator_alias, mappings in SA_dict[cb_id].mappings.items():
         sensor_alias = mappings[0]
@@ -168,8 +178,8 @@ def get_datum(cb_id):
         Status code: 200.
         record_list: A json object containing the lastest data of each sensor.
     '''
-    #iterate through the list of SA and find the one with cb_id == sa_id
     record_list = list()
+    res_dict = dict()
     for actuator_alias, rule_info in SA_dict[cb_id].mappings.items():
         rule_type = None
         sensor_alias = rule_info[0]
@@ -195,8 +205,8 @@ def get_datum(cb_id):
             'time': time,
             'status': status
         }
-
-    return jsonify(record_list), 200
+    #return jsonify(record_list), 200
+    return jsonify(res_dict), 200
 
 
 @apis.route('/subsystem/create_sa', methods=['POST'])
@@ -232,6 +242,7 @@ def create_sa():
     with orm.db_session():
         sa = CB_SA(cb_name='TestSA', ag_token=response)
         running_sa[sa.cb_id] = response
+        SA_dict[sa.cb_id] = sa
 
     return new_sa, 200
 
@@ -251,10 +262,8 @@ def delete_sa(cb_id):
         Status code: 200.
         message: 'SA deleted successfully'.
     '''
-    #iterate through the list of SA and find the one with cb_id == sa_id, delete it with help of autogen(?)
-    SA_dict[cb_id].deregister()  # add deregister function
-    models.CB_SA.delete_sa(cb_id)  #need to add this function
-    models.CB_Account.delete_avai_sa(cb_id) #need to add this function
+    #SA_dict[cb_id].deregister()  # add deregister function
+    CB_SA[cb_id].delete()  
     pass
 
 
@@ -271,13 +280,15 @@ def get_sa(usr_account):
         avail_sa: A list of CB SAs, each element is composed of cb_id and cb_name of the corresponging SA.
     '''
     usr_sa = list()
-    usr_sa = models.CB_Account.list_sa(usr_account) #need to add this function, return list (cb_id, cb_name)
+    acc = CB_Account.get(account = usr_account)
+    for sa in acc.sa_set:
+        usr_sa.append(sa.cb_id, sa.cb_name)
+
     return usr_sa, 200
-    pass
 
 
 @apis.route('/account/create', methods=['POST'])
 def create_account():
-    for account_info in request.json:
-        models.CB_Account.signup(account_info) #need to add this function
+    # for account_info in request.json:
+        
     pass
