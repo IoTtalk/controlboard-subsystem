@@ -98,7 +98,7 @@ def test_db(logger):
     '''
     try:
         test_account = CB_Account(
-            account='test_account',
+            account='test',
             privilige='1',
         )
 

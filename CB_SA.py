@@ -1,6 +1,7 @@
 import time
 import uuid
 import datetime
+import atexit
 
 
 from pony import orm
@@ -10,12 +11,12 @@ import DAN
 
 
 class AG_SA():       
-    def __init__(self, sa_id, mappings, db_info):
+    def __init__(self, cb_id, db_info, mac_addr):
         '''
         Initialization of a CB_SA
 
         Args:
-            sa_id: ID of this CB_SA from Database.
+            cb_id: ID of this CB_SA from Database.
             mappings: Mapping of actuator to sensors.
             db_info: Infomation for connecting to Subsystem, should contain IP, port, username, password.
 
@@ -41,7 +42,7 @@ class AG_SA():
             {{
                 'actuator_alias1': (sensor_alias1, DF order on IoTTalk GUI)
             }}
-            sa_id: ID for this SA, used in Database querying.
+            cb_id: ID for this SA, used in Database querying.
             df_hist_val: History values of sensors manipulated by this SA.
             df_hist_len: # recorded history values.
             db_info: Database config containing the following information.
@@ -60,10 +61,13 @@ class AG_SA():
         self.mappings = dict()
         self.df_hist_val = dict()
         self.df_hist_len = dict()
-        self.sa_id = sa_id
-        self.mac_addr = str(uuid.uuid4())
+        self.cb_id = cb_id
         self.db_info = db_info
         self.cb_db = orm.Database()
+        if mac_addr is not 'None':
+            self.mac_addr = mac_addr
+        else:
+            self.mac_addr = str(uuid.uuid4())
 
         condition_handler = {{
             'bigger': self.bigger,
@@ -73,7 +77,7 @@ class AG_SA():
         }}
 
         ctlboard_profile = {{
-            'd_name': str(sa_id) + 'Controlboard',
+            'd_name': str(cb_id) + 'Controlboard',
             'dm_name': 'ControlBoard',
             'u_name': 'yb',
             'is_sim': False,
@@ -142,6 +146,7 @@ class AG_SA():
             db=self.db_info['dbname'],
             port=int(self.db_info['port'])
         )
+
         while (retry_times < 3):
             try:
                 self.cb_db.generate_mapping(create_tables=True)
@@ -151,6 +156,45 @@ class AG_SA():
                 retry_times += 1
 
         return
+
+    @orm.db_session()
+    def recover(self):
+        '''
+        Recover SA UserRules from Database & 
+        generate mappings of (actuator, sensor) of IoTTalk GUI.
+
+        Args: None.
+
+        Returns: True or False
+            True: Recover succeeded.
+            False: Recover failed. 
+        '''
+        while DAN.state != 'RESUME':
+            print('Bind first')
+            time.sleep(1)
+        
+        alias_in = DAN.get_alias('Threshold-O' + str(0))
+        alias_out = DAN.get_alias('Trigger-I' + str(0))
+
+        print(alias_in)
+        i = 0
+        while len(alias_in):
+            try:
+                self.mappings[alias_out[0]] = (alias_in[0], i)
+
+                i += 1
+                alias_in = DAN.get_alias('Threshold-O' + str(i))
+                alias_out = DAN.get_alias('Trigger-I' + str(i))
+            except IndexError as err:
+                print('End of finding alias')
+
+        alias_in = DAN.get_alias('Threshold-O' + str(i))
+        alias_out = DAN.get_alias('Trigger-I' + str(i))
+        print(alias_in, alias_out)
+        print(self.mappings)
+
+        return 
+
 
     def terminate(self):
         '''
@@ -162,8 +206,8 @@ class AG_SA():
         Returns:
             Boolean indicating termination succeed or failed.
         '''
-
-        pass
+        DAN.deregister()
+        return
 
     def check_rules(self):
         '''
@@ -189,8 +233,6 @@ class AG_SA():
 
         return
 
-
-    @classmethod
     def sensor_checker(cls, comparison, threshold, data, action, actuator_alias, sensor_alias):
         """
         Sensor-type rule checking worker.
@@ -228,7 +270,6 @@ class AG_SA():
 
         return to_trigger
 
-    @staticmethod
     def time_checker(da, actuator_alias, sensor_alias, order):
         """
         Timer-type rule checking handler. Push to IoTTalk server accordingly
@@ -271,7 +312,6 @@ class AG_SA():
 
         return
 
-    @staticmethod
     def sensor_handler(da, actuator_alias, sensor_alias, order):
         """
         Sensor-type rule checking handler. Push to IoTTalk server accordingly.
@@ -339,7 +379,6 @@ class AG_SA():
 
         return
     
-    @staticmethod
     def bigger(data, threshold, avg):
         """
         Check if data > threshold. Return comparison results as boolean, string.
@@ -366,7 +405,6 @@ class AG_SA():
 
         return triggered, color
 
-    @staticmethod
     def smaller(data, threshold, avg):
         """Check if data < threshold. Return comparison results as boolean, string.
 
@@ -392,7 +430,6 @@ class AG_SA():
                 color = 'unchanged'
         return triggered, color
 
-    @staticmethod
     def bigger_equal(data, threshold, avg):
         """Check if data >= threshold. Return comparison results as boolean, string.
 
@@ -418,7 +455,6 @@ class AG_SA():
 
         return triggered, color
 
-    @staticmethod
     def smaller_equal(data, threshold, avg):
         """Check if data <= threshold. Return comparison results as boolean, string.
 
@@ -444,8 +480,12 @@ class AG_SA():
         return triggered, color
 
 
-sa = AG_SA('{account}', {mappings}, {db_info})
+sa = AG_SA('{account}', {db_info}, '{mac_addr}')
 sa.connect_db()
+sa.recover()
+
+atexit.register(sa.terminate)
+
 while True:
     sa.check_rules()
     time.sleep(5)
