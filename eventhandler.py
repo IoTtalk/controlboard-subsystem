@@ -8,7 +8,8 @@ from flask import request
 from pony import orm
 
 
-from utils import running_sa, SA_dict
+from utils import running_sa
+from utils import SA_dict
 from utils import make_logger
 from utils import config
 from models import cb_db
@@ -29,6 +30,7 @@ def render_SA(cb_id):
         Rendered HTML template of the SA.
         Status code: 200.
     '''
+
     return render_template("index.html"), 200
 
 
@@ -72,9 +74,10 @@ def set_rules(cb_id):
 
             rule_settings['time_open'] = time_open
             rule_settings['time_close'] = time_close
-        sa = CB_SA[cb_id]
-        rule = UserRule.get(sa = sa)
-        rule.set(rule_settings)
+        with orm.db_session():
+            sa = CB_SA[cb_id]
+            rule = UserRule.get(sa = sa)
+            rule.set(rule_settings)
 
         if actuator_alias not in SA_dict[cb_id].rules:
             SA_dict[cb_id].rules[actuator_alias] = rule_settings
@@ -104,15 +107,17 @@ def stop_SA(cb_id):
         Status code: 200.
         message: 'Stop Done'.
     '''
-
-    sa = CB_SA[cb_id]
-    rules = UserRule.get(sa = sa)
+    with orm.db_session():
+        sa = CB_SA[cb_id]
+        rules = UserRule.get(sa = sa)
     
-    for rule in rules:
-        if rule['rule_type'] == "sensor":
-            rule.set(comparison_close = 'notset', comparison_open='notset')
-        else:
-            rule.set(exetime=0)
+        for rule in rules:
+            rule = rule.to_dict()
+            if rule['rule_type'] == "sensor":
+                rule.set(comparison_close = 'notset', comparison_open='notset')
+            else:
+                rule.set(exetime=0)
+
         order = SA_dict[cb_id].mappings[rule.actuator_alias][1]
         actuat_name = 'Trigger' + '-I' + str(order + 1)
         DAN.push(actuat_name, 0)
@@ -271,7 +276,8 @@ def delete_sa(cb_id):
         message: 'SA deleted successfully'.
     '''
     #SA_dict[cb_id].deregister()  # add deregister function
-    CB_SA[cb_id].delete()  
+    with orm.db_session():
+        CB_SA[cb_id].delete()  
     pass
 
 
