@@ -9,7 +9,7 @@ from pony import orm
 
 from models import UserRule, CB_Account, CB_SA
 
-
+SA_dict = dict()
 running_sa = dict() # used to record AG SA. in format {sa_id: AG SA token}
 config_path = str(sys.argv[1])
 

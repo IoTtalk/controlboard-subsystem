@@ -190,7 +190,13 @@ class AG_SA():
             except IndexError as err:
                 print('End of finding alias')
 
-        
+        with orm.db_session():
+            sa = CB_SA[cb_id]
+            rules = sa.rule_set
+        for rule in rules:
+            tmp = rule.to_dict()
+            self.rule[tmp['actuator_alias']] = tmp      
+
 
         return 
 

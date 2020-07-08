@@ -30,7 +30,7 @@ def render_SA(cb_id):
         Rendered HTML template of the SA.
         Status code: 200.
     '''
-
+    
     return render_template("index.html"), 200
 
 
@@ -77,7 +77,7 @@ def set_rules(cb_id):
         with orm.db_session():
             sa = CB_SA[cb_id]
             rule = UserRule.get(sa = sa)
-            rule.set(rule_settings)
+            rule.set(**rule_settings)
 
         if actuator_alias not in SA_dict[cb_id].rules:
             SA_dict[cb_id].rules[actuator_alias] = rule_settings
@@ -109,20 +109,20 @@ def stop_SA(cb_id):
     '''
     with orm.db_session():
         sa = CB_SA[cb_id]
-        rules = UserRule.get(sa = sa)
-    
+        rules = UserRule.select()[:]
         for rule in rules:
-            rule = rule.to_dict()
-            if rule['rule_type'] == "sensor":
-                rule.set(comparison_close = 'notset', comparison_open='notset')
-            else:
-                rule.set(exetime=0)
+            tmp = rule.to_dict()
+            if tmp['sa'] == sa.cb_id:
+                if tmp['rule_type'] == 'Sensor':
+                    rule.set(comparison_close = 'notset', comparison_open='notset')
+                else:
+                    rule.set(exetime=0)
 
-        order = SA_dict[cb_id].mappings[rule.actuator_alias][1]
-        actuat_name = 'Trigger' + '-I' + str(order + 1)
-        DAN.push(actuat_name, 0)
+        #order = SA_dict[cb_id].mappings[rule.actuator_alias][1]
+        #actuat_name = 'Trigger' + '-I' + str(order + 1)
+        #DAN.push(actuat_name, 0)
 
-    SA_dict[cb_id].rules.clear()
+    #SA_dict[cb_id].rules.clear()
 
     return jsonify({
         'state': 'ok',
@@ -255,7 +255,7 @@ def create_sa():
     with orm.db_session():
         sa = CB_SA(cb_name='TestSA', ag_token=response)
         running_sa[sa.cb_id] = response
-        SA_dict[sa.cb_id] = sa
+        SA_dict[sa.cb_id] = sa # TODO when restarting server, SA_dict needs to be initialized too
 
     return new_sa, 200
 
@@ -293,12 +293,18 @@ def get_sa(usr_account):
         Status code: 200.
         avail_sa: A list of CB SAs, each element is composed of cb_id and cb_name of the corresponging SA.
     '''
-    usr_sa = list()
-    acc = CB_Account.get(account = usr_account)
-    for sa in acc.sa_set:
-        usr_sa.append(sa.cb_id, sa.cb_name)
-
-    return usr_sa, 200
+    avail_sa = list()
+    with orm.db_session():
+        #acc = CB_Account.get(account = usr_account)
+        accs = CB_Account.select()[:]
+        for acc in accs:
+            acc_dict = acc.to_dict()
+            if acc_dict['account'] == usr_account:
+                for sa in acc.sa_set:
+                    avail_sa.append((sa.cb_id, sa.cb_name))
+        
+    #print(avail_sa)
+    return avail_sa, 200
 
 
 @apis.route('/account/create', methods=['POST'])
