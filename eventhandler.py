@@ -89,12 +89,12 @@ def set_rules(cb_id):
 
         if actuator_alias not in running_sa[cb_id].rules: # TODO wrong attribute, no rules
             running_sa[cb_id].rules[actuator_alias] = rule_settings
-            running_sa[cb_id].rules[actuator_alias]['status'] = 'green'
+            #running_sa[cb_id].rules[actuator_alias]['status'] = 'green'
         else:
             # status = running_sa[cb_id].rules[actuator_alias]['status']
-            status = 'not done yet'
+            #status = 'not done yet'
             running_sa[cb_id].rules[actuator_alias] = rule_settings
-            running_sa[cb_id].rules[actuator_alias]['status'] = status
+            #running_sa[cb_id].rules[actuator_alias]['status'] = status
 
     return jsonify({
         'state': 'ok',
@@ -235,8 +235,19 @@ def get_datum(cb_id):
     '''
 
     #  TODO: update this API to contain trigger status
+    
     record_list = list()
     res_dict = dict()
+    cbstatus = dict()
+    with orm.db_session():
+        sa = CB_SA[cb_id]
+        rules = UserRule.select(lambda ur: ur.sa.cb_id == sa.cb_id)[:]
+        for rule in rules:
+            tmp = rule.to_dict()
+            stats = CB_Status.select(lambda s: s.rule_id == tmp['rule_id'])  # one rule one status, can use get but select is better for testing
+            
+            for stat in stats:
+                cbstatus[tmp['actuator_alias']] = stat.status
 
     for actuator_alias, rule_info in running_sa[cb_id].mappings.items():
         rule_type = None
@@ -245,10 +256,12 @@ def get_datum(cb_id):
             val = running_sa[cb_id].df_hist_val[sensor_alias][-1]
         else:
             val = None
+
+
         if actuator_alias in running_sa[cb_id].rules:
             rule_type = running_sa[cb_id].rules[actuator_alias]['rule_type']
             #status = running_sa[cb_id].rules[actuator_alias]['status']
-            status = 'need to change this part'
+            status = cbstatus[actuator_alias]
         else:
             status = 'green'
         
