@@ -10,7 +10,6 @@ from pony import orm
 
 
 from utils import running_sa
-from utils import running_sa
 from utils import make_logger
 from utils import config
 from models import cb_db
@@ -82,7 +81,7 @@ def set_rules(cb_id):
             rule = UserRule.get(sa = sa) # TODO get only returns one column, wrong usage
             rule.set(**rule_settings)
 
-        if actuator_alias not in running_sa[cb_id].rules:
+        if actuator_alias not in running_sa[cb_id].rules: # TODO wrong attribute, no rules
             running_sa[cb_id].rules[actuator_alias] = rule_settings
             running_sa[cb_id].rules[actuator_alias]['trigger'] = False
             running_sa[cb_id].rules[actuator_alias]['status'] = 'green'
@@ -112,7 +111,7 @@ def stop_SA(cb_id):
     '''
     with orm.db_session():
         sa = CB_SA[cb_id]
-        rules = UserRule.select()[:]
+        rules = select("select * from UserRule where sa = $sa")[:]  # TODO Not sure if SQL correct or not.
         for rule in rules:
             tmp = rule.to_dict()
             if tmp['sa'] == sa.cb_id:
@@ -144,10 +143,18 @@ def get_rules(cb_id):
     Returns:
         Status code: 200.
         rule_list: A list containing rules of the specific SA.
-                   Each element of this list is a rule in dictionary format and it's current status and mode.
+                   Each element of this list is a rule in dictionary format.
 
     '''
     res_list = list()
+
+    ''' 
+    TODO wrong attributes, should be
+        1. fetch all rules of this sa by `cb_id`
+        2. for each rule, collect needed information in UserRule Entity
+
+        Note that status are combined to API `current_data` to return.
+    '''
     for actuator_alias, mappings in running_sa[cb_id].mappings.items():
         sensor_alias = mappings[0]
         if actuator_alias in running_sa[cb_id].rules:
@@ -192,8 +199,10 @@ def get_datum(cb_id):
 
     Returns:
         Status code: 200.
-        record_list: A json object containing the lastest data of each sensor.
+        record_list: A json object containing the lastest data of each sensor and trigger status.
     '''
+
+    #  TODO: update this API to contain trigger status
     record_list = list()
     res_dict = dict()
     for actuator_alias, rule_info in running_sa[cb_id].mappings.items():
