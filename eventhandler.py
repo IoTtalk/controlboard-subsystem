@@ -15,6 +15,7 @@ from utils import config
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB_Status
 
+from CB_SA import AG_SA
 
 api_logger = make_logger('API', 'API')
 apis = Blueprint('api', __name__)
@@ -78,8 +79,11 @@ def set_rules(cb_id):
             rule_settings['time_close'] = time_close
         with orm.db_session():
             sa = CB_SA[cb_id]
-            rule = UserRule.get(sa = sa) # TODO get only returns one column, wrong usage
-            rule.set(**rule_settings)
+            rules = UserRule.select()[:] 
+            for rule in rules:
+                tmp = rule.to_dict()
+                if tmp["sa"] == sa.cb_id and tmp["actuator_alias"] == actuator_alias:
+                    rule.set(**rule_settings)
 
         if actuator_alias not in running_sa[cb_id].rules: # TODO wrong attribute, no rules
             running_sa[cb_id].rules[actuator_alias] = rule_settings
@@ -155,6 +159,7 @@ def get_rules(cb_id):
 
         Note that status are combined to API `current_data` to return.
     '''
+    """
     for actuator_alias, mappings in running_sa[cb_id].mappings.items():
         sensor_alias = mappings[0]
         if actuator_alias in running_sa[cb_id].rules:
@@ -185,7 +190,32 @@ def get_rules(cb_id):
                 'rule_type': None
             })
         print(actuator_alias, found)
-
+    """
+    with orm.db_session():
+        sa = CB_SA[cb_id]
+        rules = UserRule.select(lambda r: r.sa == sa.cb_id)[:]
+        for rule in rules:
+            tmp = rule.to_dict()
+            if tmp['rule_type'] == 'sensor':
+                res_list.append({
+                    'sensor_alias': tmp['sensor_alias'],
+                    'actuator_alias': tmp['actuator_alias'],
+                    'comparison_open': tmp['comparison_open'],
+                    'threshold_open': tmp['threshold_open'] if tmp['comparison_open'] != 'notset' else None,
+                    'comparison_close': tmp['comparison_close'],
+                    'threshold_close': tmp['threshold_close'] if tmp['comparison_close'] != 'notset' else None,
+                    'rule_type': tmp['rule_type']
+                })
+            else:
+                res_list.append({
+                    #'sensor_alias': sensor_alias,  # thinking about how to extract sensor_alias
+                    'actuator_alias': tmp['actuator_alias'],
+                    'time_open': tmp['time_open'].strftime('%H:%M:%S'),
+                    'time_close': tmp['time_close'].strftime('%H:%M:%S'),
+                    'exetime': tmp['exetime'],
+                    'rule_type': tmp['rule_type']
+                })
+    
     return jsonify(res_list), 200
 
 
@@ -205,6 +235,7 @@ def get_datum(cb_id):
     #  TODO: update this API to contain trigger status
     record_list = list()
     res_dict = dict()
+
     for actuator_alias, rule_info in running_sa[cb_id].mappings.items():
         rule_type = None
         sensor_alias = rule_info[0]
@@ -212,7 +243,7 @@ def get_datum(cb_id):
             val = running_sa[cb_id].df_hist_val[sensor_alias][-1]
         else:
             val = None
-
+        
         if actuator_alias in running_sa[cb_id].rules:
             triggered = running_sa[cb_id].rules[actuator_alias]['trigger']
             rule_type = running_sa[cb_id].rules[actuator_alias]['rule_type']
@@ -220,7 +251,7 @@ def get_datum(cb_id):
         else:
             triggered = False
             status = 'green'
-
+        
         time = datetime.datetime.now().strftime('%H:%M')
 
         res_dict[sensor_alias] = {
@@ -307,7 +338,6 @@ def get_sa(usr_account):
     '''
     avail_sa = list()
     with orm.db_session():
-        #acc = CB_Account.get(account = usr_account)
         accs = CB_Account.select()[:]
         for acc in accs:
             acc_dict = acc.to_dict()
