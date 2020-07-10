@@ -48,7 +48,6 @@ def set_rules(cb_id):
     Returns:
         Status code: 200.
     '''
-    # Iterate through the list of SA and find the one with cb_id == cb_id
     invalid_list = list()
     for rule_settings in request.json:
         print(rule_settings)
@@ -79,20 +78,22 @@ def set_rules(cb_id):
             rule_settings['time_close'] = time_close
         with orm.db_session():
             sa = CB_SA[cb_id]
-            rules = UserRule.select()[:] 
-            for rule in rules:
-                tmp = rule.to_dict()
-                if tmp["sa"] == sa.cb_id and tmp["actuator_alias"] == actuator_alias:
-                    rule.set(**rule_settings)
+            rules = UserRule.select(lambda r: r.sa.cb_id == sa.cb_id and r.actuator_alias == actuator_alias)[:] 
+            if rules:
+                for rule in rules:
+                    tmp = rule.to_dict()
+                    if tmp["actuator_alias"] == actuator_alias:
+                        rule.set(**rule_settings)
+            else:
+                new_rule = UserRule(**rule_settings, sa=sa)
 
         if actuator_alias not in running_sa[cb_id].rules: # TODO wrong attribute, no rules
             running_sa[cb_id].rules[actuator_alias] = rule_settings
-            running_sa[cb_id].rules[actuator_alias]['trigger'] = False
             running_sa[cb_id].rules[actuator_alias]['status'] = 'green'
         else:
-            trigger, status = running_sa[cb_id].rules[actuator_alias]['trigger'], running_sa[cb_id].rules[actuator_alias]['status']
+            # status = running_sa[cb_id].rules[actuator_alias]['status']
+            status = 'not done yet'
             running_sa[cb_id].rules[actuator_alias] = rule_settings
-            running_sa[cb_id].rules[actuator_alias]['trigger'] = trigger
             running_sa[cb_id].rules[actuator_alias]['status'] = status
 
     return jsonify({
@@ -115,11 +116,12 @@ def stop_SA(cb_id):
     '''
     with orm.db_session():
         sa = CB_SA[cb_id]
-        rules = select("select * from UserRule where sa = $sa")[:]  # TODO Not sure if SQL correct or not.
+        #rules = select("select * from UserRule where sa = $sa")[:]  # TODO Not sure if SQL correct or not.
+        rules = UserRule.select(lambda ur: ur.sa.cb_id == sa.cb_id)[:]
         for rule in rules:
             tmp = rule.to_dict()
             if tmp['sa'] == sa.cb_id:
-                if tmp['rule_type'] == 'Sensor':
+                if tmp['rule_type'] == 'sensor':
                     rule.set(comparison_close = 'notset', comparison_open='notset')
                 else:
                     rule.set(exetime=0)
@@ -193,7 +195,7 @@ def get_rules(cb_id):
     """
     with orm.db_session():
         sa = CB_SA[cb_id]
-        rules = UserRule.select(lambda r: r.sa == sa.cb_id)[:]
+        rules = UserRule.select(lambda r: r.sa.cb_id == sa.cb_id)[:]
         for rule in rules:
             tmp = rule.to_dict()
             if tmp['rule_type'] == 'sensor':
@@ -243,20 +245,17 @@ def get_datum(cb_id):
             val = running_sa[cb_id].df_hist_val[sensor_alias][-1]
         else:
             val = None
-        
         if actuator_alias in running_sa[cb_id].rules:
-            triggered = running_sa[cb_id].rules[actuator_alias]['trigger']
             rule_type = running_sa[cb_id].rules[actuator_alias]['rule_type']
-            status = running_sa[cb_id].rules[actuator_alias]['status']
+            #status = running_sa[cb_id].rules[actuator_alias]['status']
+            status = 'need to change this part'
         else:
-            triggered = False
             status = 'green'
         
         time = datetime.datetime.now().strftime('%H:%M')
 
         res_dict[sensor_alias] = {
             "value": val,
-            "triggered": triggered,
             'rule_type': rule_type,
             'time': time,
             'status': status
@@ -338,15 +337,14 @@ def get_sa(usr_account):
     '''
     avail_sa = list()
     with orm.db_session():
-        accs = CB_Account.select()[:]
+        accs = CB_Account.select(lambda a: a.account == usr_account)[:]
         for acc in accs:
             acc_dict = acc.to_dict()
-            if acc_dict['account'] == usr_account:
-                for sa in acc.sa_set:
-                    avail_sa.append((sa.cb_id, sa.cb_name))
+            for sa in acc.sa_set:
+                avail_sa.append((sa.cb_id, sa.cb_name))
         
-    #print(avail_sa)
-    return avail_sa, 200
+    print(avail_sa)
+    return avail_sa, 200   # GET return cannot be list, must be dict or string or something... need to decide which type to use
 
 
 @apis.route('/account/create', methods=['POST'])
