@@ -1,6 +1,7 @@
 import requests
 import datetime
 
+
 from flask import Blueprint
 from flask import jsonify
 from flask import render_template
@@ -9,14 +10,16 @@ from pony import orm
 
 
 from utils import running_sa
-from utils import SA_dict
+from utils import running_sa
 from utils import make_logger
 from utils import config
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB_Status
 
+
 api_logger = make_logger('API', 'API')
 apis = Blueprint('api', __name__)
+
 
 @apis.route('/sa/<cb_id>/')
 def render_SA(cb_id):
@@ -76,18 +79,18 @@ def set_rules(cb_id):
             rule_settings['time_close'] = time_close
         with orm.db_session():
             sa = CB_SA[cb_id]
-            rule = UserRule.get(sa = sa)
+            rule = UserRule.get(sa = sa) # TODO get only returns one column, wrong usage
             rule.set(**rule_settings)
 
-        if actuator_alias not in SA_dict[cb_id].rules:
-            SA_dict[cb_id].rules[actuator_alias] = rule_settings
-            SA_dict[cb_id].rules[actuator_alias]['trigger'] = False
-            SA_dict[cb_id].rules[actuator_alias]['status'] = 'green'
+        if actuator_alias not in running_sa[cb_id].rules:
+            running_sa[cb_id].rules[actuator_alias] = rule_settings
+            running_sa[cb_id].rules[actuator_alias]['trigger'] = False
+            running_sa[cb_id].rules[actuator_alias]['status'] = 'green'
         else:
-            trigger, status = SA_dict[cb_id].rules[actuator_alias]['trigger'], SA_dict[cb_id].rules[actuator_alias]['status']
-            SA_dict[cb_id].rules[actuator_alias] = rule_settings
-            SA_dict[cb_id].rules[actuator_alias]['trigger'] = trigger
-            SA_dict[cb_id].rules[actuator_alias]['status'] = status
+            trigger, status = running_sa[cb_id].rules[actuator_alias]['trigger'], running_sa[cb_id].rules[actuator_alias]['status']
+            running_sa[cb_id].rules[actuator_alias] = rule_settings
+            running_sa[cb_id].rules[actuator_alias]['trigger'] = trigger
+            running_sa[cb_id].rules[actuator_alias]['status'] = status
 
     return jsonify({
         'state': 'ok',
@@ -118,11 +121,11 @@ def stop_SA(cb_id):
                 else:
                     rule.set(exetime=0)
 
-        #order = SA_dict[cb_id].mappings[rule.actuator_alias][1]
+        #order = running_sa[cb_id].mappings[rule.actuator_alias][1]
         #actuat_name = 'Trigger' + '-I' + str(order + 1)
         #DAN.push(actuat_name, 0)
 
-    #SA_dict[cb_id].rules.clear()
+    #running_sa[cb_id].rules.clear()
 
     return jsonify({
         'state': 'ok',
@@ -145,10 +148,10 @@ def get_rules(cb_id):
 
     '''
     res_list = list()
-    for actuator_alias, mappings in SA_dict[cb_id].mappings.items():
+    for actuator_alias, mappings in running_sa[cb_id].mappings.items():
         sensor_alias = mappings[0]
-        if actuator_alias in SA_dict[cb_id].rules:
-            rule = SA_dict[cb_id].rules[actuator_alias]
+        if actuator_alias in running_sa[cb_id].rules:
+            rule = running_sa[cb_id].rules[actuator_alias]
             if rule['rule_type'] == 'sensor':
                 res_list.append({
                     'sensor_alias': rule['sensor_alias'],
@@ -193,18 +196,18 @@ def get_datum(cb_id):
     '''
     record_list = list()
     res_dict = dict()
-    for actuator_alias, rule_info in SA_dict[cb_id].mappings.items():
+    for actuator_alias, rule_info in running_sa[cb_id].mappings.items():
         rule_type = None
         sensor_alias = rule_info[0]
-        if sensor_alias in SA_dict[cb_id].df_hist_val:
-            val = SA_dict[cb_id].df_hist_val[sensor_alias][-1]
+        if sensor_alias in running_sa[cb_id].df_hist_val:
+            val = running_sa[cb_id].df_hist_val[sensor_alias][-1]
         else:
             val = None
 
-        if actuator_alias in SA_dict[cb_id].rules:
-            triggered = SA_dict[cb_id].rules[actuator_alias]['trigger']
-            rule_type = SA_dict[cb_id].rules[actuator_alias]['rule_type']
-            status = SA_dict[cb_id].rules[actuator_alias]['status']
+        if actuator_alias in running_sa[cb_id].rules:
+            triggered = running_sa[cb_id].rules[actuator_alias]['trigger']
+            rule_type = running_sa[cb_id].rules[actuator_alias]['rule_type']
+            status = running_sa[cb_id].rules[actuator_alias]['status']
         else:
             triggered = False
             status = 'green'
@@ -255,7 +258,7 @@ def create_sa():
     with orm.db_session():
         sa = CB_SA(cb_name='TestSA', ag_token=response)
         running_sa[sa.cb_id] = response
-        SA_dict[sa.cb_id] = sa # TODO when restarting server, SA_dict needs to be initialized too
+        running_sa[sa.cb_id] = sa # TODO when restarting server, running_sa needs to be initialized too
 
     return new_sa, 200
 
@@ -275,7 +278,7 @@ def delete_sa(cb_id):
         Status code: 200.
         message: 'SA deleted successfully'.
     '''
-    #SA_dict[cb_id].deregister()  # add deregister function
+    #running_sa[cb_id].deregister()  # add deregister function
     with orm.db_session():
         CB_SA[cb_id].delete()  
     pass

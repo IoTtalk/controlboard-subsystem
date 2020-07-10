@@ -10,14 +10,14 @@ from utils import connect_db
 from utils import make_logger
 from utils import test_db
 from utils import running_sa
-from utils import SA_dict
+
 
 def recover_sa(running_sa, config, logger):
     '''
     Recover SAs stored in Database.
     TODO: Apply AG DA generation after AG subsystem complete.
     Args:
-        sa_dict: Dictionary used to record current AG SAs. Should be empty when passed in this function.
+        running_sa: Dictionary used to record current AG SAs. Should be empty when passed in this function.
         config: Config object read from user specified .ini file.
         logger: Logger object to write log in.
 

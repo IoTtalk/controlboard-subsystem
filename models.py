@@ -24,13 +24,14 @@ class UserRule(cb_db.Entity):
     time_open = Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
     time_close = Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
     exetime = Optional(int)  # execution time for periodically execution
+    mode = Required(str)  # Auto/On/Off 
     sa = Required("CB_SA")  # which SA it belongs to
 
 
 class CB_SA(cb_db.Entity):
     cb_id = PrimaryKey(int, auto=True)  # id of this SA.
     cb_name = Required(str)  # User-defined cb_name. Can be repeated.
-    #ag_token = Required(str) # AG-returned token
+    ag_token = Required(str) # AG-returned token
     rule_set = Set(UserRule)
     account_set = Set("CB_Account")  # accounts that can access this SA.
 
