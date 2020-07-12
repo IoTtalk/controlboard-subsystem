@@ -15,7 +15,6 @@ from utils import config
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB_Status
 
-from CB_SA import AG_SA
 
 api_logger = make_logger('API', 'API')
 apis = Blueprint('api', __name__)
@@ -288,11 +287,13 @@ def create_sa():
     Args:
         account: The user's account who requests for this new SA.
         cb_name: Name of this SA given by the user.
+        mappings: User-specified (sensor, actuator) pairs. Used to create project.
 
     Returns:
         Status code: 200.
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
+    # TODO: pass mappings to AG_SA
     conf = {
         'host': config['db']['host'],
         'user': config['db']['user'],
