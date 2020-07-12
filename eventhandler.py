@@ -86,16 +86,19 @@ def set_rules(cb_id):
                         rule.set(**rule_settings)
             else:
                 new_rule = UserRule(**rule_settings, sa=sa)
+                new_status = CB_Status(rule_id=new_rule.rule_id, status='No data yet', value=0.0)
 
+        running_sa[cb_id].rules[actuator_alias] = rule_settings
+        """
         if actuator_alias not in running_sa[cb_id].rules: # TODO wrong attribute, no rules
             running_sa[cb_id].rules[actuator_alias] = rule_settings
             #running_sa[cb_id].rules[actuator_alias]['status'] = 'green'
         else:
+            running_sa[cb_id].rules[actuator_alias] = rule_settings
             # status = running_sa[cb_id].rules[actuator_alias]['status']
             #status = 'not done yet'
-            running_sa[cb_id].rules[actuator_alias] = rule_settings
             #running_sa[cb_id].rules[actuator_alias]['status'] = status
-
+        """
     return jsonify({
         'state': 'ok',
         'msg': 'Setup Threshold Done'
