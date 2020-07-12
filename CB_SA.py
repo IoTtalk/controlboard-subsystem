@@ -3,8 +3,9 @@ import uuid
 import datetime
 import atexit
 
-
 from pony import orm
+
+from utils import running_sa
 
 
 import DAN
@@ -68,15 +69,15 @@ class AG_SA():
             self.mac_addr = mac_addr
         else:
             self.mac_addr = str(uuid.uuid4())
-
-        condition_handler = {{
+        
+        condition_handler = {
             'bigger': self.bigger,
             'smaller': self.smaller,
             'biggerandequal': self.bigger_equal,
             'smallerandequal': self.smaller_equal
-        }}
+        }
 
-        ctlboard_profile = {{
+        ctlboard_profile = {
             'd_name': str(cb_id) + 'Controlboard',
             'dm_name': 'ControlBoard',
             'u_name': 'yb',
@@ -84,10 +85,10 @@ class AG_SA():
             'df_list': ['Threshold-O1', 'Trigger-I1', 'Threshold-O2', 'Trigger-I2',
                         'Threshold-O3', 'Trigger-I3', 'Threshold-O4', 'Trigger-I4',
                         'Threshold-O5', 'Trigger-I5']
-        }}
+        }
 
         DAN.profile = ctlboard_profile
-        DAN.device_registration_with_retry(f"http://{{config['iottalk_server']}}:9999", self.mac_addr)
+        #DAN.device_registration_with_retry(f"http://{{config['iottalk_server']}}:9999", self.mac_addr)
 
         class UserRule(self.cb_db.Entity):
             rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
@@ -101,6 +102,7 @@ class AG_SA():
             time_open = orm.Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
             time_close = orm.Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
             exetime = orm.Optional(int)  # execution time for periodically execution
+            mode = orm.Required(str)
             sa = orm.Required("CB_SA")  # which SA it belongs to
 
         class CB_SA(self.cb_db.Entity):
@@ -169,6 +171,8 @@ class AG_SA():
             True: Recover succeeded.
             False: Recover failed. 
         '''
+
+        """
         while DAN.state != 'RESUME':
             print('Bind first')
             time.sleep(1)
@@ -189,13 +193,15 @@ class AG_SA():
                 alias_out = DAN.get_alias('Trigger-I' + str(i))
             except IndexError as err:
                 print('End of finding alias')
-
+        """
+        self.mappings["changed"] = ("sensor", 1)
+        self.mappings["FAN"] = ("tests", 2)
         with orm.db_session():
-            sa = CB_SA[cb_id]
+            sa = self.cb_db.CB_SA[self.cb_id]
             rules = sa.rule_set
         for rule in rules:
             tmp = rule.to_dict()
-            self.rule[tmp['actuator_alias']] = tmp      
+            self.rules[tmp['actuator_alias']] = tmp      
 
 
         return 
@@ -483,13 +489,26 @@ class AG_SA():
                 color = 'unchanged'
         return triggered, color
 
+config = {
+    "host": '127.0.0.1',
+    'port': 3306,
+    'user': 'cbsubsystem',
+    'pwd': 'pcs54784',
+    'dbname': 'controlboard'
+}
 
-sa = AG_SA('{account}', {config}, '{mac_addr}')
+#sa = AG_SA('{account}', config, '{mac_addr}')
+
+# for testing
+sa = AG_SA(1, config, '{mac_addr}')
+running_sa['1'] = sa
+
+
 sa.connect_db()
 sa.recover()
 
-atexit.register(sa.terminate)
+#atexit.register(sa.terminate)
 
-while True:
-    sa.check_rules()
-    time.sleep(5)
+#while True:
+#    sa.check_rules()
+#    time.sleep(5)
