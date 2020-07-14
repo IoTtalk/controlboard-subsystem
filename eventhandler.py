@@ -32,7 +32,7 @@ def render_SA(cb_id):
         Rendered HTML template of the SA.
         Status code: 200.
     '''
-    
+    raise NotImplementedError
     return render_template("index.html"), 200
 
 
@@ -67,7 +67,6 @@ def set_rules(cb_id):
         }), 400
 
     for rule_settings in request.json:
-        print("dealing rule: ", rule_settings)
         actuator_alias = rule_settings['actuator_alias']
         if rule_settings['rule_type'] == 'timer':
             time_open = datetime.datetime.strptime(rule_settings['time_open'], '%H:%M:%S').time()
@@ -75,9 +74,23 @@ def set_rules(cb_id):
 
             rule_settings['time_open'] = time_open
             rule_settings['time_close'] = time_close
+
         with orm.db_session():
             sa = CB_SA[cb_id]
-            rules = UserRule.select(lambda r: r.sa.cb_id == sa.cb_id and r.actuator_alias == actuator_alias)[:] 
+
+            if cb_id in running_sa:
+                stop_SA(cb_id)
+
+            try:
+                rule = UserRule.get(sa.cb_id==cb_id, actuator_alias==actuator_alias)
+            except orm.RowNotFound:
+                new_rule = UserRule(
+
+                )
+            except orm.MultipleRowsFound:
+                pass
+            
+            rule = get(lambda r: r.sa.cb_id == sa.cb_id and r.actuator_alias == actuator_alias)[:] 
             if rules:
                 for rule in rules:
                     tmp = rule.to_dict()
@@ -85,19 +98,12 @@ def set_rules(cb_id):
                         rule.set(**rule_settings)
             else:
                 new_rule = UserRule(**rule_settings, sa=sa)
-                new_status = CB_Status(rule_id=new_rule.rule_id, status='No data yet', value=0.0)
+                new_status = CB_Status(rule_id=new_rule.rule_id, status='green', value=0.0)
 
-        running_sa[cb_id].rules[actuator_alias] = rule_settings
-        """
-        if actuator_alias not in running_sa[cb_id].rules: # TODO wrong attribute, no rules
-            running_sa[cb_id].rules[actuator_alias] = rule_settings
-            #running_sa[cb_id].rules[actuator_alias]['status'] = 'green'
-        else:
-            running_sa[cb_id].rules[actuator_alias] = rule_settings
-            # status = running_sa[cb_id].rules[actuator_alias]['status']
-            #status = 'not done yet'
-            #running_sa[cb_id].rules[actuator_alias]['status'] = status
-        """
+        ''' TODO
+            1. Delete original SA if already running
+            2. Create new SA
+        '''
     return jsonify({
         'state': 'ok',
         'msg': 'Setup Threshold Done'
@@ -310,7 +316,7 @@ def create_sa():
         'code': new_sa
     }
 
-    response = requests.post('http://127.0.0.1:8000/autogen/create_device', data=data).text
+    response = requests.post('http://140.113.215.12:8000/autogen/create_device', data=data).text
     with orm.db_session():
         sa = CB_SA(cb_name='TestSA', ag_token=response)
         running_sa[sa.cb_id] = response
