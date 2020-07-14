@@ -108,19 +108,21 @@ def test_db(logger):
 
         test_sa = CB_SA(
             cb_name='test_sa',
-            account_set=test_account
+            account_set=test_account,
+            ag_token="testagtoken"
         )
 
         test_rule = UserRule(
             rule_type='Sensor',
             actuator_alias='test_actuator',
-            sa=test_sa
+            sa=test_sa,
+            mode='auto'
         )
 
         test_account.sa_set.add(test_sa)
         test_sa.rule_set.add(test_rule)
 
-        logger.info('\tTest database connection \t......done')
+        logger.info('\tTest database connection......done')
     except Exception as err:
         logger.error(err)
 

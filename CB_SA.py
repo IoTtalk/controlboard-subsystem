@@ -3,9 +3,8 @@ import uuid
 import datetime
 import atexit
 
-from pony import orm
 
-from utils import running_sa
+from pony import orm
 
 
 import DAN
@@ -70,14 +69,14 @@ class AG_SA():
         else:
             self.mac_addr = str(uuid.uuid4())
         
-        condition_handler = {
+        condition_handler = {{
             'bigger': self.bigger,
             'smaller': self.smaller,
             'biggerandequal': self.bigger_equal,
             'smallerandequal': self.smaller_equal
-        }
+        }}
 
-        ctlboard_profile = {
+        ctlboard_profile = {{
             'd_name': str(cb_id) + 'Controlboard',
             'dm_name': 'ControlBoard',
             'u_name': 'yb',
@@ -85,10 +84,10 @@ class AG_SA():
             'df_list': ['Threshold-O1', 'Trigger-I1', 'Threshold-O2', 'Trigger-I2',
                         'Threshold-O3', 'Trigger-I3', 'Threshold-O4', 'Trigger-I4',
                         'Threshold-O5', 'Trigger-I5']
-        }
+        }}
 
         DAN.profile = ctlboard_profile
-        #DAN.device_registration_with_retry(f"http://{{config['iottalk_server']}}:9999", self.mac_addr)
+        DAN.device_registration_with_retry(f"http://{{config['iottalk_server']}}:9999", self.mac_addr)
 
         class UserRule(self.cb_db.Entity):
             rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
@@ -489,26 +488,14 @@ class AG_SA():
                 color = 'unchanged'
         return triggered, color
 
-config = {
-    "host": '127.0.0.1',
-    'port': 3306,
-    'user': 'cbsubsystem',
-    'pwd': 'pcs54784',
-    'dbname': 'controlboard'
-}
 
-#sa = AG_SA('{account}', config, '{mac_addr}')
 
-# for testing
-sa = AG_SA(1, config, '{mac_addr}')
-running_sa['1'] = sa
-
+sa = AG_SA('{account}', {config}, '{mac_addr}')
 
 sa.connect_db()
 sa.recover()
 
-#atexit.register(sa.terminate)
 
-#while True:
-#    sa.check_rules()
-#    time.sleep(5)
+while True:
+   sa.check_rules()
+   time.sleep(5)
