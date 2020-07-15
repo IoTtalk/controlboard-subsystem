@@ -9,8 +9,10 @@ from pony import orm
 
 from models import UserRule, CB_Account, CB_SA
 
-
-running_sa = dict() # used to record AG SA. in format {sa_id: CB_SA entity}
+'''
+used to record AG SA. in format {sa_id: CB_SA entity}
+'''
+running_sa = dict() 
 config_path = str(sys.argv[1])
 
 
@@ -22,6 +24,14 @@ log_root = config['env']['logroot']
 if not os.path.isdir(log_root):
     os.makedirs(log_root)
 
+default_rules = {
+    'rule_type': 'sensor',
+    'threshold_open': 0.,
+    'threshold_close': 0,
+    'comparison_open': 'notset',
+    'comparison_close': 'notset',
+    'mode': 'auto'
+}
 
 def make_logger(log_name, log_file):
     '''
