@@ -11,8 +11,8 @@ profile = {
 }
 mac_addr = None
 
-# state = 'SUSPEND'     #for control channel
-state = 'RESUME'
+state = 'SUSPEND'     #for control channel
+#state = 'RESUME'
 
 SelectedDF = []
 def ControlChannel():
@@ -80,7 +80,7 @@ MAC=get_mac_addr()
 thx=None
 def register_device(addr):
     global MAC, profile, timestamp, thx
-    print ('register macaddr', addr)
+
     if csmapi.ENDPOINT == None: detect_local_ec()
 
     if addr != None: MAC = addr

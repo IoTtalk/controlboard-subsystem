@@ -77,19 +77,20 @@ def set_rules(cb_id):
 
         with orm.db_session():
             sa = CB_SA[cb_id]
-
-            if cb_id in running_sa:
-                stop_SA(cb_id)
-
             try:
-                rule = UserRule.get(sa.cb_id==cb_id, actuator_alias==actuator_alias)
+                rule = UserRule.get(sa=sa, actuator_alias=actuator_alias)
+                rule.set(**rule_settings)
             except orm.RowNotFound:
                 new_rule = UserRule(
-
+                    
                 )
             except orm.MultipleRowsFound:
                 pass
             
+            if cb_id in running_sa:
+                # ag delete api
+                pass
+
             rule = get(lambda r: r.sa.cb_id == sa.cb_id and r.actuator_alias == actuator_alias)[:] 
             if rules:
                 for rule in rules:
@@ -301,7 +302,6 @@ def create_sa():
         Status code: 200.
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
-    # TODO: pass mappings to AG_SA
     conf = {
         'host': config['db']['host'],
         'user': config['db']['user'],
@@ -310,24 +310,32 @@ def create_sa():
         'port':  config['db']['port'],
         'iottalk_server': config['IoTtalk']['ServerIP']
     }
-    new_sa = open('./CB_SA.py', 'r').read().format(account='test', config=conf, mac_addr='test123456')
-    api_logger.info('Create New SA')
+    try:
+        with orm.db_session():
+            sa = CB_SA(cb_name='TestSA', ag_token='NotCreated')
+            cb_db.commit()
+            running_sa[80] = sa 
+            print(running_sa)
+            new_sa = open('./CB_SA.py', 'r').read().format(cb_id=80, config=conf, mac_addr='test123456')
+            api_logger.info('Create New SA')
 
-    data = {
-        'version': 1,
-        'code': new_sa
-    }
+            data = {
+                'version': 1,
+                'code': new_sa
+            }
+            response = requests.post('http://140.113.215.12:8000/autogen/create_device', data=data).text
+            sa.set(ag_token=response)
+            # TODO when restarting server, running_sa needs to be initialized too
+            return new_sa, 200
+    except KeyError:
+        api_logger.error('CB_SA key argument wrong, check parameter passed in or brackets in the code')
+    except Exception as err:
+        api_logger.error(err)
+        return "Create SA failed", 400
 
-    response = requests.post('http://140.113.215.12:8000/autogen/create_device', data=data).text
-    with orm.db_session():
-        sa = CB_SA(cb_name='TestSA', ag_token=response)
-        running_sa[sa.cb_id] = response
-        running_sa[sa.cb_id] = sa # TODO when restarting server, running_sa needs to be initialized too
-
-    return new_sa, 200
 
 
-@apis.route('/subsystem/delete_sa/<cb_id>', methods=['GET'])
+@apis.route('/subsystem/delete_sa/<cb_id>', methods=['POST'])
 def delete_sa(cb_id):
     '''
     Delete SA with specified cb_id.
@@ -342,10 +350,23 @@ def delete_sa(cb_id):
         Status code: 200.
         message: 'SA deleted successfully'.
     '''
-    #running_sa[cb_id].deregister()  # add deregister function
-    with orm.db_session():
-        CB_SA[cb_id].delete()  
-    pass
+    try:
+        sa = running_sa[int(cb_id)]
+        print(sa.ag_token)
+        data = {
+            'token': sa.ag_token
+        }
+        requests.post('http://140.113.215.12:8000/autogen/delete_device', data=data)
+
+        with orm.db_session():
+            CB_SA[cb_id].delete()
+
+
+    except KeyError:
+        api_logger.info('Specified ControlBoard not running')
+    return "delete succeeded", 200
+    
+
 
 
 @apis.route('/subsystem/get_sa/<usr_account>', methods=['GET'])

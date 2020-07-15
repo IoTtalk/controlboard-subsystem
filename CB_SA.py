@@ -53,6 +53,7 @@ class AG_SA():
                 dbname: Which Database to use.
             cb_db: Database session for this SA.
             mac_addr: Mac address of this SA.
+            default_rule: basic default rule settings.
 
         Returns:
             None
@@ -68,6 +69,15 @@ class AG_SA():
             self.mac_addr = mac_addr
         else:
             self.mac_addr = str(uuid.uuid4())
+
+        self.default_rule = {{
+            'rule_type': 'sensor',
+            'threshold_open': 0.,
+            'threshold_close': 0,
+            'comparison_open': 'notset',
+            'comparison_close': 'notset',
+            'mode': 'auto'
+        }}
         
         condition_handler = {{
             'bigger': self.bigger,
@@ -77,7 +87,7 @@ class AG_SA():
         }}
 
         ctlboard_profile = {{
-            'd_name': str(cb_id) + 'Controlboard',
+            'd_name': str(cb_id) + '.Controlboard',
             'dm_name': 'ControlBoard',
             'u_name': 'yb',
             'is_sim': False,
@@ -86,8 +96,10 @@ class AG_SA():
                         'Threshold-O5', 'Trigger-I5']
         }}
 
+
         DAN.profile = ctlboard_profile
         DAN.device_registration_with_retry(f"http://{{config['iottalk_server']}}:9999", self.mac_addr)
+        DAN.state = 'RESUME'
 
         class UserRule(self.cb_db.Entity):
             rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
@@ -171,52 +183,44 @@ class AG_SA():
             False: Recover failed. 
         '''
 
-        """
-        while DAN.state != 'RESUME':
-            print('Bind first')
-            time.sleep(1)
-        
-        alias_in = DAN.get_alias('Threshold-O' + str(1))
-        alias_out = DAN.get_alias('Trigger-I' + str(1))
+        while len(self.mappings) == 0:        
+            alias_in = DAN.get_alias('Threshold-O' + str(1))
+            alias_out = DAN.get_alias('Trigger-I' + str(1))
 
-        print(alias_in, alias_out)
-        print(self.mac_addr)
-        i = 1
-        while len(alias_in):
-            try:
-                if 'Threshold' not in alias_in[0] and 'Trigger' not in alias_out[0]:
-                    self.mappings[alias_out[0]] = (alias_in[0], i)
+            i = 1
+            while len(alias_in):
+                try:
+                    if 'Threshold' not in alias_in[0] and 'Trigger' not in alias_out[0]:
+                        self.mappings[alias_out[0][:-3]] = (alias_in[0][:-3], i)
+                    i += 1
+                    alias_in = DAN.get_alias('Threshold-O' + str(i))
+                    alias_out = DAN.get_alias('Trigger-I' + str(i))
+                except IndexError as err:
+                    print('End of finding alias')
+            print('Please bind first')
+            time.sleep(2)
+        print(self.mappings)
 
-                i += 1
-                alias_in = DAN.get_alias('Threshold-O' + str(i))
-                alias_out = DAN.get_alias('Trigger-I' + str(i))
-            except IndexError as err:
-                print('End of finding alias')
-        """
-        self.mappings["changed"] = ("sensor", 1)
-        self.mappings["FAN"] = ("tests", 2)
-        with orm.db_session():
-            sa = self.cb_db.CB_SA[self.cb_id]
-            rules = sa.rule_set
-        for rule in rules:
-            tmp = rule.to_dict()
-            self.rules[tmp['actuator_alias']] = tmp      
+        sa = self.cb_db.CB_SA[self.cb_id]
+        rules = sa.rule_set
+        for actuator_alias, (sensor_alias, order) in self.mappings.items():
+            new_rule = rules.filter(lambda rule: rule.actuator_alias==actuator_alias and rule.sensor_alias==sensor_alias)
+            print(new_rule)
+            if not len(new_rule):
+                new_rule = self.cb_db.UserRule(
+                    **self.default_rule,
+                    actuator_alias=actuator_alias,
+                    sensor_alias=sensor_alias,
+                    sa = sa
+                )
 
+
+            # self.rules[actuator_alias] = 
+                
+        print(rules)
 
         return 
 
-
-    def terminate(self):
-        '''
-        Termination of this CB SA.
-
-        Args:
-            None.
-
-        Returns:
-            Boolean indicating termination succeed or failed.
-        '''
-        return
 
     def check_rules(self):
         '''
@@ -228,15 +232,10 @@ class AG_SA():
 
         Returns:
             None
-        # '''
-        # for rule in self.rules:
-        #     if rule.rule_type == "timer":
-        #         CB_SA.time_checker(self.da, self.logger, rule)
-        #     else:
-        #         CB_SA.sensor_handler(self.da, self.logger, rule)
+        '''
         data = DAN.pull('Threshold-O1')
 
-        print('Pulled from AG:', data)
+        print('Pulled from AG:', data, self.cb_id)
 
         DAN.push('Trigger-I1', 1)
 
@@ -490,7 +489,7 @@ class AG_SA():
 
 
 
-sa = AG_SA('{account}', {config}, '{mac_addr}')
+sa = AG_SA('{cb_id}', {config}, '{mac_addr}')
 
 sa.connect_db()
 sa.recover()
