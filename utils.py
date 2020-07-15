@@ -1,26 +1,23 @@
-import configparser
 import logging
+import requests
 import os
-import sys
+import uuid
 
 
 from pony import orm
 
 
+from config import env_config, reg_config
 from models import UserRule, CB_Account, CB_SA
+
 
 '''
 used to record AG SA. in format {sa_id: CB_SA entity}
 '''
 running_sa = dict() 
-config_path = str(sys.argv[1])
 
 
-config = configparser.ConfigParser()
-config.read(config_path)
-
-
-log_root = config['env']['logroot']
+log_root = env_config['env']['logroot']
 if not os.path.isdir(log_root):
     os.makedirs(log_root)
 
@@ -79,11 +76,11 @@ def connect_db(logger, cb_db):
     retry_times = 0
     cb_db.bind(
         provider='mysql',
-        host=config['db']['host'],
-        user=config['db']['user'],
-        passwd=config['db']['pwd'],
-        db=config['db']['dbname'],
-        port=int(config['db']['port'])
+        host=env_config['db']['host'],
+        user=env_config['db']['user'],
+        passwd=env_config['db']['pwd'],
+        db=env_config['db']['dbname'],
+        port=int(env_config['db']['port'])
     )
     cb_db.generate_mapping(check_tables=False)
     while (retry_times < 3):
@@ -119,7 +116,8 @@ def test_db(logger):
         test_sa = CB_SA(
             cb_name='test_sa',
             account_set=test_account,
-            ag_token="testagtoken"
+            ag_token="testagtoken",
+            mac_addr=uuid.uuid4()
         )
 
         test_rule = UserRule(
@@ -137,3 +135,33 @@ def test_db(logger):
         logger.error(err)
 
     return
+
+
+def register_ag(sa, logger):
+    '''
+    Worker function to register to AG given sa entity and logger.
+
+    Args:
+        sa: SA entity object selected from PonyORM.
+        logger: Logger object to write log in.
+
+    Returns:
+        status: Boolean value indicating register status.
+    '''
+    try:
+        running_sa[sa.cb_id] = sa 
+        new_sa = open('./CB_SA.py', 'r').read().format(cb_id=sa.cb_id, config=reg_config, mac_addr=sa.mac_addr)
+        data = {
+            'version': 1,
+            'code': new_sa
+        }
+        response = requests.post('http://140.113.215.12:8000/autogen/create_device', data=data).text
+        sa.set(ag_token=response)
+
+        return True
+    except KeyError:
+        logger.error('CB_SA key argument wrong, check parameter passed in or brackets in the code')
+        return False
+    except Exception as err:
+        logger.error(err)
+        return False

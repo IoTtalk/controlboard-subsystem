@@ -99,7 +99,6 @@ class AG_SA():
 
         DAN.profile = ctlboard_profile
         DAN.device_registration_with_retry(f"http://{{config['iottalk_server']}}:9999", self.mac_addr)
-        DAN.state = 'RESUME'
 
         class UserRule(self.cb_db.Entity):
             rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
@@ -182,10 +181,12 @@ class AG_SA():
             True: Recover succeeded.
             False: Recover failed. 
         '''
-
+        DAN.state = "RESUME"
         while len(self.mappings) == 0:        
             alias_in = DAN.get_alias('Threshold-O' + str(1))
             alias_out = DAN.get_alias('Trigger-I' + str(1))
+            print('Please bind first')
+            print(alias_in, alias_out, DAN.state)
 
             i = 1
             while len(alias_in):
@@ -197,15 +198,16 @@ class AG_SA():
                     alias_out = DAN.get_alias('Trigger-I' + str(i))
                 except IndexError as err:
                     print('End of finding alias')
-            print('Please bind first')
+                    break
+
             time.sleep(2)
-        print(self.mappings)
+        print(self.mappings, self.cb_id)
 
         sa = self.cb_db.CB_SA[self.cb_id]
         rules = sa.rule_set
         for actuator_alias, (sensor_alias, order) in self.mappings.items():
             new_rule = rules.filter(lambda rule: rule.actuator_alias==actuator_alias and rule.sensor_alias==sensor_alias)
-            print(new_rule)
+            print(new_rule[:])
             if not len(new_rule):
                 new_rule = self.cb_db.UserRule(
                     **self.default_rule,

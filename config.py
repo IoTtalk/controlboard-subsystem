@@ -1,20 +1,26 @@
-class EnvironmentConfig():
-    host = '0.0.0.0'
-    port = 7789
-    df_his_record_len = 200
-    max_thresholds = 5
-    sqlite_rule_db = 'UserRule.sqlite'
-    server_ip = 'http://140.113.199.182:9999'
-    mac_addr = 'ALIASTESTING'
-    ctlboard_profile = {
-        'd_name': 'DMTEST',
-        'dm_name': 'ControlBoard',
-        'u_name': 'yb',
-        'is_sim': False,
-        'df_list': ['Threshold-O1', 'Trigger-I1', 'Threshold-O2', 'Trigger-I2',
-                    'Threshold-O3', 'Trigger-I3', 'Threshold-O4', 'Trigger-I4',
-                    'Threshold-O5', 'Trigger-I5']
-    }
+import configparser
+import sys
 
 
-env_config = EnvironmentConfig()
+default_rules = {
+    'rule_type': 'sensor',
+    'threshold_open': 0.,
+    'threshold_close': 0,
+    'comparison_open': 'notset',
+    'comparison_close': 'notset',
+    'mode': 'auto'
+}
+
+
+config_path = str(sys.argv[1])
+env_config = configparser.ConfigParser()
+env_config.read(config_path)
+
+reg_config = {
+    'host': env_config['db']['host'],
+    'user': env_config['db']['user'],
+    'pwd': env_config['db']['pwd'],
+    'dbname': env_config['db']['dbname'],
+    'port':  env_config['db']['port'],
+    'iottalk_server': env_config['IoTtalk']['ServerIP']
+}
