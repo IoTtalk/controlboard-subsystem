@@ -12,7 +12,7 @@ from pony import orm
 from config import env_config
 from utils import running_sa
 from utils import make_logger
-from utils import register_ag
+from utils import register_ag, deregister_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB_Status
 
@@ -328,19 +328,15 @@ def delete_sa(cb_id):
     '''
     try:
         sa = running_sa[int(cb_id)]
-        print(sa.ag_token)
-        data = {
-            'token': sa.ag_token
-        }
-        requests.post('http://140.113.215.12:8000/autogen/delete_device', data=data)
+        status = deregister_ag(sa, api_logger)
 
-        with orm.db_session():
-            CB_SA[cb_id].delete()
-
-
+        if status:
+            return "Delete SA succeeded", 200
+        else:
+            return "Delete SA failed, check api log files", 502
     except KeyError:
         api_logger.info('Specified ControlBoard not running')
-    return "delete succeeded", 200
+        return "Specified SA not found", 400
     
 
 

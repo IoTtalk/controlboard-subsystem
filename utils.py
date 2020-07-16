@@ -165,3 +165,29 @@ def register_ag(sa, logger):
     except Exception as err:
         logger.error(err)
         return False
+
+
+def deregister_ag(sa, logger):
+    '''
+    Worker function to deregister AG device.
+
+    Args:
+        sa: SA entity object selected from PonyORM.
+        logger: Logger object to write log in.
+
+    Returns:
+        status: Boolean value indicating register status.
+    '''
+
+    try:
+        data = {
+            'token': sa.ag_token
+        }
+        status = requests.post('http://140.113.215.12:8000/autogen/delete_device', data=data)
+
+        with orm.db_session():
+            CB_SA[sa.cb_id].delete()
+        return True
+    except Exception as err:
+        logger.error(err)
+        return False
