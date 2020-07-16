@@ -12,6 +12,7 @@ from utils import connect_db
 from utils import make_logger
 from utils import test_db
 from utils import running_sa
+from utils import register_ag
 
 
 
@@ -33,9 +34,10 @@ def recover_sa(running_sa, config, logger):
     to_recovered = cb_db.CB_SA.select()[:]
     print(to_recovered)
 
-
-
-
+    for sa in to_recovered:
+        register_ag(sa, logger)
+        running_sa[sa.cb_id] = sa
+    print(running_sa)
     return
 
 
@@ -50,7 +52,7 @@ if __name__ == "__main__":
     system_logger.info('\tCreating EventHandler\t......done')
 
     connect_db(system_logger, models.cb_db)
-    test_db(system_logger)
+    # test_db(system_logger)
 
     recover_sa(running_sa, env_config, system_logger)
 

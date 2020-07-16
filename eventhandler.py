@@ -302,9 +302,11 @@ def create_sa():
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
     with orm.db_session():
-        sa = CB_SA(cb_name='TestSA', ag_token='NotCreated', mac_addr=uuid.uuid4())
+        mac_addr = str(uuid.uuid4())
+        print(mac_addr)
+        sa = CB_SA(cb_name='TestSA', ag_token='NotCreated', mac_addr=mac_addr)
         cb_db.commit()
-        api_logger.info('Create New SA')
+        api_logger.info(f'Create New SA, SA_ID: {sa.cb_id}')
         status = register_ag(sa, api_logger)
 
     if status:
@@ -329,7 +331,7 @@ def delete_sa(cb_id):
     try:
         sa = running_sa[int(cb_id)]
         status = deregister_ag(sa, api_logger)
-
+        api_logger.info(f"Delete Running SA, SA_ID: {sa.cb_id}")
         if status:
             return "Delete SA succeeded", 200
         else:

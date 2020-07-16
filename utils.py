@@ -83,6 +83,7 @@ def connect_db(logger, cb_db):
         port=int(env_config['db']['port'])
     )
     cb_db.generate_mapping(check_tables=False)
+    # cb_db.drop_all_tables(with_all_data=True) # used to clean testcase
     while (retry_times < 3):
         try:
             cb_db.create_tables()
@@ -157,11 +158,12 @@ def register_ag(sa, logger):
         }
         response = requests.post('http://140.113.215.12:8000/autogen/create_device', data=data).text
         sa.set(ag_token=response)
-
         return True
+
     except KeyError:
         logger.error('CB_SA key argument wrong, check parameter passed in or brackets in the code')
         return False
+
     except Exception as err:
         logger.error(err)
         return False
@@ -183,7 +185,7 @@ def deregister_ag(sa, logger):
         data = {
             'token': sa.ag_token
         }
-        status = requests.post('http://140.113.215.12:8000/autogen/delete_device', data=data)
+        requests.post('http://140.113.215.12:8000/autogen/delete_device', data=data)
 
         with orm.db_session():
             CB_SA[sa.cb_id].delete()
