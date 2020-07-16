@@ -1,5 +1,5 @@
-import requests
 import datetime
+import uuid
 
 
 from flask import Blueprint
@@ -9,9 +9,10 @@ from flask import request
 from pony import orm
 
 
+from config import env_config
 from utils import running_sa
 from utils import make_logger
-from utils import config
+from utils import register_ag, deregister_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB_Status
 
@@ -291,7 +292,7 @@ def get_datum(cb_id):
 @apis.route('/subsystem/create_sa', methods=['POST'])
 def create_sa():
     '''
-    Creates SA with specified actuator/sensor alias.
+    Creates an empty SA.
 
     Args:
         account: The user's account who requests for this new SA.
@@ -302,36 +303,18 @@ def create_sa():
         Status code: 200.
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
-    conf = {
-        'host': config['db']['host'],
-        'user': config['db']['user'],
-        'pwd': config['db']['pwd'],
-        'dbname': config['db']['dbname'],
-        'port':  config['db']['port'],
-        'iottalk_server': config['IoTtalk']['ServerIP']
-    }
-    try:
-        with orm.db_session():
-            sa = CB_SA(cb_name='TestSA', ag_token='NotCreated')
-            cb_db.commit()
-            running_sa[80] = sa 
-            print(running_sa)
-            new_sa = open('./CB_SA.py', 'r').read().format(cb_id=80, config=conf, mac_addr='test123456')
-            api_logger.info('Create New SA')
+    with orm.db_session():
+        mac_addr = str(uuid.uuid4())
+        print(mac_addr)
+        sa = CB_SA(cb_name='TestSA', ag_token='NotCreated', mac_addr=mac_addr)
+        cb_db.commit()
+        api_logger.info(f'Create New SA, SA_ID: {sa.cb_id}')
+        status = register_ag(sa, api_logger)
 
-            data = {
-                'version': 1,
-                'code': new_sa
-            }
-            response = requests.post('http://140.113.215.12:8000/autogen/create_device', data=data).text
-            sa.set(ag_token=response)
-            # TODO when restarting server, running_sa needs to be initialized too
-            return new_sa, 200
-    except KeyError:
-        api_logger.error('CB_SA key argument wrong, check parameter passed in or brackets in the code')
-    except Exception as err:
-        api_logger.error(err)
-        return "Create SA failed", 400
+    if status:
+        return "Create SA succeeded", 200
+    else:
+        return "Create SA failed, check api log files", 400
 
 
 
@@ -339,9 +322,6 @@ def create_sa():
 def delete_sa(cb_id):
     '''
     Delete SA with specified cb_id.
-        1. Deregister DA.
-        2. Remove corresponding project on IoTtalk.
-        3. Clear Database records.
         
     Args:
         cb_id: ID of the requester SA.
@@ -352,19 +332,15 @@ def delete_sa(cb_id):
     '''
     try:
         sa = running_sa[int(cb_id)]
-        print(sa.ag_token)
-        data = {
-            'token': sa.ag_token
-        }
-        requests.post('http://140.113.215.12:8000/autogen/delete_device', data=data)
-
-        with orm.db_session():
-            CB_SA[cb_id].delete()
-
-
+        status = deregister_ag(sa, api_logger)
+        api_logger.info(f"Delete Running SA, SA_ID: {sa.cb_id}")
+        if status:
+            return "Delete SA succeeded", 200
+        else:
+            return "Delete SA failed, check api log files", 502
     except KeyError:
         api_logger.info('Specified ControlBoard not running')
-    return "delete succeeded", 200
+        return "Specified SA not found", 400
     
 
 

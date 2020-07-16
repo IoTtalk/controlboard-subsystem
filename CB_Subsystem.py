@@ -1,17 +1,22 @@
 from flask import Flask
+from pony import orm
 
 
 import models
 
 
+from config import env_config
 from eventhandler import apis
-from utils import config
+from models import cb_db
 from utils import connect_db
 from utils import make_logger
 from utils import test_db
 from utils import running_sa
+from utils import register_ag
 
 
+
+@orm.db_session()
 def recover_sa(running_sa, config, logger):
     '''
     Recover SAs stored in Database.
@@ -26,9 +31,13 @@ def recover_sa(running_sa, config, logger):
     '''
     logger.info('Start Recovering SAs in Database...')
     assert len(running_sa) == 0
+    to_recovered = cb_db.CB_SA.select()[:]
+    print(to_recovered)
 
-
-
+    for sa in to_recovered:
+        register_ag(sa, logger)
+        running_sa[sa.cb_id] = sa
+    print(running_sa)
     return
 
 
@@ -43,12 +52,12 @@ if __name__ == "__main__":
     system_logger.info('\tCreating EventHandler\t......done')
 
     connect_db(system_logger, models.cb_db)
-    test_db(system_logger)
+    # test_db(system_logger)
 
-    recover_sa(running_sa, config, system_logger)
+    recover_sa(running_sa, env_config, system_logger)
 
     app.run(
-        host=config['env']['host'],
-        port=config['env']['port'],
+        host=env_config['env']['host'],
+        port=env_config['env']['port'],
         threaded=True
     )

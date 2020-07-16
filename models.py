@@ -7,6 +7,7 @@ from pony.orm import PrimaryKey
 from pony.orm import Optional
 from pony.orm import Set
 from pony.orm import db_session
+from pony.orm import LongStr 
 
 
 cb_db = Database()
@@ -31,7 +32,8 @@ class UserRule(cb_db.Entity):
 class CB_SA(cb_db.Entity):
     cb_id = PrimaryKey(int, auto=True)  # id of this SA.
     cb_name = Required(str)  # User-defined cb_name. Can be repeated.
-    ag_token = Required(str) # AG-returned token
+    ag_token = Required(LongStr) # AG-returned token
+    mac_addr = Required(LongStr) # Mac-addr of this SA
     rule_set = Set(UserRule)
     account_set = Set("CB_Account")  # accounts that can access this SA.
 
