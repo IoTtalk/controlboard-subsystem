@@ -206,8 +206,7 @@ class AG_SA():
         sa = self.cb_db.CB_SA[self.cb_id]
         rules = sa.rule_set
         for actuator_alias, (sensor_alias, order) in self.mappings.items():
-            new_rule = rules.filter(lambda rule: rule.actuator_alias==actuator_alias and rule.sensor_alias==sensor_alias)
-            print(new_rule[:])
+            new_rule = rules.filter(lambda rule: rule.actuator_alias==actuator_alias and rule.sensor_alias==sensor_alias)[:]
             if not len(new_rule):
                 new_rule = self.cb_db.UserRule(
                     **self.default_rule,
@@ -215,11 +214,13 @@ class AG_SA():
                     sensor_alias=sensor_alias,
                     sa = sa
                 )
-
-
-            # self.rules[actuator_alias] = 
+                self.cb_db.commit()
+                self.rules[actuator_alias] = new_rule.to_dict()
+            else:
+                self.rules[actuator_alias] = new_rule[0].to_dict()
+            print(new_rule)
                 
-        print(rules)
+        print(self.rules)
 
         return 
 
