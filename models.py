@@ -45,6 +45,6 @@ class CB_Account(cb_db.Entity):
 
 
 class CB_Status(cb_db.Entity):
-    rule_id = Required(int)  # For Subsystem to findout which rule this status entry represent.
+    rule_id = PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
     status = Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
     value = Required(float)  # The sensory value received from IoTtalk.

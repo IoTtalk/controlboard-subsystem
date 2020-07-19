@@ -21,27 +21,14 @@ class AG_SA():
             config: Infomation for connecting to Subsystem, should contain IP, port, username, password.
 
         Instance variables:
-            rules: User-defined rules in dictionary to avoid huge querying rules resulting from checking rule satisfaction.
-            {{
-                actuator_alias1:
-                {{
-                    "rule_type": "timer" or "sensor", required.
-                    "actuator_alias": string, required.
-                    "sensor_alias": string, required if Type is "sensor".
-                    "threshold_close": integer, required if Type is "sensor".
-                    "threshold_open": integer, required if Type is "sensor".
-                    "comparison_close": string, required.
-                    "comparison_open": string, required.
-                    "time_open": datetime string, required if Type is "timer".
-                    "time_close": datetime string, required if Type is "timer".
-                    "trigger": whether this actuator is triggered or not.
-                    "status": the color(green/yellow/red) this rule should present.
-                }}
-            }}
+            rules: User-defined rules to avoid redundant querying rules resulting from checking rule satisfaction.
+            [
+                (rule entity, status entity)
+            ]
             mappings: A dictionary of the following format.
-            {{
+            {
                 'actuator_alias1': (sensor_alias1, DF order on IoTTalk GUI)
-            }}
+            }
             cb_id: ID for this SA, used in Database querying.
             df_hist_val: History values of sensors manipulated by this SA.
             df_hist_len: # recorded history values.
@@ -58,7 +45,7 @@ class AG_SA():
         Returns:
             None
         '''
-        self.rules = dict()
+        self.rules = list()
         self.mappings = dict()
         self.df_hist_val = dict()
         self.df_hist_len = dict()
@@ -115,11 +102,13 @@ class AG_SA():
             mode = orm.Required(str)
             sa = orm.Required("CB_SA")  # which SA it belongs to
 
-        class CB_SA(self.cb_db.Entity):
-            cb_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
-            cb_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
-            rule_set = orm.Set("UserRule")
-            account_set = orm.Set("CB_Account")  # accounts that can access this SA.
+        class CB_SA(cb_db.Entity):
+            cb_id = PrimaryKey(int, auto=True)  # id of this SA.
+            cb_name = Required(str)  # User-defined cb_name. Can be repeated.
+            ag_token = Required(LongStr) # AG-returned token
+            mac_addr = Required(LongStr) # Mac-addr of this SA
+            rule_set = Set(UserRule)
+            account_set = Set("CB_Account")  # accounts that can access this SA.
 
 
         class CB_Account(self.cb_db.Entity):
@@ -129,7 +118,7 @@ class AG_SA():
 
 
         class CB_Status(self.cb_db.Entity):
-            rule_id = orm.Required(int)  # For Subsystem to findout which rule this status entry represent.
+            rule_id = orm.PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
             status = orm.Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
             value = orm.Required(float)  # The sensory value received from IoTtalk.
 
@@ -181,12 +170,12 @@ class AG_SA():
             True: Recover succeeded.
             False: Recover failed. 
         '''
+        # Pulling Alias
         DAN.state = "RESUME"
         while len(self.mappings) == 0:        
             alias_in = DAN.get_alias('Threshold-O' + str(1))
             alias_out = DAN.get_alias('Trigger-I' + str(1))
             print('Please bind first')
-            print(alias_in, alias_out, DAN.state)
 
             i = 1
             while len(alias_in):
@@ -203,6 +192,7 @@ class AG_SA():
             time.sleep(2)
         print(self.mappings, self.cb_id)
 
+        # Recover Rules from database according to fetched alias.
         sa = self.cb_db.CB_SA[self.cb_id]
         rules = sa.rule_set
         for actuator_alias, (sensor_alias, order) in self.mappings.items():
@@ -214,16 +204,21 @@ class AG_SA():
                     sensor_alias=sensor_alias,
                     sa = sa
                 )
+
+                new_status = self.cb_db.CB_Status(
+                    rule_id=new_rule.rule_id,
+                    status='GREEN',
+                    value=0
+                )
+
                 self.cb_db.commit()
-                self.rules[actuator_alias] = new_rule.to_dict()
+                self.rules.append((new_rule, new_status))
             else:
-                self.rules[actuator_alias] = new_rule[0].to_dict()
-            print(new_rule)
-                
+                self.rules.append((new_rule[0], CB_Status[new_rule[0].rule_id]))
+
         print(self.rules)
 
         return 
-
 
     def check_rules(self):
         '''
@@ -236,20 +231,28 @@ class AG_SA():
         Returns:
             None
         '''
-        data = DAN.pull('Threshold-O1')
-
-        print('Pulled from AG:', data, self.cb_id)
-
-        DAN.push('Trigger-I1', 1)
+        for rule, status in self.rules:
+            if rule.rule_type == 'sensor':
+                sensor_checker(
+                    rule,
+                    status,
+                    self.mappings[rule.actuator_alias]
+                )
+            else:
+                timer_checker(
+                    rule.actuator_alias, 
+                    rule.sensor_alias, 
+                    self.mappings[rule.actuator_alias]
+                )
 
         return
 
-    def sensor_checker(cls, comparison, threshold, data, action, actuator_alias, sensor_alias):
+    @staticmethod
+    def sensor_checker(comparison, threshold, data):
         """
         Sensor-type rule checking worker.
 
         Args:
-            cls: The SA that calls this method
             comparison: the comparison type. Represented as a String like 'bigger', 'smaller'...
             threshold: threshold settings from rule_info in memory.
             data: data pulled from IoTTalk server.
@@ -258,30 +261,12 @@ class AG_SA():
             sensor_alias: alias of sensor, stored in memory.
 
         Returns:
-            to_trigger: The action needs to be done by Sensor-type handler.
-                'OPEN': Open the actuator by pushing 1 to IoTTalk Server
-                'CLOSE': Close the actuator by pushing 1 to IoTTalk Server
-                'STAY': Do nothing
-
+            
         """
-        avg = sum(list(cls.df_hist_val[sensor_alias])) / len(cls.df_hist_val[sensor_alias])
-        print('current avg:', avg)
-        triggered, color = condition_handler[comparison](float(data), float(threshold), avg)
-        to_trigger = 'STAY'
-        print('Satisfied?', triggered)
-        if triggered:
-            if action == 'open':
-                to_trigger = 'OPEN'
-                utils.rule_info[actuator_alias]['status'] = 'red'
-            else:
-                to_trigger = 'CLOSE'
-                utils.rule_info[actuator_alias]['status'] = 'green'
-        if color == 'yellow':
-            utils.rule_info[actuator_alias]['status'] = color
 
-        return to_trigger
 
-    def time_checker(da, actuator_alias, sensor_alias, order):
+    @staticmethod
+    def timer_checker(actuator_alias, sensor_alias, order):
         """
         Timer-type rule checking handler. Push to IoTTalk server accordingly
 
@@ -323,73 +308,41 @@ class AG_SA():
 
         return
 
-    def sensor_handler(da, actuator_alias, sensor_alias, order):
+    @staticmethod
+    def sensor_checker(rule, status, order):
         """
         Sensor-type rule checking handler. Push to IoTTalk server accordingly.
 
         Args:
-            actuator_alias: alias of actuator, stored in memory.
-            sensor_alias: alias of sensor, stored in memory.
-            order: which pair of (actuator, sensor) mappings is being checked.
+            rule: UserRule entity stored in memory.
+            status: CB_Status entity stored in memory.
+            order: Which pair of (actuator, sensor) mappings is being checked.
 
         Returns:
             None
         """
-        actuator_name = 'Trigger' + '-I' + str(order + 1)
-
-        # -------------Comparison with threshold--------------
-        comparison_open = utils.rule_info[actuator_alias]['comparison_open']
-        comparison_close = utils.rule_info[actuator_alias]['comparison_close']
-
-        if comparison_open != 'notset':
-            threshold_open = utils.rule_info[actuator_alias]['threshold_open']
-        if comparison_close != 'notset':
-            threshold_close = utils.rule_info[actuator_alias]['threshold_close']
-        if sensor_alias not in utils.df_hist_val:
-            self.logger.info("No data pulled from IoTTalk, skip checking")
+        sensor_df = 'Threshold-O' + str(order)
+        data = DAN.pull(sensor_df)
+        if data is None:
             return
-        else:
-            data = utils.df_hist_val[sensor_alias][-1]
-        # filter notset
+
+        data = data[0]
+        status.value = data
+        actuator_df = 'Trigger-I' + str(order)
+        
         try:
-            if 'notset' in comparison_open and 'notset' in comparison_close:
-                utils.rule_info[actuator_alias]['trigger'] = False
-                utils.rule_info[actuator_alias]['status'] = 'red'
-                # self.logger.info(f'Change all comparison to notset, close actuator {{actuator_alias}} and corresponding pushing thread')
-                utils.pushing_thread_dict[actuator_alias][1] = False
-                utils.pushing_thread_dict.pop(actuator_alias, None)
-                to_trigger = 'NOTSET'
+            if 'notset' in rule.comparison_open and 'notset' in rule.comparison_close:
+                status.status = 'GREEN'
+            elif 'notset' in rule.comparison_open:
 
-            elif 'notset' in comparison_open and 'notset' not in comparison_close:
-                to_trigger = self.sensor_checker(comparison_close, threshold_close, data, 'close', actuator_alias, sensor_alias)
-
-            elif 'notset' not in comparison_open and 'notset' in comparison_close:
-                to_trigger = self.sensor_checker(comparison_open, threshold_open, data, 'open', actuator_alias, sensor_alias)
+            elif 'notset' in rule.comparison_close:
 
             else:
-                to_trigger = self.sensor_checker(comparison_open, threshold_open, data, 'open', actuator_alias, sensor_alias)
-                if to_trigger == 'STAY':
-                    to_trigger = self.sensor_checker(comparison_close, threshold_close, data, 'close', actuator_alias, sensor_alias)
 
-            if to_trigger == 'CLOSE':
-                if utils.rule_info[actuator_alias]['trigger'] is True:
-                    self.da.push(actuator_name, 0)
-                # self.logger.info(f'sensor {{sensor_alias}} close {{actuator_alias}}, comparison: {{comparison_close}}, 
-                # threshold: {{threshold_close}}, data pulled: {{data}}')
-                utils.rule_info[actuator_alias]['trigger'] = False
+        except:
 
-            elif to_trigger == 'OPEN':
-                if utils.rule_info[actuator_alias]['trigger'] is False:
-                    self.da.push(actuator_name, 1)
-                # self.logger.info(f'sensor {{sensor_alias}} trigger {{actuator_alias}}, comparison: {{comparison_open}}, threshold: {{threshold_open}}, data pulled: {{data}}')
-                utils.rule_info[actuator_alias]['trigger'] = True
+        
 
-            print(utils.rule_info[actuator_alias]['trigger'], actuator_alias)
-        except Exception as ep:
-            self.logger.error(ep)
-
-        return
-    
     def bigger(data, threshold, avg):
         """
         Check if data > threshold. Return comparison results as boolean, string.
