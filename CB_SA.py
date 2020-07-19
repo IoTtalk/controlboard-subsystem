@@ -63,10 +63,11 @@ class AG_SA():
             'threshold_close': 0,
             'comparison_open': 'notset',
             'comparison_close': 'notset',
-            'mode': 'auto'
+            'mode': 'auto',
+            'period': 0
         }}
         
-        condition_handler = {{
+        self.condition_handler = {{
             'bigger': self.bigger,
             'smaller': self.smaller,
             'biggerandequal': self.bigger_equal,
@@ -99,6 +100,7 @@ class AG_SA():
             time_open = orm.Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
             time_close = orm.Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
             exetime = orm.Optional(int)  # execution time for periodically execution
+            period = Required(int)  # Period functionality.
             mode = orm.Required(str)
             sa = orm.Required("CB_SA")  # which SA it belongs to
 
@@ -232,38 +234,26 @@ class AG_SA():
             None
         '''
         for rule, status in self.rules:
+            if rule.mode == 'on':
+                if status.status != 'RED':
+                    actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias])
+                    DAN.push(actuator_df, 1)
+            elif rule.mode == 'off':
+                if status.status == 'RED':
+                    actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias])
+                    DAN.push(actuator_df, 0)
+
+            # auto mode
             if rule.rule_type == 'sensor':
                 sensor_checker(
-                    rule,
-                    status,
-                    self.mappings[rule.actuator_alias]
+                    rule, status, self.mappings[rule.actuator_alias]
                 )
             else:
                 timer_checker(
-                    rule.actuator_alias, 
-                    rule.sensor_alias, 
-                    self.mappings[rule.actuator_alias]
+                    rule, status, self.mappings[rule.actuator_alias]
                 )
 
         return
-
-    @staticmethod
-    def sensor_checker(comparison, threshold, data):
-        """
-        Sensor-type rule checking worker.
-
-        Args:
-            comparison: the comparison type. Represented as a String like 'bigger', 'smaller'...
-            threshold: threshold settings from rule_info in memory.
-            data: data pulled from IoTTalk server.
-            action: 'open' or 'close' indicating what needs to be done if rule satisfied.
-            actuator_alias: alias of actuator, stored in memory.
-            sensor_alias: alias of sensor, stored in memory.
-
-        Returns:
-            
-        """
-
 
     @staticmethod
     def timer_checker(actuator_alias, sensor_alias, order):
@@ -332,18 +322,24 @@ class AG_SA():
         
         try:
             if 'notset' in rule.comparison_open and 'notset' in rule.comparison_close:
+                if status.status == 'RED':
+                    DAN.push(actuator_df, 0)
                 status.status = 'GREEN'
             elif 'notset' in rule.comparison_open:
-
+                satisfied = self.condition_handler[rule.comparison_close](data, rule.threshold_close)
             elif 'notset' in rule.comparison_close:
-
+                satisfied = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
             else:
+                satisfied = self.condition_handler[rule.comparison_close](data, rule.threshold_close)
+                satisfied = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
 
-        except:
-
+            if satisfied:
+                
+        except Exception as err:
+            print(err)
         
 
-    def bigger(data, threshold, avg):
+    def bigger(data, threshold):
         """
         Check if data > threshold. Return comparison results as boolean, string.
 
@@ -369,7 +365,7 @@ class AG_SA():
 
         return triggered, color
 
-    def smaller(data, threshold, avg):
+    def smaller(data, threshold):
         """Check if data < threshold. Return comparison results as boolean, string.
 
         Args:
@@ -394,7 +390,7 @@ class AG_SA():
                 color = 'unchanged'
         return triggered, color
 
-    def bigger_equal(data, threshold, avg):
+    def bigger_equal(data, threshold):
         """Check if data >= threshold. Return comparison results as boolean, string.
 
         Args:
@@ -419,7 +415,7 @@ class AG_SA():
 
         return triggered, color
 
-    def smaller_equal(data, threshold, avg):
+    def smaller_equal(data, threshold):
         """Check if data <= threshold. Return comparison results as boolean, string.
 
         Args:

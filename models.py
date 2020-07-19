@@ -24,6 +24,7 @@ class UserRule(cb_db.Entity):
     comparison_close = Optional(str)  # Comparison method to decide close actuator or not.
     time_open = Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
     time_close = Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
+    period = Required(int)  # Period functionality.
     exetime = Optional(int)  # execution time for periodically execution
     mode = Required(str)  # Auto/On/Off 
     sa = Required("CB_SA")  # which SA it belongs to
