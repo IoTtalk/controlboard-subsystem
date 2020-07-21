@@ -123,6 +123,7 @@ class AG_SA():
             rule_id = orm.PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
             status = orm.Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
             value = orm.Required(float)  # The sensory value received from IoTtalk.
+            prev_trigger = Required(int) # epoch time of last triggering.
 
 
     def connect_db(self):
@@ -210,7 +211,8 @@ class AG_SA():
                 new_status = self.cb_db.CB_Status(
                     rule_id=new_rule.rule_id,
                     status='GREEN',
-                    value=0
+                    value=0,
+                    prev_trigger=-1
                 )
 
                 self.cb_db.commit()
@@ -334,7 +336,18 @@ class AG_SA():
                 satisfied = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
 
             if satisfied:
-                
+                expired = time.time() > (status.prev_trigger + rule.period)
+                print(expired)
+                if expired and status.status is 'RED':
+                    DAN.push(actuator_df, 0)
+                    status.status = 'GREEN'
+                elif expired and status.status is 'GREEN':
+                    
+                elif not expired and status.status is 'GREEN':
+                    DAN.push(actuator_df, 1)
+                    status.prev_trigger = time.time() + rule.exetime
+                    status.status = 'RED'
+
         except Exception as err:
             print(err)
         
