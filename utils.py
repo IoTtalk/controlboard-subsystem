@@ -157,6 +157,7 @@ def register_ag(sa, logger):
             'version': 1,
             'code': new_sa
         }
+
         response = requests.post('http://140.113.215.12:8000/autogen/create_device', data=data).text
         sa.set(ag_token=response)
         return True

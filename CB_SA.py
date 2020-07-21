@@ -4,6 +4,9 @@ import datetime
 import atexit
 
 
+from collections import deque
+
+
 from pony import orm
 
 
@@ -26,9 +29,9 @@ class AG_SA():
                 (rule entity, status entity)
             ]
             mappings: A dictionary of the following format.
-            {
+            {{
                 'actuator_alias1': (sensor_alias1, DF order on IoTTalk GUI)
-            }
+            }}
             cb_id: ID for this SA, used in Database querying.
             df_hist_val: History values of sensors manipulated by this SA.
             df_hist_len: # recorded history values.
@@ -100,17 +103,17 @@ class AG_SA():
             time_open = orm.Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
             time_close = orm.Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
             exetime = orm.Optional(int)  # execution time for periodically execution
-            period = Required(int)  # Period functionality.
+            period = orm.Required(int)  # Period functionality.
             mode = orm.Required(str)
             sa = orm.Required("CB_SA")  # which SA it belongs to
 
         class CB_SA(cb_db.Entity):
-            cb_id = PrimaryKey(int, auto=True)  # id of this SA.
-            cb_name = Required(str)  # User-defined cb_name. Can be repeated.
-            ag_token = Required(LongStr) # AG-returned token
-            mac_addr = Required(LongStr) # Mac-addr of this SA
-            rule_set = Set(UserRule)
-            account_set = Set("CB_Account")  # accounts that can access this SA.
+            cb_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
+            cb_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
+            ag_token = orm.Required(orm.LongStr) # AG-returned token
+            mac_addr = orm.Required(orm.LongStr) # Mac-addr of this SA
+            rule_set = orm.Set(UserRule)
+            account_set = orm.Set("CB_Account")  # accounts that can access this SA.
 
 
         class CB_Account(self.cb_db.Entity):
@@ -123,7 +126,7 @@ class AG_SA():
             rule_id = orm.PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
             status = orm.Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
             value = orm.Required(float)  # The sensory value received from IoTtalk.
-            prev_trigger = Required(int) # epoch time of last triggering.
+            prev_trigger = orm.Required(int) # epoch time of last triggering.
 
 
     def connect_db(self):
@@ -184,7 +187,10 @@ class AG_SA():
             while len(alias_in):
                 try:
                     if 'Threshold' not in alias_in[0] and 'Trigger' not in alias_out[0]:
-                        self.mappings[alias_out[0][:-3]] = (alias_in[0][:-3], i)
+                        alias_in = alias_in[0].replace('-O', '')
+                        alias_out = alias_out[0].replace('-O', '')
+                        self.mappings[alias_out] = (alias_in, i)
+                        self.df_hist_val[alias_in] = deque(maxlen=200)
                     i += 1
                     alias_in = DAN.get_alias('Threshold-O' + str(i))
                     alias_out = DAN.get_alias('Trigger-I' + str(i))
@@ -207,7 +213,6 @@ class AG_SA():
                     sensor_alias=sensor_alias,
                     sa = sa
                 )
-
                 new_status = self.cb_db.CB_Status(
                     rule_id=new_rule.rule_id,
                     status='GREEN',
@@ -218,7 +223,7 @@ class AG_SA():
                 self.cb_db.commit()
                 self.rules.append((new_rule, new_status))
             else:
-                self.rules.append((new_rule[0], CB_Status[new_rule[0].rule_id]))
+                self.rules.append((new_rule[0], self.cb_db.CB_Status[new_rule[0].rule_id]))
 
         print(self.rules)
 
@@ -300,8 +305,7 @@ class AG_SA():
 
         return
 
-    @staticmethod
-    def sensor_checker(rule, status, order):
+    def sensor_checker(self, rule, status, order):
         """
         Sensor-type rule checking handler. Push to IoTTalk server accordingly.
 
@@ -320,6 +324,7 @@ class AG_SA():
 
         data = data[0]
         status.value = data
+        self.df_hist_val[rule.sensor_alias].append(data)
         actuator_df = 'Trigger-I' + str(order)
         
         try:
@@ -327,32 +332,32 @@ class AG_SA():
                 if status.status == 'RED':
                     DAN.push(actuator_df, 0)
                 status.status = 'GREEN'
+                
+                return
             elif 'notset' in rule.comparison_open:
-                satisfied = self.condition_handler[rule.comparison_close](data, rule.threshold_close)
+                satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close)
             elif 'notset' in rule.comparison_close:
-                satisfied = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
+                satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
             else:
-                satisfied = self.condition_handler[rule.comparison_close](data, rule.threshold_close)
-                satisfied = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
+                satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
+                if not satisfied:
+                    satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close)
 
             if satisfied:
                 expired = time.time() > (status.prev_trigger + rule.period)
                 print(expired)
-                if expired and status.status is 'RED':
-                    DAN.push(actuator_df, 0)
-                    status.status = 'GREEN'
-                elif expired and status.status is 'GREEN':
+                if expired:
                     
-                elif not expired and status.status is 'GREEN':
-                    DAN.push(actuator_df, 1)
-                    status.prev_trigger = time.time() + rule.exetime
-                    status.status = 'RED'
+                else:
+                    pass
+            else:
+                pass
 
         except Exception as err:
             print(err)
         
-
-    def bigger(data, threshold):
+    @staticmethod
+    def bigger(data, threshold, avg):
         """
         Check if data > threshold. Return comparison results as boolean, string.
 
@@ -362,23 +367,24 @@ class AG_SA():
             avg: the average of history data stored in memory.
 
         Returns:
-            triggered: whether the rule is satisfied by arg data
-            color: Card color in UI.
+            satisfied: whether the rule is satisfied by arg data
+            status: Card status in UI.
         """
         if data > threshold:
-            triggered = True
-            color = 'green'
+            satisfied = True
+            status = 'RED'
         else:
-            triggered = False
+            satisfied = False
             print('bigger', 0.5 * (threshold - avg) + avg)
             if data > 0.5 * (threshold - avg) + avg:
-                color = 'yellow'
+                status = 'YELLOW'
             else:
-                color = 'unchanged'
+                status = 'UNCHANGED'
 
-        return triggered, color
+        return satisfied, status
 
-    def smaller(data, threshold):
+    @staticmethod
+    def smaller(data, threshold, avg):
         """Check if data < threshold. Return comparison results as boolean, string.
 
         Args:
@@ -387,23 +393,24 @@ class AG_SA():
             avg: the average of history data stored in memory.
 
         Returns:
-            triggered: whether the rule is satisfied by arg data
-            color: Card color in UI.
+            satisfied: whether the rule is satisfied by arg data
+            status: Card status in UI.
         """
         if data < threshold:
-            triggered = True
-            color = 'green'
+            satisfied = True
+            status = 'RED'
         else:
-            triggered = False
+            satisfied = False
             print('smaller', 0.22 * (avg - threshold) + threshold)
             if data < 0.22 * (avg - threshold) + threshold:
                 print(data, 'yellow')
-                color = 'yellow'
+                status = 'YELLOW'
             else:
-                color = 'unchanged'
-        return triggered, color
+                status = 'UNCHANGED'
+        return satisfied, status
 
-    def bigger_equal(data, threshold):
+    @staticmethod
+    def bigger_equal(data, threshold, avg):
         """Check if data >= threshold. Return comparison results as boolean, string.
 
         Args:
@@ -412,23 +419,24 @@ class AG_SA():
             avg: the average of history data stored in memory.
 
         Returns:
-            triggered: whether the rule is satisfied by arg data
-            color: Card color in UI.
+            satisfied: whether the rule is satisfied by arg data
+            status: Card status in UI.
         """
         if data >= threshold:
-            triggered = True
-            color = 'green'
+            satisfied = True
+            status = 'RED'
         else:
             print('biggerequal', 0.78 * (threshold - avg) + avg)
-            triggered = False
+            satisfied = False
             if data > 0.78 * (threshold - avg) + avg:
-                color = 'yellow'
+                status = 'YELLOW'
             else:
-                color = 'unchanged'
+                status = 'UNCHANGED'
 
-        return triggered, color
+        return satisfied, status
 
-    def smaller_equal(data, threshold):
+    @staticmethod
+    def smaller_equal(data, threshold, avg):
         """Check if data <= threshold. Return comparison results as boolean, string.
 
         Args:
@@ -437,20 +445,20 @@ class AG_SA():
             avg: the average of history data stored in memory.
 
         Returns:
-            triggered: whether the rule is satisfied by arg data
-            color: Card color in UI.
+            satisfied: whether the rule is satisfied by arg data
+            status: Card status in UI.
         """
         if data <= threshold:
-            triggered = True
-            color = 'green'
+            satisfied = True
+            status = 'RED'
         else:
-            triggered = False
+            satisfied = False
             print('smallerequal', 0.22 * (avg - threshold) + threshold)
             if data < 0.22 * (avg - threshold) + threshold:
-                color = 'yellow'
+                status = 'YELLOW'
             else:
-                color = 'unchanged'
-        return triggered, color
+                status = 'UNCHANGED'
+        return satisfied, status
 
 
 

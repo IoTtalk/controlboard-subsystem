@@ -36,7 +36,6 @@ def recover_sa(running_sa, config, logger):
 
     for sa in to_recovered:
         register_ag(sa, logger)
-        running_sa[sa.cb_id] = sa
     print(running_sa)
     return
 

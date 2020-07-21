@@ -303,7 +303,6 @@ def create_sa():
     '''
     with orm.db_session():
         mac_addr = str(uuid.uuid4())
-        print(mac_addr)
         sa = CB_SA(cb_name='TestSA', ag_token='NotCreated', mac_addr=mac_addr)
         cb_db.commit()
         api_logger.info(f'Create New SA, SA_ID: {sa.cb_id}')
