@@ -34,7 +34,6 @@ class AG_SA():
             }}
             cb_id: ID for this SA, used in Database querying.
             df_hist_val: History values of sensors manipulated by this SA.
-            df_hist_len: # recorded history values.
             config: Database config containing the following information.
                 host: IP address of the database.
                 port: Port of the database.
@@ -51,7 +50,6 @@ class AG_SA():
         self.rules = list()
         self.mappings = dict()
         self.df_hist_val = dict()
-        self.df_hist_len = dict()
         self.cb_id = cb_id
         self.config = config
         self.cb_db = orm.Database()
@@ -328,6 +326,7 @@ class AG_SA():
         actuator_df = 'Trigger-I' + str(order)
         
         try:
+            avg = sum(self.df_hist_val[rule.sensor_alias]) / len(self.df_hist_val[rule.sensor_alias])
             if 'notset' in rule.comparison_open and 'notset' in rule.comparison_close:
                 if status.status == 'RED':
                     DAN.push(actuator_df, 0)
@@ -336,16 +335,16 @@ class AG_SA():
                 return
             elif 'notset' in rule.comparison_open:
                 action = 'CLOSE'
-                satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close)
+                satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close, avg)
             elif 'notset' in rule.comparison_close:
                 action = 'OPEN'
-                satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
+                satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open, avg)
             else:
-                satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
+                satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open, avg)
                 action = 'OPEN'
                 if not satisfied:
                     action = 'CLOSE'
-                    satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close)
+                    satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close, avg)
 
             expired = time.time() > (status.prev_trigger + rule.period)
             if not expired:
@@ -384,6 +383,8 @@ class AG_SA():
                     status.status = 'GREEN'
                 else:
                     status.status = 'GREEN'
+
+            return
         except Exception as err:
             print(err)
         
