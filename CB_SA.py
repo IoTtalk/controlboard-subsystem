@@ -335,24 +335,55 @@ class AG_SA():
                 
                 return
             elif 'notset' in rule.comparison_open:
+                action = 'CLOSE'
                 satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close)
             elif 'notset' in rule.comparison_close:
+                action = 'OPEN'
                 satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
             else:
                 satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open)
+                action = 'OPEN'
                 if not satisfied:
+                    action = 'CLOSE'
                     satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close)
 
-            if satisfied:
-                expired = time.time() > (status.prev_trigger + rule.period)
-                print(expired)
-                if expired:
-                    
+            expired = time.time() > (status.prev_trigger + rule.period)
+            if not expired:
+                if status.status is 'RED':
+                    if action is 'CLOSE':
+                        if satisfied:
+                            DAN.push(actuator_df, 0)
+                            if next_action is 'YELLOW':
+                                status.status = 'YELLOW'
+                            else:
+                                status.status = 'GREEN'
+                elif status.status is 'GREEN':
+                    if action is 'OPEN':
+                        if satisfied:
+                            DAN.push(actuator_df, 1)
+                            status.status = 'RED'
+                            status.prev_triiger = time.time() + rule.exetime
+                        else:
+                            if next_action is 'YELLOW':
+                                status.status = 'YELLOW'
                 else:
-                    pass
+                    if action is 'OPEN':
+                        if satisfied:
+                            DAN.push(actuator_df, 1)
+                            status.status = 'RED'
+                            status.prev_triiger = time.time() + rule.exetime
+                        else:
+                            if next_action is not 'YELLOW':
+                                status.status = 'GREEN'
+                    else:
+                        if next_action is not 'YELLOW':
+                            status.status = 'GREEN'
             else:
-                pass
-
+                if status.status  is 'RED':
+                    DAN.push(actuator_df, 0)
+                    status.status = 'GREEN'
+                else:
+                    status.status = 'GREEN'
         except Exception as err:
             print(err)
         
