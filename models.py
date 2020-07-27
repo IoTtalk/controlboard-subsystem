@@ -37,6 +37,7 @@ class CB_SA(cb_db.Entity):
     mac_addr = Required(LongStr) # Mac-addr of this SA
     rule_set = Set(UserRule)
     account_set = Set("CB_Account")  # accounts that can access this SA.
+    p_id = Required(int)  # project id of this SA
 
 
 class CB_Account(cb_db.Entity):

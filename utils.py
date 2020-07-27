@@ -140,7 +140,7 @@ def test_db(logger):
     return
 
 
-def create_proj_ag(proj_name, logger):
+def create_proj_ag(sa, logger):
     '''
     Worker function to register to AG given sa entity and logger.
 
@@ -150,21 +150,23 @@ def create_proj_ag(proj_name, logger):
 
     Returns:
         status: Boolean value indicating register status.
-        pid: pid returned from AG.
     '''
     data = {
-        "api_name": "project.create",
-        "payload": json.dumps({
-            "p_name": proj_name
+        'api_name': 'project.create',
+        'payload': json.dumps({
+            'p_name': sa.cb_name
         })
     }
 
-    # try:
-    response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
-    print(response.text)
-    logger.info('Create Project done')
-    # except Exception as err:
-    #     logger.error(err)
+    try:
+        response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+        sa.p_id = response.text
+        logger.info('Create Project done')
+
+        return True
+    except Exception as err:
+        logger.error(err)
+        return False
 
 
 
@@ -192,7 +194,7 @@ def register_ag(sa, logger):
         return True
 
     except KeyError:
-        logger.error('CB_SA key argument wrong, check parameter passed in or brackets in the code')
+        logger.error('CB_SA.py Key Error, check parameter passed in or brackets in the code')
         return False
 
     except Exception as err:

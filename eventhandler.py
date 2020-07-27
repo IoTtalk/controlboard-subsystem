@@ -304,16 +304,24 @@ def create_sa():
     '''
     with orm.db_session():
         mac_addr = str(uuid.uuid4())
-        sa = CB_SA(cb_name='TestSA', ag_token='NotCreated', mac_addr=mac_addr)
+        sa = CB_SA(cb_name='TestSA', ag_token='NotCreated', mac_addr=mac_addr, p_id=-1)
         cb_db.commit()
         api_logger.info(f'Create New SA, SA_ID: {sa.cb_id}')
-        # status = register_ag(sa, api_logger)
-        create_proj_ag('test_proj', api_logger)
 
-    # if status:
-        return "Create SA succeeded", 200
-    # else:
-    #     return "Create SA failed, check api log files", 400
+        status = register_ag(sa, api_logger)
+        if not status:
+            api_logger.error("Register Device failed, check log file.")
+            return "Create SA failed, check api log files", 400
+        
+        
+        status = create_proj_ag(sa, api_logger)
+        if not status:
+            api_logger.error("Create Project failed, check log file")
+            return "Create SA failed, check api log files", 400
+
+        
+
+    return "Create SA succeeded", 200
 
 
 
