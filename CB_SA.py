@@ -105,7 +105,7 @@ class AG_SA():
             mode = orm.Required(str)
             sa = orm.Required("CB_SA")  # which SA it belongs to
 
-        class CB_SA(cb_db.Entity):
+        class CB_SA(self.cb_db.Entity):
             cb_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
             cb_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
             ag_token = orm.Required(orm.LongStr) # AG-returned token

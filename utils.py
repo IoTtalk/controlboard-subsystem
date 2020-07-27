@@ -2,6 +2,7 @@ import logging
 import requests
 import os
 import uuid
+import json
 
 
 from pony import orm
@@ -84,7 +85,7 @@ def connect_db(logger, cb_db):
         port=int(env_config['db']['port'])
     )
     cb_db.generate_mapping(check_tables=False)
-    # cb_db.drop_all_tables(with_all_data=True) # used to clean testcase
+    cb_db.drop_all_tables(with_all_data=True) # used to clean testcase
     while (retry_times < 3):
         try:
             cb_db.create_tables()
@@ -139,6 +140,34 @@ def test_db(logger):
     return
 
 
+def create_proj_ag(proj_name, logger):
+    '''
+    Worker function to register to AG given sa entity and logger.
+
+    Args:
+        proj_name: SA entity object selected from PonyORM.
+        logger: Logger object to write log in.
+
+    Returns:
+        status: Boolean value indicating register status.
+        pid: pid returned from AG.
+    '''
+    data = {
+        "api_name": "project.create",
+        "payload": json.dumps({
+            "p_name": proj_name
+        })
+    }
+
+    # try:
+    response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+    print(response.text)
+    logger.info('Create Project done')
+    # except Exception as err:
+    #     logger.error(err)
+
+
+
 def register_ag(sa, logger):
     '''
     Worker function to register to AG given sa entity and logger.
@@ -158,7 +187,7 @@ def register_ag(sa, logger):
             'code': new_sa
         }
 
-        response = requests.post('http://140.113.215.12:8000/autogen/create_device', data=data).text
+        response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/create_device', data=data).text
         sa.set(ag_token=response)
         return True
 

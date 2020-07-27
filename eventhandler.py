@@ -13,6 +13,7 @@ from config import env_config
 from utils import running_sa
 from utils import make_logger
 from utils import register_ag, deregister_ag
+from utils import create_proj_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB_Status
 
@@ -306,12 +307,13 @@ def create_sa():
         sa = CB_SA(cb_name='TestSA', ag_token='NotCreated', mac_addr=mac_addr)
         cb_db.commit()
         api_logger.info(f'Create New SA, SA_ID: {sa.cb_id}')
-        status = register_ag(sa, api_logger)
+        # status = register_ag(sa, api_logger)
+        create_proj_ag('test_proj', api_logger)
 
-    if status:
+    # if status:
         return "Create SA succeeded", 200
-    else:
-        return "Create SA failed, check api log files", 400
+    # else:
+    #     return "Create SA failed, check api log files", 400
 
 
 
