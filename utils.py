@@ -85,7 +85,7 @@ def connect_db(logger, cb_db):
         port=int(env_config['db']['port'])
     )
     cb_db.generate_mapping(check_tables=False)
-    cb_db.drop_all_tables(with_all_data=True) # used to clean testcase
+    # cb_db.drop_all_tables(with_all_data=True) # used to clean testcase
     while (retry_times < 3):
         try:
             cb_db.create_tables()
@@ -155,10 +155,10 @@ def get_iottalk_info(logger):
         response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', 
             data={'api_name': 'devicemodel.get',
                   'payload': json.dumps({
-                      'dm': 'ControlBoard'
+                      'dm': 'GPS'
                   })})
         print(response.text)
-        logger.info('Fetching DF/DM id')
+        logger.info('Fetch DF/DM id')
     except Exception as err:
         logger.error(err)
 
@@ -185,6 +185,7 @@ def create_proj_ag(sa, logger):
     print(data)
     try:
         response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+        print(response.text)
         sa.p_id = int(response.text)
         logger.info('Create Project done')
 

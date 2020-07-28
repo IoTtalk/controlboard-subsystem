@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     recover_sa(running_sa, env_config, system_logger)
 
-    # get_iottalk_info(system_logger)
+    get_iottalk_info(system_logger)
 
     app.run(
         host=env_config['env']['host'],
