@@ -244,10 +244,12 @@ class AG_SA():
                 if status.status != 'RED':
                     actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias])
                     DAN.push(actuator_df, 1)
+                continue
             elif rule.mode == 'off':
                 if status.status == 'RED':
                     actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias])
                     DAN.push(actuator_df, 0)
+                continue
 
             # auto mode
             if rule.rule_type == 'sensor':
@@ -262,45 +264,90 @@ class AG_SA():
         return
 
     @staticmethod
-    def timer_checker(actuator_alias, sensor_alias, order):
+    def timer_checker(self, rule, status, order):
         """
         Timer-type rule checking handler. Push to IoTTalk server accordingly
 
         Args:
-            actuator_alias: alias of actuator, stored in memory.
-            sensor_alias: alias of sensor, stored in memory.
+            rule: UserRule entity stored in memory.
+            status: CB_Status entity stored in memory.
             order: which pair of (actuator, sensor) mappings is being checked.
 
         Returns:
             None
         """
         current = datetime.datetime.now()
-        actuator_name = 'Trigger' + '-I' + str(order + 1)
-        time_open = datetime.datetime.combine(datetime.date.today(), utils.rule_info[actuator_alias]['time_open'])
-        time_close = datetime.datetime.combine(datetime.date.today(), utils.rule_info[actuator_alias]['time_close'])
-        exetime = utils.rule_info[actuator_alias]['exetime']
+        actuator_df = 'Trigger' + '-I' + str(order)
+        #time_open = datetime.datetime.combine(datetime.date.today(), utils.rule_info[actuator_alias]['time_open'])
+        #time_close = datetime.datetime.combine(datetime.date.today(), utils.rule_info[actuator_alias]['time_close'])
+        #exetime = utils.rule_info[actuator_alias]['exetime']
+        time_open = datetime.datetime.combine(datetime.date.today(), rule.time_open)
+        time_close = datetime.datetime.combine(datetime.date.today(), rule.time_close)
+        exetime = rule.exetime
 
         if time_open > time_close:
             time_close = time_close + datetime.timedelta(days=1)
 
-        if exetime == 0:  # timer set to not set
-            if utils.rule_info[actuator_alias]['trigger'] is True:
-                da.push(actuator_name, 0)
-                utils.rule_info[actuator_alias]['trigger'] = False
-        else:
-            if current > time_open and current < time_close:
-                if utils.rule_info[actuator_alias]['trigger'] is False:
-                    utils.rule_info[actuator_alias]['trigger'] = True
-                    self.da.push(actuator_name, 1)
-                utils.rule_info[actuator_alias]['status'] = 'red'
-            else:
-                if utils.rule_info[actuator_alias]['trigger'] is True:
-                    utils.rule_info[actuator_alias]['trigger'] = False
-                    self.da.push(actuator_name, 0)
-                if abs((time_open - current).total_seconds()) < 600 and time_open > current:
-                    utils.rule_info[actuator_alias]['status'] = 'yellow'
+        satisfied = (current > time_open and current < time_close)
+        about2trigger = (abs((time_open - current).total_seconds()) < 600 and time_open > current)
+        expired = time.time() > (status.prev_trigger + rule.period)
+
+        try:
+            if not expired:
+                if exetime == 0:  # timer set to not set
+                    if status.status is 'RED':
+                        DAN.push(actuator_df, 0)
+                        status.status = 'GREEN'
+                    elif status.status is 'YELLOW':
+                        status.status = 'GREEN'
                 else:
-                    utils.rule_info[actuator_alias]['status'] = 'green'
+                    if status.status is 'RED':
+                        if satisfied:
+                            pass
+                        else:
+                            DAN.push(actuator_df, 0)
+                            status.status = 'GREEN'
+                    elif status.status is 'YELLOW':
+                        if satisfied:
+                            DAN.push(actuator_df, 1)
+                            status.status = 'RED'
+                            status.prev_trigger = time.time() + rule.exetime
+                        elif about2trigger:
+                            status.status = 'YELLOW'
+                        else:
+                            status.status = 'GREEN'
+                    elif status.status is 'GREEN':
+                        if satisfied:
+                            DAN.push(actuator_df, 1)
+                            status.status = 'RED'
+                            status.prev_trigger = time.time() + rule.exetime
+                        elif about2trigger:
+                            status.status = 'YELLOW'
+                        else:
+                            status.status = 'GREEN'
+                    """
+                    if current > time_open and current < time_close:
+                        if utils.rule_info[actuator_alias]['trigger'] is False:
+                            utils.rule_info[actuator_alias]['trigger'] = True
+                            self.da.push(actuator_name, 1)
+                        utils.rule_info[actuator_alias]['status'] = 'red'
+                    else:
+                        if utils.rule_info[actuator_alias]['trigger'] is True:
+                            utils.rule_info[actuator_alias]['trigger'] = False
+                            self.da.push(actuator_name, 0)
+                        if abs((time_open - current).total_seconds()) < 600 and time_open > current:
+                            utils.rule_info[actuator_alias]['status'] = 'yellow'
+                        else:
+                            utils.rule_info[actuator_alias]['status'] = 'green'
+                    """
+            else:
+                if status.status is 'RED':
+                    DAN.push(actuator_df, 0)
+                    status.status = 'GREEN'
+                else:
+                    status.status = 'GREEN'
+        except Exception as err:
+            print(err)
 
         return
 
