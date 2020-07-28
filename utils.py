@@ -16,7 +16,7 @@ from models import UserRule, CB_Account, CB_SA
 used to record AG SA. in format {sa_id: CB_SA entity}
 '''
 running_sa = dict() 
-device_info = dict()
+iottalk_info = dict()
 
 log_root = env_config['env']['logroot']
 if not os.path.isdir(log_root):
@@ -154,11 +154,16 @@ def get_iottalk_info(logger):
     try:
         response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', 
             data={'api_name': 'devicemodel.get',
-                  'payload': json.dumps({
-                      'dm': 'GPS'
-                  })})
-        print(response.text)
+                    'payload': json.dumps({
+                        'dm': 'ControlBoard'
+                    })}).text
+        response = json.loads(response)
+        iottalk_info['dm_id'] = response['dm_id']
+        iottalk_info['df_id'] = dict()
+        for df in response["df_list"]:
+            iottalk_info['df_id'][df['df_name']] = df['df_id']
         logger.info('Fetch DF/DM id')
+
     except Exception as err:
         logger.error(err)
 
@@ -193,7 +198,6 @@ def create_proj_ag(sa, logger):
     except Exception as err:
         logger.error(err)
         return False
-
 
 
 def register_ag(sa, logger):
