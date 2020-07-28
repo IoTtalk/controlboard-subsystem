@@ -13,6 +13,7 @@ from utils import make_logger
 from utils import test_db
 from utils import running_sa
 from utils import register_ag
+from utils import get_iottalk_info
 
 
 
@@ -36,7 +37,6 @@ def recover_sa(running_sa, config, logger):
 
     for sa in to_recovered:
         register_ag(sa, logger)
-        running_sa[sa.cb_id] = sa
     print(running_sa)
     return
 
@@ -55,6 +55,8 @@ if __name__ == "__main__":
     # test_db(system_logger)
 
     recover_sa(running_sa, env_config, system_logger)
+
+    get_iottalk_info(system_logger)
 
     app.run(
         host=env_config['env']['host'],

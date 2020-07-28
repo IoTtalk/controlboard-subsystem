@@ -24,6 +24,7 @@ class UserRule(cb_db.Entity):
     comparison_close = Optional(str)  # Comparison method to decide close actuator or not.
     time_open = Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
     time_close = Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
+    period = Required(int)  # Period functionality.
     exetime = Optional(int)  # execution time for periodically execution
     mode = Required(str)  # Auto/On/Off 
     sa = Required("CB_SA")  # which SA it belongs to
@@ -36,6 +37,7 @@ class CB_SA(cb_db.Entity):
     mac_addr = Required(LongStr) # Mac-addr of this SA
     rule_set = Set(UserRule)
     account_set = Set("CB_Account")  # accounts that can access this SA.
+    p_id = Required(int)  # project id of this SA
 
 
 class CB_Account(cb_db.Entity):
@@ -45,6 +47,7 @@ class CB_Account(cb_db.Entity):
 
 
 class CB_Status(cb_db.Entity):
-    rule_id = Required(int)  # For Subsystem to findout which rule this status entry represent.
+    rule_id = PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
     status = Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
     value = Required(float)  # The sensory value received from IoTtalk.
+    prev_trigger = Required(int) # epoch time of last triggering.

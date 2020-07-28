@@ -2,6 +2,7 @@ import logging
 import requests
 import os
 import uuid
+import json
 
 
 from pony import orm
@@ -15,7 +16,7 @@ from models import UserRule, CB_Account, CB_SA
 used to record AG SA. in format {sa_id: CB_SA entity}
 '''
 running_sa = dict() 
-
+device_info = dict()
 
 log_root = env_config['env']['logroot']
 if not os.path.isdir(log_root):
@@ -27,7 +28,8 @@ default_rules = {
     'threshold_close': 0,
     'comparison_open': 'notset',
     'comparison_close': 'notset',
-    'mode': 'auto'
+    'mode': 'auto',
+    'period': 0
 }
 
 def make_logger(log_name, log_file):
@@ -118,7 +120,8 @@ def test_db(logger):
             cb_name='test_sa',
             account_set=test_account,
             ag_token="testagtoken",
-            mac_addr=uuid.uuid4()
+            mac_addr=uuid.uuid4(),
+            p_id=-1
         )
 
         test_rule = UserRule(
@@ -138,6 +141,61 @@ def test_db(logger):
     return
 
 
+def get_iottalk_info(logger):
+    '''
+    Get Device ID/ Device Model ID from IoTtalk Server.
+
+    Args:
+        logger: System Logger to record this event.
+    
+    Returns:
+        None
+    '''
+    try:
+        response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', 
+            data={'api_name': 'devicemodel.get',
+                  'payload': json.dumps({
+                      'dm': 'GPS'
+                  })})
+        print(response.text)
+        logger.info('Fetch DF/DM id')
+    except Exception as err:
+        logger.error(err)
+
+    return
+
+
+def create_proj_ag(sa, logger):
+    '''
+    Worker function to register to AG given sa entity and logger.
+
+    Args:
+        proj_name: SA entity object selected from PonyORM.
+        logger: Logger object to write log in.
+
+    Returns:
+        status: Boolean value indicating register status.
+    '''
+    data = {
+        "api_name": "project.create",
+        "payload": json.dumps({
+            "p_name": sa.cb_name
+        })
+    }
+    print(data)
+    try:
+        response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+        print(response.text)
+        sa.p_id = int(response.text)
+        logger.info('Create Project done')
+
+        return True
+    except Exception as err:
+        logger.error(err)
+        return False
+
+
+
 def register_ag(sa, logger):
     '''
     Worker function to register to AG given sa entity and logger.
@@ -150,18 +208,19 @@ def register_ag(sa, logger):
         status: Boolean value indicating register status.
     '''
     try:
-        running_sa[sa.cb_id] = sa 
         new_sa = open('./CB_SA.py', 'r').read().format(cb_id=sa.cb_id, config=reg_config, mac_addr=sa.mac_addr)
         data = {
             'version': 1,
             'code': new_sa
         }
-        response = requests.post('http://140.113.215.12:8000/autogen/create_device', data=data).text
+
+        response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/create_device', data=data).text
         sa.set(ag_token=response)
+        running_sa[sa.cb_id] = sa 
         return True
 
     except KeyError:
-        logger.error('CB_SA key argument wrong, check parameter passed in or brackets in the code')
+        logger.error('CB_SA.py Key Error, check parameter passed in or brackets in the code')
         return False
 
     except Exception as err:
