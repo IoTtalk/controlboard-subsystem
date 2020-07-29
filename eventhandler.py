@@ -101,6 +101,8 @@ def set_rules(cb_id):
                     tmp = rule.to_dict()
                     if tmp["actuator_alias"] == actuator_alias:
                         rule.set(**rule_settings)
+                        old_status = CB_Status.select(lambda st: st.rule_id == tmp['rule_id'])
+                        old_status.set(rule_id=tmp['rule_id'], status='green', value = 0.0)
             else:
                 new_rule = UserRule(**rule_settings, sa=sa)
                 new_status = CB_Status(rule_id=new_rule.rule_id, status='green', value=0.0)
@@ -209,27 +211,27 @@ def get_rules(cb_id):
     with orm.db_session():
         sa = CB_SA[cb_id]
         rules = UserRule.select(lambda r: r.sa.cb_id == sa.cb_id)[:]
-        for rule in rules:
-            tmp = rule.to_dict()
-            if tmp['rule_type'] == 'sensor':
-                res_list.append({
-                    'sensor_alias': tmp['sensor_alias'],
-                    'actuator_alias': tmp['actuator_alias'],
-                    'comparison_open': tmp['comparison_open'],
-                    'threshold_open': tmp['threshold_open'] if tmp['comparison_open'] != 'notset' else None,
-                    'comparison_close': tmp['comparison_close'],
-                    'threshold_close': tmp['threshold_close'] if tmp['comparison_close'] != 'notset' else None,
-                    'rule_type': tmp['rule_type']
-                })
-            else:
-                res_list.append({
-                    #'sensor_alias': sensor_alias,  # thinking about how to extract sensor_alias
-                    'actuator_alias': tmp['actuator_alias'],
-                    'time_open': tmp['time_open'].strftime('%H:%M:%S'),
-                    'time_close': tmp['time_close'].strftime('%H:%M:%S'),
-                    'exetime': tmp['exetime'],
-                    'rule_type': tmp['rule_type']
-                })
+    for rule in rules:
+        tmp = rule.to_dict()
+        if tmp['rule_type'] == 'sensor':
+            res_list.append({
+                'sensor_alias': tmp['sensor_alias'],
+                'actuator_alias': tmp['actuator_alias'],
+                'comparison_open': tmp['comparison_open'],
+                'threshold_open': tmp['threshold_open'] if tmp['comparison_open'] != 'notset' else None,
+                'comparison_close': tmp['comparison_close'],
+                'threshold_close': tmp['threshold_close'] if tmp['comparison_close'] != 'notset' else None,
+                'rule_type': tmp['rule_type']
+            })
+        else:
+            res_list.append({
+                #'sensor_alias': sensor_alias,  # thinking about how to extract sensor_alias
+                'actuator_alias': tmp['actuator_alias'],
+                'time_open': tmp['time_open'].strftime('%H:%M:%S'),
+                'time_close': tmp['time_close'].strftime('%H:%M:%S'),
+                'exetime': tmp['exetime'],
+                'rule_type': tmp['rule_type']
+            })
     
     return jsonify(res_list), 200
 
@@ -247,7 +249,7 @@ def get_datum(cb_id):
         record_list: A json object containing the lastest data of each sensor and trigger status.
     '''
 
-    #  TODO: update this API to contain trigger status
+    #  TODO: update this API to contain trigger status, DONE
     
     record_list = list()
     res_dict = dict()
