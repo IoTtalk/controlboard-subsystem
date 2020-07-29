@@ -36,7 +36,10 @@ def recover_sa(running_sa, config, logger):
     print(to_recovered)
 
     for sa in to_recovered:
-        register_ag(sa, logger)
+        status, ag_token = register_ag(sa, logger)
+        if status:
+            sa.ag_token = ag_token
+            running_sa[sa.cb_id] = sa
     print(running_sa)
     return
 

@@ -8,7 +8,7 @@ import json
 from pony import orm
 
 
-from config import env_config, reg_config
+from config import env_config, reg_config, use_v1
 from models import UserRule, CB_Account, CB_SA
 
 
@@ -85,7 +85,7 @@ def connect_db(logger, cb_db):
         port=int(env_config['db']['port'])
     )
     cb_db.generate_mapping(check_tables=False)
-    # cb_db.drop_all_tables(with_all_data=True) # used to clean testcase
+    cb_db.drop_all_tables(with_all_data=True) # used to clean testcase
     while (retry_times < 3):
         try:
             cb_db.create_tables()
@@ -159,9 +159,9 @@ def get_iottalk_info(logger):
                     })}).text
         response = json.loads(response)
         iottalk_info['dm_id'] = response['dm_id']
-        iottalk_info['df_id'] = dict()
+        iottalk_info['df_id'] = list()
         for df in response["df_list"]:
-            iottalk_info['df_id'][df['df_name']] = df['df_id']
+            iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id')
 
     except Exception as err:
@@ -179,7 +179,8 @@ def create_proj_ag(sa, logger):
         logger: Logger object to write log in.
 
     Returns:
-        status: Boolean value indicating register status.
+        status: Boolean value indicating create procedure success or fail.
+        p_id: Creatd integer Project ID retrived from AG.
     '''
     data = {
         "api_name": "project.create",
@@ -187,17 +188,43 @@ def create_proj_ag(sa, logger):
             "p_name": sa.cb_name
         })
     }
-    print(data)
     try:
         response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
-        print(response.text)
-        sa.p_id = int(response.text)
-        logger.info('Create Project done')
+        logger.info('\tCreate Project done')
 
-        return True
+        return True, int(response.text)
     except Exception as err:
         logger.error(err)
-        return False
+        return False, -1
+
+
+def create_do_ag(p_id, logger):
+    '''
+    Creates Assigned Device Object Given dm_id, df_id and p_id.
+
+    Args:
+        p_id: IoTtalk Project ID to create DeviceObject(DO).
+        logger: Logger object to write log in.
+
+    Returns:
+        status: Boolean value indicating create DO success or fail.
+        do_id: Creatd integer DO ID retrived from AG.
+    '''
+    data = {
+        "api_name": "deviceobject.create",
+        "payload": json.dumps({
+            "p_id": p_id,
+            "dm_name": "ControlBoard",
+            "dfs": iottalk_info["df_id"]
+        })
+    }
+    try:
+        response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+        logger.info('\tCreate DO done')
+        return True, json.loads(response.text)
+    except Exception as err:
+        logger.error(err)
+        return False, -1
 
 
 def register_ag(sa, logger):
@@ -205,31 +232,31 @@ def register_ag(sa, logger):
     Worker function to register to AG given sa entity and logger.
 
     Args:
-        sa: SA entity object selected from PonyORM.
+        sa: The CB_SA Entity to be registered.
         logger: Logger object to write log in.
 
     Returns:
         status: Boolean value indicating register status.
+        ag_token: Token retrived from AG.
     '''
     try:
+        print('test', sa.cb_id)
         new_sa = open('./CB_SA.py', 'r').read().format(cb_id=sa.cb_id, config=reg_config, mac_addr=sa.mac_addr)
         data = {
-            'version': 1,
+            'version': env_config["IoTtalk"]["version"],
             'code': new_sa
         }
 
         response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/create_device', data=data).text
-        sa.set(ag_token=response)
-        running_sa[sa.cb_id] = sa 
-        return True
+        return True, response
 
     except KeyError:
         logger.error('CB_SA.py Key Error, check parameter passed in or brackets in the code')
-        return False
+        return False, "Error"
 
     except Exception as err:
         logger.error(err)
-        return False
+        return False, "Error"
 
 
 def deregister_ag(sa, logger):
@@ -248,11 +275,65 @@ def deregister_ag(sa, logger):
         data = {
             'token': sa.ag_token
         }
-        requests.post('http://140.113.215.12:8000/autogen/delete_device', data=data)
+        requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/delete_device', data=data)
 
         with orm.db_session():
             CB_SA[sa.cb_id].delete()
         return True
+    except Exception as err:
+        logger.error(err)
+        return False
+
+
+def bind_device_ag(mac_addr, p_id, do_id, logger):
+    '''
+    Bind corresponding device to assigned DO given do_id and p_id.
+
+    Args:
+        mac_addr: MAc Address of the registered CB_SA,
+        p_id: ID of the assigned IoTtalk Project.
+        do_id: A list containing 2 IDs of the DO in IoTtalk Project (v1).
+        logger: Logger object to write log in.
+
+    Returns:
+        status: Boolean value indicating binding status.
+    '''
+    try:
+        print(mac_addr)
+        if use_v1:
+            data = {
+                "api_name": "device.get",
+                "payload": json.dumps({
+                    "p_id": p_id,
+                    "do_id": do_id[0]
+                })
+            }
+            response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+            response = json.loads(response.text)
+            logger.info('\tGet Device done')
+            device = None
+            for candidate in response:
+                print(candidate)
+                if candidate["mac_addr"] == mac_addr:
+                    device = candidate
+                    break
+            if device is None:
+                raise ValueError
+            for id in do_id:
+                data = {
+                    "api_name": "device.bind",
+                    "payload": json.dumps({
+                        "p_id": p_id,
+                        "do_id": id,
+                        "d_id": device['d_id']
+                    })
+                }
+                requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+            
+            return True
+    except ValueError:
+        logger.error("Device to bind not found")
+        return False
     except Exception as err:
         logger.error(err)
         return False

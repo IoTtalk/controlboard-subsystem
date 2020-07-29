@@ -11,9 +11,11 @@ from pony import orm
 
 from config import env_config
 from utils import running_sa
+from utils import iottalk_info
 from utils import make_logger
-from utils import register_ag, deregister_ag
 from utils import create_proj_ag
+from utils import create_do_ag
+from utils import register_ag, deregister_ag, bind_device_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB_Status
 
@@ -296,30 +298,50 @@ def create_sa():
     Args:
         account: The user's account who requests for this new SA.
         cb_name: Name of this SA given by the user.
-        mappings: User-specified (sensor, actuator) pairs. Used to create project.
 
     Returns:
         Status code: 200.
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
+    sa_spec = request.json
     with orm.db_session():
         mac_addr = str(uuid.uuid4())
-        sa = CB_SA(cb_name='TestSA', ag_token='NotCreated', mac_addr=mac_addr, p_id=-1)
+        sa = CB_SA(cb_name=sa_spec['cb_name'], ag_token='NotCreated', mac_addr=mac_addr, p_id=-1)
         cb_db.commit()
-        api_logger.info(f'Create New SA, SA_ID: {sa.cb_id}')
-
-        status = register_ag(sa, api_logger)
-        if not status:
-            api_logger.error("Register Device failed, check log file.")
-            return "Create SA failed, check api log files", 400
-        
-        
-        status = create_proj_ag(sa, api_logger)
+        api_logger.info("Start Creating CB SA")
+        # Create Project
+        status, p_id = create_proj_ag(sa, api_logger)
         if not status:
             api_logger.error("Create Project failed, check log file")
+            sa.delete()
+            return "Create SA failed, check api log files", 400
+        sa.p_id = p_id
+
+        # Create Device Object
+        statud, do_id = create_do_ag(p_id, api_logger)
+        if not status:
+            api_logger.error("Create DO failed, check log file")
+            sa.delete()
             return "Create SA failed, check api log files", 400
 
+        # Register device
+        status, ag_token = register_ag(sa, api_logger)
+        if not status:
+            api_logger.error("Register Device failed, check log file.")
+            sa.delete()
+            return "Create SA failed at registering device, check api log files", 400
+        sa.ag_token = ag_token
         
+        # Bind device to DO
+        status = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)
+        if not status:
+            api_logger.error("Auto bind device failed, check log file")
+            sa.delete()
+            return "Create SA failed, check api log files", 400
+
+
+    running_sa[sa.cb_id] = sa
+    api_logger.info(f'Create New SA, SA_ID: {sa.cb_id}')
 
     return "Create SA succeeded", 200
 

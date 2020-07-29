@@ -15,6 +15,7 @@ default_rules = {
 config_path = str(sys.argv[1])
 env_config = configparser.ConfigParser()
 env_config.read(config_path)
+use_v1 = env_config['IoTtalk']['version'] == '1'
 
 reg_config = {
     'host': env_config['db']['host'],
