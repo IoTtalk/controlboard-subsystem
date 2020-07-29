@@ -311,20 +311,6 @@ def create_sa():
         sa = CB_SA(cb_name=sa_spec['cb_name'], ag_token='NotCreated', mac_addr=mac_addr, p_id=-1)
         cb_db.commit()
         api_logger.info("Start Creating CB SA")
-        # Create Project
-        status, p_id = create_proj_ag(sa, api_logger)
-        if not status:
-            api_logger.error("Create Project failed, check log file")
-            sa.delete()
-            return "Create SA failed, check api log files", 400
-        sa.p_id = p_id
-
-        # Create Device Object
-        statud, do_id = create_do_ag(p_id, api_logger)
-        if not status:
-            api_logger.error("Create DO failed, check log file")
-            sa.delete()
-            return "Create SA failed, check api log files", 400
 
         # Register device
         status, ag_token = register_ag(sa, api_logger)
@@ -333,11 +319,30 @@ def create_sa():
             sa.delete()
             return "Create SA failed at registering device, check api log files", 400
         sa.ag_token = ag_token
+
+        # Create Project
+        status, p_id = create_proj_ag(sa, api_logger)
+        if not status:
+            api_logger.error("Create Project failed, check log file")
+            deregister_ag(sa, api_logger)
+            sa.delete()
+            return "Create SA failed, check api log files", 400
+        sa.p_id = p_id
+
+        # Create Device Object
+        status, do_id = create_do_ag(p_id, api_logger)
+        if not status:
+            api_logger.error("Create DO failed, check log file")
+            deregister_ag(sa, api_logger)
+            sa.delete()
+            return "Create SA failed, check api log files", 400
+
         
         # Bind device to DO
         status = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)
         if not status:
             api_logger.error("Auto bind device failed, check log file")
+            deregister_ag(sa, api_logger)
             sa.delete()
             return "Create SA failed, check api log files", 400
 

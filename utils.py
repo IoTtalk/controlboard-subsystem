@@ -190,7 +190,7 @@ def create_proj_ag(sa, logger):
     }
     try:
         response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
-        logger.info('\tCreate Project done')
+        logger.info('\tCreate Project\t......done')
 
         return True, int(response.text)
     except Exception as err:
@@ -220,7 +220,7 @@ def create_do_ag(p_id, logger):
     }
     try:
         response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
-        logger.info('\tCreate DO done')
+        logger.info('\tCreate DO\t......done')
         return True, json.loads(response.text)
     except Exception as err:
         logger.error(err)
@@ -310,10 +310,9 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
             }
             response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
             response = json.loads(response.text)
-            logger.info('\tGet Device done')
+            logger.info('\tGet Device\t......done')
             device = None
             for candidate in response:
-                print(candidate)
                 if candidate["mac_addr"] == mac_addr:
                     device = candidate
                     break
@@ -329,7 +328,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                     })
                 }
                 requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
-            
+            logger.info('\tBind device\t......done')
             return True
     except ValueError:
         logger.error("Device to bind not found")
