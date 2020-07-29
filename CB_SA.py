@@ -212,14 +212,13 @@ class AG_SA():
                     sensor_alias=sensor_alias,
                     sa = sa
                 )
+                self.cb_db.commit()
                 new_status = self.cb_db.CB_Status(
                     rule_id=new_rule.rule_id,
                     status='GREEN',
                     value=0,
                     prev_trigger=-1
                 )
-
-                self.cb_db.commit()
                 self.rules.append((new_rule, new_status))
             else:
                 self.rules.append((new_rule[0], self.cb_db.CB_Status[new_rule[0].rule_id]))
@@ -253,11 +252,11 @@ class AG_SA():
 
             # auto mode
             if rule.rule_type == 'sensor':
-                sensor_checker(
+                self.sensor_checker(
                     rule, status, self.mappings[rule.actuator_alias]
                 )
             else:
-                timer_checker(
+                self.timer_checker(
                     rule, status, self.mappings[rule.actuator_alias]
                 )
 
