@@ -12,7 +12,7 @@ from pony import orm
 import DAN
 
 
-class AG_SA():       
+class AG_SA():
     def __init__(self, cb_id, config, mac_addr):
         '''
         Initialization of a CB_SA
@@ -47,7 +47,7 @@ class AG_SA():
         self.cb_id = cb_id
         self.config = config
         self.cb_db = orm.Database()
-        if mac_addr is not 'None':
+        if mac_addr != 'None':
             self.mac_addr = mac_addr
         else:
             self.mac_addr = str(uuid.uuid4())
@@ -61,7 +61,7 @@ class AG_SA():
             'mode': 'auto',
             'period': 0
         }}
-        
+
         self.condition_handler = {{
             'bigger': self.bigger,
             'smaller': self.smaller,
@@ -79,9 +79,8 @@ class AG_SA():
                         'Threshold-O5', 'Trigger-I5']
         }}
 
-
         DAN.profile = ctlboard_profile
-        DAN.device_registration_with_retry(f"http://{{config['iottalk_server']}}:9999", self.mac_addr)
+        DAN.device_registration_with_retry(f'http://{{config["iottalk_server"]}}:9999', self.mac_addr)
 
         class UserRule(self.cb_db.Entity):
             rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
@@ -102,24 +101,22 @@ class AG_SA():
         class CB_SA(self.cb_db.Entity):
             cb_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
             cb_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
-            ag_token = orm.Required(orm.LongStr) # AG-returned token
-            mac_addr = orm.Required(orm.LongStr) # Mac-addr of this SA
+            ag_token = orm.Required(orm.LongStr)  # AG-returned token
+            mac_addr = orm.Required(orm.LongStr)  # Mac-addr of this SA
             rule_set = orm.Set(UserRule)
             account_set = orm.Set("CB_Account")  # accounts that can access this SA.
             p_id = orm.Required(int)  # project id of this SA
-
 
         class CB_Account(self.cb_db.Entity):
             account = orm.Required(str)  # Account of this user.
             privilige = orm.Required(int)  # User level of this user.
             sa_set = orm.Set("CB_SA")  # SAs this user can see.
 
-
         class CB_Status(self.cb_db.Entity):
             rule_id = orm.PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
             status = orm.Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
             value = orm.Required(float)  # The sensory value received from IoTtalk.
-            prev_trigger = orm.Required(int) # epoch time of last triggering.
+            prev_trigger = orm.Required(int)  # epoch time of last triggering.
 
     def connect_db(self):
         '''
@@ -159,18 +156,18 @@ class AG_SA():
     @orm.db_session()
     def recover(self):
         '''
-        Recover SA UserRules from Database & 
+        Recover SA UserRules from Database &
         generate mappings of (actuator, sensor) of IoTTalk GUI.
 
         Args: None.
 
         Returns: True or False
             True: Recover succeeded.
-            False: Recover failed. 
+            False: Recover failed.
         '''
         # Pulling Alias
         DAN.state = "RESUME"
-        while len(self.mappings) == 0:        
+        while len(self.mappings) == 0:
             alias_in = DAN.get_alias('Threshold-O' + str(1))
             alias_out = DAN.get_alias('Trigger-I' + str(1))
             print('Please bind first')
@@ -186,7 +183,7 @@ class AG_SA():
                     i += 1
                     alias_in = DAN.get_alias('Threshold-O' + str(i))
                     alias_out = DAN.get_alias('Trigger-I' + str(i))
-                except IndexError as err:
+                except IndexError:
                     print('End of finding alias')
                     break
 
@@ -197,23 +194,23 @@ class AG_SA():
         sa = self.cb_db.CB_SA[self.cb_id]
         rules = sa.rule_set
         for actuator_alias, (sensor_alias, order) in self.mappings.items():
-            new_rule = rules.filter(lambda rule: rule.actuator_alias==actuator_alias and rule.sensor_alias==sensor_alias)[:]
+            new_rule = rules.filter(lambda rule: rule.actuator_alias == actuator_alias and rule.sensor_alias == sensor_alias)[:]
             if not len(new_rule):
                 new_rule = self.cb_db.UserRule(
                     **self.default_rule,
                     actuator_alias=actuator_alias,
                     sensor_alias=sensor_alias,
-                    sa = sa
+                    sa=sa
                 )
                 self.cb_db.commit()
-                new_status = self.cb_db.CB_Status(
+                self.cb_db.CB_Status(
                     rule_id=new_rule.rule_id,
                     status='GREEN',
                     value=0,
                     prev_trigger=-1
                 )
                 self.cb_db.commit()
-        return 
+        return
 
     @orm.db_session()
     def check_rules(self):
@@ -283,19 +280,19 @@ class AG_SA():
         try:
             if not expired:
                 if exetime == 0:  # timer set to not set
-                    if status.status is 'RED':
+                    if status.status == 'RED':
                         DAN.push(actuator_df, 0)
                         status.status = 'GREEN'
-                    elif status.status is 'YELLOW':
+                    elif status.status == 'YELLOW':
                         status.status = 'GREEN'
                 else:
-                    if status.status is 'RED':
+                    if status.status == 'RED':
                         if satisfied:
                             pass
                         else:
                             DAN.push(actuator_df, 0)
                             status.status = 'GREEN'
-                    elif status.status is 'YELLOW':
+                    elif status.status == 'YELLOW':
                         if satisfied:
                             DAN.push(actuator_df, 1)
                             status.status = 'RED'
@@ -304,7 +301,7 @@ class AG_SA():
                             status.status = 'YELLOW'
                         else:
                             status.status = 'GREEN'
-                    elif status.status is 'GREEN':
+                    elif status.status == 'GREEN':
                         if satisfied:
                             DAN.push(actuator_df, 1)
                             status.status = 'RED'
@@ -314,7 +311,7 @@ class AG_SA():
                         else:
                             status.status = 'GREEN'
             else:
-                if status.status is 'RED':
+                if status.status == 'RED':
                     DAN.push(actuator_df, 0)
                     status.status = 'GREEN'
                 else:
@@ -347,7 +344,7 @@ class AG_SA():
         status.value = data
         self.df_hist_val[rule.sensor_alias].append(data)
         actuator_df = 'Trigger-I' + str(mapping[1])
-        
+
         try:
             avg = sum(self.df_hist_val[rule.sensor_alias]) / len(self.df_hist_val[rule.sensor_alias])
             if 'notset' in rule.comparison_open and 'notset' in rule.comparison_close:
@@ -370,37 +367,37 @@ class AG_SA():
 
             expired = time.time() > (status.prev_trigger + rule.period)
             if not expired:
-                if status.status is 'RED':
-                    if action is 'CLOSE':
+                if status.status == 'RED':
+                    if action == 'CLOSE':
                         if satisfied:
                             DAN.push(actuator_df, 0)
-                            if next_action is 'YELLOW':
+                            if next_action == 'YELLOW':
                                 status.status = 'YELLOW'
                             else:
                                 status.status = 'GREEN'
-                elif status.status is 'GREEN':
-                    if action is 'OPEN':
+                elif status.status == 'GREEN':
+                    if action == 'OPEN':
                         if satisfied:
                             DAN.push(actuator_df, 1)
                             status.status = 'RED'
                             status.prev_triiger = time.time() + rule.exetime
                         else:
-                            if next_action is 'YELLOW':
+                            if next_action == 'YELLOW':
                                 status.status = 'YELLOW'
                 else:
-                    if action is 'OPEN':
+                    if action == 'OPEN':
                         if satisfied:
                             DAN.push(actuator_df, 1)
                             status.status = 'RED'
                             status.prev_triiger = time.time() + rule.exetime
                         else:
-                            if next_action is not 'YELLOW':
+                            if next_action != 'YELLOW':
                                 status.status = 'GREEN'
                     else:
-                        if next_action is not 'YELLOW':
+                        if next_action != 'YELLOW':
                             status.status = 'GREEN'
             else:
-                if status.status  is 'RED':
+                if status.status == 'RED':
                     DAN.push(actuator_df, 0)
                     status.status = 'GREEN'
                 else:
@@ -409,7 +406,7 @@ class AG_SA():
             return
         except Exception as err:
             print(err)
-        
+
     @staticmethod
     def bigger(data, threshold, avg):
         """
@@ -513,7 +510,6 @@ class AG_SA():
             else:
                 status = 'UNCHANGED'
         return satisfied, status
-
 
 
 sa = AG_SA('{cb_id}', {config}, '{mac_addr}')

@@ -22,6 +22,6 @@ reg_config = {
     'user': env_config['db']['user'],
     'pwd': env_config['db']['pwd'],
     'dbname': env_config['db']['dbname'],
-    'port':  env_config['db']['port'],
+    'port': env_config['db']['port'],
     'iottalk_server': env_config['IoTtalk']['ServerIP']
 }

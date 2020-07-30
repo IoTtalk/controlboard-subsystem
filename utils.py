@@ -15,7 +15,7 @@ from models import UserRule, CB_Account, CB_SA
 '''
 used to record AG SA. in format {sa_id: CB_SA entity}
 '''
-running_sa = dict() 
+running_sa = dict()
 iottalk_info = dict()
 
 log_root = env_config['env']['logroot']
@@ -161,7 +161,7 @@ def get_iottalk_info(logger):
 
     Args:
         logger: System Logger to record this event.
-    
+
     Returns:
         None
     '''
@@ -237,7 +237,6 @@ def delete_proj_ag(p_id, logger):
     except Exception as err:
         logger.error(err)
         return False
-
 
 
 def create_do_ag(p_id, logger):

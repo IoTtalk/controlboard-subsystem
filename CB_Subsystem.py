@@ -10,11 +10,9 @@ from EventHandler import apis
 from models import cb_db
 from utils import connect_db
 from utils import make_logger
-from utils import test_db
 from utils import running_sa
 from utils import register_ag
 from utils import get_iottalk_info
-
 
 
 @orm.db_session()
@@ -55,7 +53,6 @@ if __name__ == "__main__":
     system_logger.info('\tCreating EventHandler\t......done')
 
     connect_db(system_logger, models.cb_db)
-    # test_db(system_logger)
 
     recover_sa(running_sa, env_config, system_logger)
 

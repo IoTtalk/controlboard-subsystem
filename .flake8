@@ -5,6 +5,10 @@ ignore =
     H401,
     # E501: line too long
     E501,
+    # F541 f-string is missing placeholders
+    F541,
+    # F821 undefined name 
+    F821,
 
 exclude =
     .git,

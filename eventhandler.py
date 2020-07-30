@@ -9,9 +9,7 @@ from flask import request
 from pony import orm
 
 
-from config import env_config
 from utils import running_sa
-from utils import iottalk_info
 from utils import make_logger
 from utils import create_proj_ag, delete_proj_ag
 from utils import create_do_ag
@@ -50,7 +48,7 @@ def set_rules(cb_id):
         request: A list of rule settings in json format.
 
     Returns:
-        Status code: 
+        Status code:
             200: Successfully setup rules.
             400: Invalid rule settings detected.
         msg: "Configuration Saved" if successfully setup rules else a string containing invalid actuators.
@@ -101,26 +99,26 @@ def set_rules(cb_id):
                 rule.set(**rule_settings)
             except orm.RowNotFound:
                 new_rule = UserRule(
-                    
+
                 )
             except orm.MultipleRowsFound:
                 pass
-            
+
             if cb_id in running_sa:
                 # ag delete api
                 pass
 
-            rules = get(lambda r: r.sa.cb_id == sa.cb_id and r.actuator_alias == actuator_alias)[:] 
+            rules = get(lambda r: r.sa.cb_id == sa.cb_id and r.actuator_alias == actuator_alias)[:]
             if rules:
                 for rule in rules:
                     tmp = rule.to_dict()
                     if tmp["actuator_alias"] == actuator_alias:
                         rule.set(**rule_settings)
                         old_status = CB_Status.select(lambda st: st.rule_id == tmp['rule_id'])
-                        old_status.set(rule_id=tmp['rule_id'], status='green', value = 0.0)
+                        old_status.set(rule_id=tmp['rule_id'], status='green', value=0.0)
             else:
                 new_rule = UserRule(**rule_settings, sa=sa)
-                new_status = CB_Status(rule_id=new_rule.rule_id, status='green', value=0.0)
+                CB_Status(rule_id=new_rule.rule_id, status='green', value=0.0)
 
         ''' TODO
             1. Delete original SA if already running
@@ -146,21 +144,15 @@ def stop_SA(cb_id):
     '''
     with orm.db_session():
         sa = CB_SA[cb_id]
-        #rules = select("select * from UserRule where sa = $sa")[:]  # TODO Not sure if SQL correct or not.
+        # rules = select("select * from UserRule where sa = $sa")[:]  # TODO Not sure if SQL correct or not.
         rules = UserRule.select(lambda ur: ur.sa.cb_id == sa.cb_id)[:]
         for rule in rules:
             tmp = rule.to_dict()
             if tmp['sa'] == sa.cb_id:
                 if tmp['rule_type'] == 'sensor':
-                    rule.set(comparison_close = 'notset', comparison_open='notset')
+                    rule.set(comparison_close='notset', comparison_open='notset')
                 else:
                     rule.set(exetime=0)
-
-        #order = running_sa[cb_id].mappings[rule.actuator_alias][1]
-        #actuat_name = 'Trigger' + '-I' + str(order + 1)
-        #DAN.push(actuat_name, 0)
-
-    #running_sa[cb_id].rules.clear()
 
     return jsonify({
         'state': 'ok',
@@ -184,7 +176,7 @@ def get_rules(cb_id):
     '''
     res_list = list()
 
-    ''' 
+    '''
     TODO wrong attributes, should be
         1. fetch all rules of this sa by `cb_id`
         2. for each rule, collect needed information in UserRule Entity
@@ -240,14 +232,14 @@ def get_rules(cb_id):
             })
         else:
             res_list.append({
-                #'sensor_alias': sensor_alias,  # thinking about how to extract sensor_alias
+                # 'sensor_alias': sensor_alias,  # thinking about how to extract sensor_alias
                 'actuator_alias': tmp['actuator_alias'],
                 'time_open': tmp['time_open'].strftime('%H:%M:%S'),
                 'time_close': tmp['time_close'].strftime('%H:%M:%S'),
                 'exetime': tmp['exetime'],
                 'rule_type': tmp['rule_type']
             })
-    
+
     return jsonify(res_list), 200
 
 
@@ -265,8 +257,7 @@ def get_datum(cb_id):
     '''
 
     #  TODO: update this API to contain trigger status, DONE
-    
-    record_list = list()
+
     res_dict = dict()
     cbstatus = dict()
     with orm.db_session():
@@ -275,7 +266,7 @@ def get_datum(cb_id):
         for rule in rules:
             tmp = rule.to_dict()
             stats = CB_Status.select(lambda s: s.rule_id == tmp['rule_id'])  # one rule one status, can use get but select is better for testing
-            
+
             for stat in stats:
                 cbstatus[tmp['actuator_alias']] = stat.status
 
@@ -287,14 +278,13 @@ def get_datum(cb_id):
         else:
             val = None
 
-
         if actuator_alias in running_sa[cb_id].rules:
             rule_type = running_sa[cb_id].rules[actuator_alias]['rule_type']
-            #status = running_sa[cb_id].rules[actuator_alias]['status']
+            # status = running_sa[cb_id].rules[actuator_alias]['status']
             status = cbstatus[actuator_alias]
         else:
             status = 'green'
-        
+
         time = datetime.datetime.now().strftime('%H:%M')
 
         res_dict[sensor_alias] = {
@@ -303,7 +293,7 @@ def get_datum(cb_id):
             'time': time,
             'status': status
         }
-    #return jsonify(record_list), 200
+    # return jsonify(record_list), 200
     return jsonify(res_dict), 200
 
 
@@ -352,7 +342,6 @@ def create_sa():
             sa.delete()
             return "Create SA failed, check api log files", 400
 
-        
         # Bind device to DO
         status = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)
         if not status:
@@ -361,19 +350,17 @@ def create_sa():
             sa.delete()
             return "Create SA failed, check api log files", 400
 
-
     running_sa[sa.cb_id] = sa
     api_logger.info(f'Create New SA, SA_ID: {sa.cb_id}')
 
     return "Create SA succeeded", 200
 
 
-
 @apis.route('/subsystem/delete_sa/<cb_id>', methods=['POST'])
 def delete_sa(cb_id):
     '''
     Delete SA with specified cb_id.
-        
+
     Args:
         cb_id: ID of the requester SA.
 
@@ -398,8 +385,6 @@ def delete_sa(cb_id):
     except KeyError:
         api_logger.info('Specified ControlBoard not running')
         return "Specified SA not found", 400
-    
-
 
 
 @apis.route('/subsystem/get_sa/<usr_account>', methods=['GET'])
@@ -418,10 +403,10 @@ def get_sa(usr_account):
     with orm.db_session():
         accs = CB_Account.select(lambda a: a.account == usr_account)[:]
         for acc in accs:
-            acc_dict = acc.to_dict()
+            # acc_dict = acc.to_dict()
             for sa in acc.sa_set:
                 avail_sa.append((sa.cb_id, sa.cb_name))
-        
+
     print(avail_sa)
     return avail_sa, 200   # GET return cannot be list, must be dict or string or something... need to decide which type to use
 
@@ -429,5 +414,5 @@ def get_sa(usr_account):
 @apis.route('/account/create', methods=['POST'])
 def create_account():
     # for account_info in request.json:
-        
+
     pass
