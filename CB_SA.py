@@ -24,13 +24,9 @@ class AG_SA():
             config: Infomation for connecting to Subsystem, should contain IP, port, username, password.
 
         Instance variables:
-            rules: User-defined rules to avoid redundant querying rules resulting from checking rule satisfaction.
-            [
-                (rule entity, status entity)
-            ]
             mappings: A dictionary of the following format.
             {{
-                'actuator_alias1': (sensor_alias1, DF order on IoTTalk GUI)
+                'actuator_alias': (sensor_alias, DF order on IoTTalk GUI)
             }}
             cb_id: ID for this SA, used in Database querying.
             df_hist_val: History values of sensors manipulated by this SA.
@@ -47,7 +43,6 @@ class AG_SA():
         Returns:
             None
         '''
-        self.rules = list()
         self.mappings = dict()
         self.df_hist_val = dict()
         self.cb_id = cb_id
@@ -127,7 +122,6 @@ class AG_SA():
             value = orm.Required(float)  # The sensory value received from IoTtalk.
             prev_trigger = orm.Required(int) # epoch time of last triggering.
 
-
     def connect_db(self):
         '''
         Connect to correspoinding database
@@ -187,7 +181,7 @@ class AG_SA():
                 try:
                     if 'Threshold' not in alias_in[0] and 'Trigger' not in alias_out[0]:
                         alias_in = alias_in[0].replace('-O', '')
-                        alias_out = alias_out[0].replace('-O', '')
+                        alias_out = alias_out[0].replace('-I', '')
                         self.mappings[alias_out] = (alias_in, i)
                         self.df_hist_val[alias_in] = deque(maxlen=200)
                     i += 1
@@ -219,14 +213,10 @@ class AG_SA():
                     value=0,
                     prev_trigger=-1
                 )
-                self.rules.append((new_rule, new_status))
-            else:
-                self.rules.append((new_rule[0], self.cb_db.CB_Status[new_rule[0].rule_id]))
-
-        print(self.rules)
-
+                self.cb_db.commit()
         return 
 
+    @orm.db_session()
     def check_rules(self):
         '''
         Rule checker for all rules set for this SA.
@@ -238,48 +228,48 @@ class AG_SA():
         Returns:
             None
         '''
-        for rule, status in self.rules:
+        sa = self.cb_db.CB_SA[self.cb_id]
+        for rule in sa.rule_set:
+            status = self.cb_db.CB_Status[rule.rule_id]
             if rule.mode == 'on':
                 if status.status != 'RED':
-                    actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias])
+                    actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias][1])
                     DAN.push(actuator_df, 1)
                 continue
             elif rule.mode == 'off':
                 if status.status == 'RED':
-                    actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias])
+                    actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias][1])
                     DAN.push(actuator_df, 0)
                 continue
 
             # auto mode
             if rule.rule_type == 'sensor':
                 self.sensor_checker(
-                    rule, status, self.mappings[rule.actuator_alias]
+                    rule.rule_id, self.mappings[rule.actuator_alias]
                 )
             else:
                 self.timer_checker(
-                    rule, status, self.mappings[rule.actuator_alias]
+                    rule.rule.rule_id, self.mappings[rule.actuator_alias]
                 )
 
         return
 
-    @staticmethod
-    def timer_checker(self, rule, status, order):
+    @orm.db_session()
+    def timer_checker(self, rule_id, mapping):
         """
         Timer-type rule checking handler. Push to IoTTalk server accordingly
 
         Args:
-            rule: UserRule entity stored in memory.
-            status: CB_Status entity stored in memory.
-            order: which pair of (actuator, sensor) mappings is being checked.
+            rule_id: The id of the rule to be checked.
+            mapping: Tuple of format (sensor_alias, order of Device Feature).
 
         Returns:
             None
         """
+        rule = self.cb_db.UserRule[rule_id]
+        status = self.cb_db.CB_Status[rule_id]
         current = datetime.datetime.now()
-        actuator_df = 'Trigger' + '-I' + str(order)
-        #time_open = datetime.datetime.combine(datetime.date.today(), utils.rule_info[actuator_alias]['time_open'])
-        #time_close = datetime.datetime.combine(datetime.date.today(), utils.rule_info[actuator_alias]['time_close'])
-        #exetime = utils.rule_info[actuator_alias]['exetime']
+        actuator_df = 'Trigger' + '-I' + str(mapping[1])
         time_open = datetime.datetime.combine(datetime.date.today(), rule.time_open)
         time_close = datetime.datetime.combine(datetime.date.today(), rule.time_close)
         exetime = rule.exetime
@@ -324,21 +314,6 @@ class AG_SA():
                             status.status = 'YELLOW'
                         else:
                             status.status = 'GREEN'
-                    """
-                    if current > time_open and current < time_close:
-                        if utils.rule_info[actuator_alias]['trigger'] is False:
-                            utils.rule_info[actuator_alias]['trigger'] = True
-                            self.da.push(actuator_name, 1)
-                        utils.rule_info[actuator_alias]['status'] = 'red'
-                    else:
-                        if utils.rule_info[actuator_alias]['trigger'] is True:
-                            utils.rule_info[actuator_alias]['trigger'] = False
-                            self.da.push(actuator_name, 0)
-                        if abs((time_open - current).total_seconds()) < 600 and time_open > current:
-                            utils.rule_info[actuator_alias]['status'] = 'yellow'
-                        else:
-                            utils.rule_info[actuator_alias]['status'] = 'green'
-                    """
             else:
                 if status.status is 'RED':
                     DAN.push(actuator_df, 0)
@@ -350,27 +325,29 @@ class AG_SA():
 
         return
 
-    def sensor_checker(self, rule, status, order):
+    @orm.db_session()
+    def sensor_checker(self, rule_id, mapping):
         """
         Sensor-type rule checking handler. Push to IoTTalk server accordingly.
 
         Args:
-            rule: UserRule entity stored in memory.
-            status: CB_Status entity stored in memory.
-            order: Which pair of (actuator, sensor) mappings is being checked.
+            rule_id: The id of the rule to be checked.
+            mapping: Tuple of format (sensor_alias, order of Device Feature).
 
         Returns:
             None
         """
-        sensor_df = 'Threshold-O' + str(order)
+        sensor_df = 'Threshold-O' + str(mapping[1])
         data = DAN.pull(sensor_df)
         if data is None:
             return
 
         data = data[0]
+        rule = self.cb_db.UserRule[rule_id]
+        status = self.cb_db.CB_Status[rule_id]
         status.value = data
         self.df_hist_val[rule.sensor_alias].append(data)
-        actuator_df = 'Trigger-I' + str(order)
+        actuator_df = 'Trigger-I' + str(mapping[1])
         
         try:
             avg = sum(self.df_hist_val[rule.sensor_alias]) / len(self.df_hist_val[rule.sensor_alias])
@@ -378,7 +355,6 @@ class AG_SA():
                 if status.status == 'RED':
                     DAN.push(actuator_df, 0)
                 status.status = 'GREEN'
-                
                 return
             elif 'notset' in rule.comparison_open:
                 action = 'CLOSE'
