@@ -33,7 +33,7 @@ default_rules = {
 }
 
 
-def _post(data):
+def _post(url, data):
     '''
     AG post request worker
 
@@ -43,7 +43,7 @@ def _post(data):
     Returns:
         res: response from AG.
     '''
-    return requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+    return requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/{url}', data=data)
 
 
 def make_logger(log_name, log_file):
@@ -172,7 +172,7 @@ def get_iottalk_info(logger):
                 'dm': 'ControlBoard'
             })
         }
-        response = _post(data).text
+        response = _post('ccm_api', data).text
         response = json.loads(response)
         iottalk_info['dm_id'] = response['dm_id']
         iottalk_info['df_id'] = list()
@@ -205,7 +205,7 @@ def create_proj_ag(sa, logger):
         })
     }
     try:
-        response = _post(data)
+        response = _post('ccm_api', data)
         logger.info('\tCreate Project\t......done')
 
         return True, int(response.text)
@@ -232,7 +232,7 @@ def delete_proj_ag(p_id, logger):
         })
     }
     try:
-        _post(data)
+        _post('ccm_api', data)
         return True
     except Exception as err:
         logger.error(err)
@@ -261,7 +261,7 @@ def create_do_ag(p_id, logger):
         })
     }
     try:
-        response = _post(data)
+        response = _post('ccm_api', data)
         logger.info('\tCreate DO\t......done')
         return True, json.loads(response.text)
     except Exception as err:
@@ -288,7 +288,7 @@ def register_ag(sa, logger):
             'code': new_sa
         }
 
-        response = _post(data).text
+        response = _post('create_device', data).text
         print(response)
         return True, response
 
@@ -317,7 +317,7 @@ def deregister_ag(sa, logger):
         data = {
             'token': sa.ag_token
         }
-        _post(data)
+        _post('delete_device', data)
 
         with orm.db_session():
             CB_SA[sa.cb_id].delete()
@@ -350,7 +350,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                     "do_id": do_id[0]
                 })
             }
-            response = _post(data)
+            response = _post('ccm_api', data)
             response = json.loads(response.text)
             logger.info('\tGet Device\t......done')
             device = None
@@ -369,7 +369,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                         "d_id": device['d_id']
                     })
                 }
-                _post(data)
+                _post('ccm_api', data)
             logger.info('\tBind device\t......done')
             return True
     except ValueError:
