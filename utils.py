@@ -32,6 +32,20 @@ default_rules = {
     'period': 0
 }
 
+
+def _post(data):
+    '''
+    AG post request worker
+
+    Args:
+        data: payload to be attached in the post request.
+
+    Returns:
+        res: response from AG.
+    '''
+    return requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+
+
 def make_logger(log_name, log_file):
     '''
     Inits a Logger with title log_name and file name that stores informations from this logger
@@ -152,17 +166,19 @@ def get_iottalk_info(logger):
         None
     '''
     try:
-        response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', 
-            data={'api_name': 'devicemodel.get',
-                    'payload': json.dumps({
-                        'dm': 'ControlBoard'
-                    })}).text
+        data = {
+            'api_name': 'devicemodel.get',
+            'payload': json.dumps({
+                'dm': 'ControlBoard'
+            })
+        }
+        response = _post(data).text
         response = json.loads(response)
         iottalk_info['dm_id'] = response['dm_id']
         iottalk_info['df_id'] = list()
         for df in response["df_list"]:
             iottalk_info['df_id'].append(df['df_id'])
-        logger.info('Fetch DF/DM id')
+        logger.info('Fetch DF/DM id......done')
 
     except Exception as err:
         logger.error(err)
@@ -189,13 +205,39 @@ def create_proj_ag(sa, logger):
         })
     }
     try:
-        response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+        response = _post(data)
         logger.info('\tCreate Project\t......done')
 
         return True, int(response.text)
     except Exception as err:
         logger.error(err)
         return False, -1
+
+
+def delete_proj_ag(p_id, logger):
+    '''
+    Delete IoTtalk Project given p_id
+
+    Args:
+        p_id: ID of target IoTtalk Project.
+        logger: Logger object to write log in.
+
+    Returns:
+        status: Boolean value indicating deleting project success or fail.
+    '''
+    data = {
+        "api_name": "project.delete",
+        "payload": json.dumps({
+            "p_id": p_id,
+        })
+    }
+    try:
+        _post(data)
+        return True
+    except Exception as err:
+        logger.error(err)
+        return False
+
 
 
 def create_do_ag(p_id, logger):
@@ -219,7 +261,7 @@ def create_do_ag(p_id, logger):
         })
     }
     try:
-        response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+        response = _post(data)
         logger.info('\tCreate DO\t......done')
         return True, json.loads(response.text)
     except Exception as err:
@@ -246,7 +288,8 @@ def register_ag(sa, logger):
             'code': new_sa
         }
 
-        response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/create_device', data=data).text
+        response = _post(data).text
+        print(response)
         return True, response
 
     except KeyError:
@@ -274,7 +317,7 @@ def deregister_ag(sa, logger):
         data = {
             'token': sa.ag_token
         }
-        requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/delete_device', data=data)
+        _post(data)
 
         with orm.db_session():
             CB_SA[sa.cb_id].delete()
@@ -307,7 +350,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                     "do_id": do_id[0]
                 })
             }
-            response = requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+            response = _post(data)
             response = json.loads(response.text)
             logger.info('\tGet Device\t......done')
             device = None
@@ -326,7 +369,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                         "d_id": device['d_id']
                     })
                 }
-                requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/ccm_api', data=data)
+                _post(data)
             logger.info('\tBind device\t......done')
             return True
     except ValueError:

@@ -6,7 +6,7 @@ import models
 
 
 from config import env_config
-from eventhandler import apis
+from EventHandler import apis
 from models import cb_db
 from utils import connect_db
 from utils import make_logger
@@ -30,7 +30,6 @@ def recover_sa(running_sa, config, logger):
     Returns:
         None
     '''
-    logger.info('Start Recovering SAs in Database...')
     assert len(running_sa) == 0
     to_recovered = cb_db.CB_SA.select()[:]
     print(to_recovered)
@@ -40,6 +39,7 @@ def recover_sa(running_sa, config, logger):
         if status:
             sa.ag_token = ag_token
             running_sa[sa.cb_id] = sa
+    logger.info('Start Recovering SAs in Database......done')
     print(running_sa)
     return
 

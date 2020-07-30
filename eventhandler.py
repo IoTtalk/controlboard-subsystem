@@ -13,7 +13,7 @@ from config import env_config
 from utils import running_sa
 from utils import iottalk_info
 from utils import make_logger
-from utils import create_proj_ag
+from utils import create_proj_ag, delete_proj_ag
 from utils import create_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag
 from models import cb_db
@@ -47,29 +47,44 @@ def set_rules(cb_id):
 
     Args:
         cb_id: ID of the requester SA.
+        request: A list of rule settings in json format.
 
     Returns:
-        Status code: 200.
+        Status code: 
+            200: Successfully setup rules.
+            400: Invalid rule settings detected.
+        msg: "Configuration Saved" if successfully setup rules else a string containing invalid actuators.
     '''
+    api_logger.info(f'Start setting new rules of SA NO. {cb_id}')
     invalid_list = list()
     for rule_settings in request.json:
         print(rule_settings)
+        invalid = False
+        # Sensor threshold setup < 0
         if rule_settings["rule_type"] == "sensor":
-            if rule_settings['comparison_open'] != 'notset' and float(rule_settings["threshold_open"]) < 0.0:
-                invalid_list.append(rule_settings['sensor_alias'])
-            elif rule_settings['comparison_close'] != 'notset' and float(rule_settings["threshold_close"]) < 0.0:
-                invalid_list.append(rule_settings['sensor_alias'])
+            if rule_settings["comparison_open"] != "notset" and float(rule_settings["threshold_open"]) < 0.0:
+                invalid = True
+            elif rule_settings["comparison_close"] != "notset" and float(rule_settings["threshold_close"]) < 0.0:
+                invalid = True
+
+        # Period > 0 but no exetime
+        if int(rule_settings["period"]) > 0:
+            if rule_settings["exetime"] is None or int(rule_settings["exetime"]) <= 0:
+                invalid = True
+
+        if invalid:
+            invalid_list.append(rule_settings["actuator_alias"])
 
     if invalid_list:
-        invalid_sensors = str()
-        for sensor_alias in invalid_list:
-            invalid_sensors += (sensor_alias + ' ')
-        print(invalid_sensors)
+        invalid_actuators = str()
+        for actuator_alias in invalid_list:
+            invalid_actuators += (actuator_alias + ' ')
+        api_logger.info(f'Invalid new rules of SA NO. {cb_id} detected, abort all.')
         return jsonify({
-            'state': 'error',
-            'msg': f'Abnormal threshold setting of {invalid_sensors}detected, aborting all'
+            'msg': f'Abnormal threshold setting of {invalid_actuators}detected, aborting all'
         }), 400
 
+    api_logger.info('\tStart setting')
     for rule_settings in request.json:
         actuator_alias = rule_settings['actuator_alias']
         if rule_settings['rule_type'] == 'timer':
@@ -95,7 +110,7 @@ def set_rules(cb_id):
                 # ag delete api
                 pass
 
-            rule = get(lambda r: r.sa.cb_id == sa.cb_id and r.actuator_alias == actuator_alias)[:] 
+            rules = get(lambda r: r.sa.cb_id == sa.cb_id and r.actuator_alias == actuator_alias)[:] 
             if rules:
                 for rule in rules:
                     tmp = rule.to_dict()
@@ -369,11 +384,17 @@ def delete_sa(cb_id):
     try:
         sa = running_sa[int(cb_id)]
         status = deregister_ag(sa, api_logger)
-        api_logger.info(f"Delete Running SA, SA_ID: {sa.cb_id}")
-        if status:
-            return "Delete SA succeeded", 200
-        else:
+        if not status:
+            api_logger.error("Deregister SA failed, check api log file")
             return "Delete SA failed, check api log files", 502
+
+        status = delete_proj_ag(sa.p_id, api_logger)
+        if not status:
+            api_logger.error("Delete project failed, check api log file")
+            return "Delete SA failed, check api log files", 502
+
+        api_logger.info(f"Delete Running SA, SA_ID: {sa.cb_id}")
+        return "Delete SA succeed", 200
     except KeyError:
         api_logger.info('Specified ControlBoard not running')
         return "Specified SA not found", 400

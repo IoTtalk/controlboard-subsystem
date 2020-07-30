@@ -1,7 +1,6 @@
 import time
 import uuid
 import datetime
-import atexit
 
 
 from collections import deque
@@ -524,5 +523,5 @@ sa.recover()
 
 
 while True:
-   sa.check_rules()
-   time.sleep(5)
+    sa.check_rules()
+    time.sleep(5)
