@@ -16,6 +16,8 @@ from utils import create_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB_Status
+from config import default_rules
+from config import use_v1
 
 
 api_logger = make_logger('API', 'API')
@@ -39,6 +41,7 @@ def render_SA(cb_id):
 
 
 @apis.route('/sa/<cb_id>/new_rules', methods=['POST'])
+@orm.db_session()
 def set_rules(cb_id):
     '''
     Set the rules contained in the request sent from the specified SA.
@@ -82,7 +85,8 @@ def set_rules(cb_id):
             'msg': f'Abnormal threshold setting of {invalid_actuators}detected, aborting all'
         }), 400
 
-    api_logger.info('\tStart setting')
+    api_logger.info('\tStart setting rules')
+    sa = CB_SA[cb_id]
     for rule_settings in request.json:
         actuator_alias = rule_settings['actuator_alias']
         if rule_settings['rule_type'] == 'timer':
@@ -92,41 +96,41 @@ def set_rules(cb_id):
             rule_settings['time_open'] = time_open
             rule_settings['time_close'] = time_close
 
-        with orm.db_session():
-            sa = CB_SA[cb_id]
-            try:
-                rule = UserRule.get(sa=sa, actuator_alias=actuator_alias)
-                rule.set(**rule_settings)
-            except orm.RowNotFound:
-                new_rule = UserRule(
+        try:
+            rule = UserRule.get(sa=sa, actuator_alias=actuator_alias)
+            rule.set(**rule_settings)
+        except orm.RowNotFound:
+            new_rule = UserRule(
+                **default_rules,
+                actuator_alias=actuator_alias,
+                sa=sa
+            )
+        except orm.MultipleRowsFound:
+            api_logger.error('Multiple Rules for the same mapping found')
+            return "Internal Server Error", 502
 
-                )
-            except orm.MultipleRowsFound:
-                pass
+    if cb_id in running_sa:
+        status = deregister_ag(running_sa[cb_id], api_logger)
+        if not status:
+            api_logger.error("Change User configuraion failed, check API logs")
+            return "Internal Server Error", 502
 
-            if cb_id in running_sa:
-                # ag delete api
-                pass
+    status, ag_token = register_ag(sa, api_logger)
+    if not status:
+        api_logger.error("Change User configuraion failed, check API logs")
+        return "Internal Server Error", 502
+    sa.ag_token = ag_token
+    running_sa[sa.cb_id] = sa
+    
+    do_id = [int(id) for id in sa.do_id.split(',')]
+    status = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
 
-            rules = get(lambda r: r.sa.cb_id == sa.cb_id and r.actuator_alias == actuator_alias)[:]
-            if rules:
-                for rule in rules:
-                    tmp = rule.to_dict()
-                    if tmp["actuator_alias"] == actuator_alias:
-                        rule.set(**rule_settings)
-                        old_status = CB_Status.select(lambda st: st.rule_id == tmp['rule_id'])
-                        old_status.set(rule_id=tmp['rule_id'], status='green', value=0.0)
-            else:
-                new_rule = UserRule(**rule_settings, sa=sa)
-                CB_Status(rule_id=new_rule.rule_id, status='green', value=0.0)
+    if not status:
+        api_logger.error("Change User configuraion failed, check API logs")
+        return "Internal Server Error", 502
 
-        ''' TODO
-            1. Delete original SA if already running
-            2. Create new SA
-        '''
     return jsonify({
-        'state': 'ok',
-        'msg': 'Setup Threshold Done'
+        'msg': 'Configuration Saved'
     }), 200
 
 
@@ -176,45 +180,6 @@ def get_rules(cb_id):
     '''
     res_list = list()
 
-    '''
-    TODO wrong attributes, should be
-        1. fetch all rules of this sa by `cb_id`
-        2. for each rule, collect needed information in UserRule Entity
-
-        Note that status are combined to API `current_data` to return.
-    '''
-    """
-    for actuator_alias, mappings in running_sa[cb_id].mappings.items():
-        sensor_alias = mappings[0]
-        if actuator_alias in running_sa[cb_id].rules:
-            rule = running_sa[cb_id].rules[actuator_alias]
-            if rule['rule_type'] == 'sensor':
-                res_list.append({
-                    'sensor_alias': rule['sensor_alias'],
-                    'actuator_alias': rule['actuator_alias'],
-                    'comparison_open': rule['comparison_open'],
-                    'threshold_open': rule['threshold_open'] if rule['comparison_open'] != 'notset' else None,
-                    'comparison_close': rule['comparison_close'],
-                    'threshold_close': rule['threshold_close'] if rule['comparison_close'] != 'notset' else None,
-                    'rule_type': rule['rule_type']
-                })
-            else:
-                res_list.append({
-                    'sensor_alias': sensor_alias,
-                    'actuator_alias': rule['actuator_alias'],
-                    'time_open': rule['time_open'].strftime('%H:%M:%S'),
-                    'time_close': rule['time_close'].strftime('%H:%M:%S'),
-                    'exetime': rule['exetime'],
-                    'rule_type': rule['rule_type']
-                })
-        else:
-            res_list.append({
-                'sensor_alias': sensor_alias,
-                'actuator_alias': actuator_alias,
-                'rule_type': None
-            })
-        print(actuator_alias, found)
-    """
     with orm.db_session():
         sa = CB_SA[cb_id]
         rules = UserRule.select(lambda r: r.sa.cb_id == sa.cb_id)[:]
@@ -313,7 +278,7 @@ def create_sa():
     sa_spec = request.json
     with orm.db_session():
         mac_addr = str(uuid.uuid4())
-        sa = CB_SA(cb_name=sa_spec['cb_name'], ag_token='NotCreated', mac_addr=mac_addr, p_id=-1)
+        sa = CB_SA(cb_name=sa_spec['cb_name'], ag_token='NotCreated', mac_addr=mac_addr, p_id=-1, do_id='-1')
         cb_db.commit()
         api_logger.info("Start Creating CB SA")
 
@@ -341,6 +306,10 @@ def create_sa():
             deregister_ag(sa, api_logger)
             sa.delete()
             return "Create SA failed, check api log files", 400
+        if use_v1:
+            sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
+        else:
+            sa.do_id = str(do_id)
 
         # Bind device to DO
         status = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)

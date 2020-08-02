@@ -106,6 +106,7 @@ class AG_SA():
             rule_set = orm.Set(UserRule)
             account_set = orm.Set("CB_Account")  # accounts that can access this SA.
             p_id = orm.Required(int)  # project id of this SA
+            do_id = orm.Required(str)  # device object id for this SA.
 
         class CB_Account(self.cb_db.Entity):
             account = orm.Required(str)  # Account of this user.

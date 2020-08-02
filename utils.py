@@ -288,7 +288,6 @@ def register_ag(sa, logger):
         }
 
         response = _post('create_device', data).text
-        print(response)
         return True, response
 
     except KeyError:
@@ -331,7 +330,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
     Bind corresponding device to assigned DO given do_id and p_id.
 
     Args:
-        mac_addr: MAc Address of the registered CB_SA,
+        mac_addr: MAC Address of the registered CB_SA,
         p_id: ID of the assigned IoTtalk Project.
         do_id: A list containing 2 IDs of the DO in IoTtalk Project (v1).
         logger: Logger object to write log in.
@@ -340,7 +339,6 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
         status: Boolean value indicating binding status.
     '''
     try:
-        print(mac_addr)
         if use_v1:
             data = {
                 "api_name": "device.get",
@@ -360,6 +358,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
             if device is None:
                 raise ValueError
             for id in do_id:
+                print(id)
                 data = {
                     "api_name": "device.bind",
                     "payload": json.dumps({
