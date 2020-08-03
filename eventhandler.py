@@ -3,6 +3,7 @@ import uuid
 
 
 from flask import Blueprint
+from flask import jsonify
 from flask import render_template
 from flask import request
 from pony import orm
@@ -143,15 +144,15 @@ def stop_SA(cb_id):
         cb_id: ID of the requester SA.
 
     Returns:
-        Status code: 
+        Status code:
             200: All procedure succeeded.
             502: Some procedure failed, check API log files.
-        msg: Depends on Status code. 
+        msg: Depends on Status code.
             200: 'Stop Done'.
             502: 'Internal Server Error'.
     '''
     try:
-        sa = CB_SA[cb_id]
+        sa = running_sa[cb_id]
         rules = sa.rule_set
 
         for rule in rules:
@@ -173,8 +174,8 @@ def stop_SA(cb_id):
         return "Specified SA is not running", 400
 
 
-
 @apis.route('/sa/<cb_id>/rules', methods=['GET'])
+@orm.db_session
 def get_rules(cb_id):
     '''
     Get the rules contained in the specified SA.
@@ -189,36 +190,27 @@ def get_rules(cb_id):
 
     '''
     res_list = list()
-
-    with orm.db_session():
-        sa = CB_SA[cb_id]
+    try:
+        sa = running_sa[cb_id]
         rules = UserRule.select(lambda r: r.sa.cb_id == sa.cb_id)[:]
+    except KeyError:
+        api_logger.info("Specified SA not running")
+        return "Specified SA not running", 400
+
     for rule in rules:
         tmp = rule.to_dict()
-        if tmp['rule_type'] == 'sensor':
-            res_list.append({
-                'sensor_alias': tmp['sensor_alias'],
-                'actuator_alias': tmp['actuator_alias'],
-                'comparison_open': tmp['comparison_open'],
-                'threshold_open': tmp['threshold_open'] if tmp['comparison_open'] != 'notset' else None,
-                'comparison_close': tmp['comparison_close'],
-                'threshold_close': tmp['threshold_close'] if tmp['comparison_close'] != 'notset' else None,
-                'rule_type': tmp['rule_type']
-            })
-        else:
-            res_list.append({
-                # 'sensor_alias': sensor_alias,  # thinking about how to extract sensor_alias
-                'actuator_alias': tmp['actuator_alias'],
-                'time_open': tmp['time_open'].strftime('%H:%M:%S'),
-                'time_close': tmp['time_close'].strftime('%H:%M:%S'),
-                'exetime': tmp['exetime'],
-                'rule_type': tmp['rule_type']
-            })
+        status = CB_Status[rule.rule_id]
+        if tmp['rule_type'] == 'timer':
+            tmp['time_open'] = tmp['time_open'].strftime('%H:%M:%S')
+            tmp['time_close'] = tmp['time_close'].strftime('%H:%M:%S')
+
+        res_list.append(tmp)
 
     return jsonify(res_list), 200
 
 
 @apis.route('/sa/<cb_id>/current_data', methods=['GET'])
+@orm.db_session
 def get_datum(cb_id):
     '''
     Get the datum of sensors manipulated by the specified SA.
@@ -230,20 +222,16 @@ def get_datum(cb_id):
         Status code: 200.
         record_list: A json object containing the lastest data of each sensor and trigger status.
     '''
-
-    #  TODO: update this API to contain trigger status, DONE
-
     res_dict = dict()
     cbstatus = dict()
-    with orm.db_session():
-        sa = CB_SA[cb_id]
-        rules = UserRule.select(lambda ur: ur.sa.cb_id == sa.cb_id)[:]
-        for rule in rules:
-            tmp = rule.to_dict()
-            stats = CB_Status.select(lambda s: s.rule_id == tmp['rule_id'])  # one rule one status, can use get but select is better for testing
+    sa = CB_SA[cb_id]
+    rules = UserRule.select(lambda ur: ur.sa.cb_id == sa.cb_id)[:]
+    for rule in rules:
+        tmp = rule.to_dict()
+        stats = CB_Status.select(lambda s: s.rule_id == tmp['rule_id'])  # one rule one status, can use get but select is better for testing
 
-            for stat in stats:
-                cbstatus[tmp['actuator_alias']] = stat.status
+        for stat in stats:
+            cbstatus[tmp['actuator_alias']] = stat.status
 
     for actuator_alias, rule_info in running_sa[cb_id].mappings.items():
         rule_type = None
@@ -268,7 +256,6 @@ def get_datum(cb_id):
             'time': time,
             'status': status
         }
-    # return jsonify(record_list), 200
     return jsonify(res_dict), 200
 
 
