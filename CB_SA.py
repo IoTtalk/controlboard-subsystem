@@ -154,7 +154,7 @@ class AG_SA():
 
         return
 
-    @orm.db_session()
+    @orm.db_session
     def recover(self):
         '''
         Recover SA UserRules from Database &
@@ -213,7 +213,7 @@ class AG_SA():
                 self.cb_db.commit()
         return
 
-    @orm.db_session()
+    @orm.db_session
     def check_rules(self):
         '''
         Rule checker for all rules set for this SA.
@@ -251,7 +251,7 @@ class AG_SA():
 
         return
 
-    @orm.db_session()
+    @orm.db_session
     def timer_checker(self, rule_id, mapping):
         """
         Timer-type rule checking handler. Push to IoTTalk server accordingly
@@ -322,7 +322,7 @@ class AG_SA():
 
         return
 
-    @orm.db_session()
+    @orm.db_session
     def sensor_checker(self, rule_id, mapping):
         """
         Sensor-type rule checking handler. Push to IoTTalk server accordingly.

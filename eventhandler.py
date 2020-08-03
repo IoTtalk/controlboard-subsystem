@@ -3,7 +3,6 @@ import uuid
 
 
 from flask import Blueprint
-from flask import jsonify
 from flask import render_template
 from flask import request
 from pony import orm
@@ -41,7 +40,7 @@ def render_SA(cb_id):
 
 
 @apis.route('/sa/<cb_id>/new_rules', methods=['POST'])
-@orm.db_session()
+@orm.db_session
 def set_rules(cb_id):
     '''
     Set the rules contained in the request sent from the specified SA.
@@ -54,7 +53,11 @@ def set_rules(cb_id):
         Status code:
             200: Successfully setup rules.
             400: Invalid rule settings detected.
-        msg: "Configuration Saved" if successfully setup rules else a string containing invalid actuators.
+            502: Internal Error occured.
+        msg: Depends on status code.
+            200: "Configuration Saved".
+            400: a string containing invalid actuators.
+            502: "Internal Server Error".
     '''
     api_logger.info(f'Start setting new rules of SA NO. {cb_id}')
     invalid_list = list()
@@ -81,9 +84,7 @@ def set_rules(cb_id):
         for actuator_alias in invalid_list:
             invalid_actuators += (actuator_alias + ' ')
         api_logger.info(f'Invalid new rules of SA NO. {cb_id} detected, abort all.')
-        return jsonify({
-            'msg': f'Abnormal threshold setting of {invalid_actuators}detected, aborting all'
-        }), 400
+        return f'Abnormal threshold setting of {invalid_actuators}detected, aborting all', 400
 
     api_logger.info('\tStart setting rules')
     sa = CB_SA[cb_id]
@@ -100,7 +101,7 @@ def set_rules(cb_id):
             rule = UserRule.get(sa=sa, actuator_alias=actuator_alias)
             rule.set(**rule_settings)
         except orm.RowNotFound:
-            new_rule = UserRule(
+            UserRule(
                 **default_rules,
                 actuator_alias=actuator_alias,
                 sa=sa
@@ -121,7 +122,7 @@ def set_rules(cb_id):
         return "Internal Server Error", 502
     sa.ag_token = ag_token
     running_sa[sa.cb_id] = sa
-    
+
     do_id = [int(id) for id in sa.do_id.split(',')]
     status = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
 
@@ -129,12 +130,11 @@ def set_rules(cb_id):
         api_logger.error("Change User configuraion failed, check API logs")
         return "Internal Server Error", 502
 
-    return jsonify({
-        'msg': 'Configuration Saved'
-    }), 200
+    return 'Configuration Saved', 200
 
 
 @apis.route('/sa/<cb_id>/stop', methods=['GET'])
+@orm.db_session
 def stop_SA(cb_id):
     '''
     Stop all actuator execution and pends the SA with specified cb_id.
@@ -143,25 +143,35 @@ def stop_SA(cb_id):
         cb_id: ID of the requester SA.
 
     Returns:
-        Status code: 200.
-        message: 'Stop Done'.
+        Status code: 
+            200: All procedure succeeded.
+            502: Some procedure failed, check API log files.
+        msg: Depends on Status code. 
+            200: 'Stop Done'.
+            502: 'Internal Server Error'.
     '''
-    with orm.db_session():
+    try:
         sa = CB_SA[cb_id]
-        # rules = select("select * from UserRule where sa = $sa")[:]  # TODO Not sure if SQL correct or not.
-        rules = UserRule.select(lambda ur: ur.sa.cb_id == sa.cb_id)[:]
-        for rule in rules:
-            tmp = rule.to_dict()
-            if tmp['sa'] == sa.cb_id:
-                if tmp['rule_type'] == 'sensor':
-                    rule.set(comparison_close='notset', comparison_open='notset')
-                else:
-                    rule.set(exetime=0)
+        rules = sa.rule_set
 
-    return jsonify({
-        'state': 'ok',
-        'msg': 'Stop Done'
-    }), 200
+        for rule in rules:
+            rule.set(**default_rules)
+
+        if not deregister_ag(sa, api_logger):
+            return f"stop SA {cb_id} failed at deregistering, check API log files", 502
+
+        status, ag_token = register_ag(sa, api_logger)
+        if not status:
+            return f"stop SA {cb_id} failed at registering, check API log files", 502
+        sa.ag_token = ag_token
+
+        if not bind_device_ag(sa.mac_addr, sa.p_id, sa.do_id, api_logger):
+            return f"stop SA {cb_id} failed at re-binding, check API log files", 502
+
+        return 'Stop Done', 200
+    except KeyError:
+        return "Specified SA is not running", 400
+
 
 
 @apis.route('/sa/<cb_id>/rules', methods=['GET'])
@@ -285,7 +295,6 @@ def create_sa():
         # Register device
         status, ag_token = register_ag(sa, api_logger)
         if not status:
-            api_logger.error("Register Device failed, check log file.")
             sa.delete()
             return "Create SA failed at registering device, check api log files", 400
         sa.ag_token = ag_token
@@ -293,19 +302,17 @@ def create_sa():
         # Create Project
         status, p_id = create_proj_ag(sa, api_logger)
         if not status:
-            api_logger.error("Create Project failed, check log file")
             deregister_ag(sa, api_logger)
             sa.delete()
-            return "Create SA failed, check api log files", 400
+            return "Create SA failed at creating project, check api log files", 400
         sa.p_id = p_id
 
         # Create Device Object
         status, do_id = create_do_ag(p_id, api_logger)
         if not status:
-            api_logger.error("Create DO failed, check log file")
             deregister_ag(sa, api_logger)
             sa.delete()
-            return "Create SA failed, check api log files", 400
+            return "Create SA failed at creating DO, check api log files", 400
         if use_v1:
             sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
         else:
@@ -314,10 +321,9 @@ def create_sa():
         # Bind device to DO
         status = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)
         if not status:
-            api_logger.error("Auto bind device failed, check log file")
             deregister_ag(sa, api_logger)
             sa.delete()
-            return "Create SA failed, check api log files", 400
+            return "Create SA failed at auto binding, check api log files", 400
 
     running_sa[sa.cb_id] = sa
     api_logger.info(f'Create New SA, SA_ID: {sa.cb_id}')

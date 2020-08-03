@@ -15,7 +15,7 @@ from utils import register_ag
 from utils import get_iottalk_info
 
 
-@orm.db_session()
+@orm.db_session
 def recover_sa(running_sa, config, logger):
     '''
     Recover SAs stored in Database.
