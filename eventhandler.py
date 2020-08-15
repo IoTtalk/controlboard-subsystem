@@ -199,7 +199,6 @@ def get_rules(cb_id):
 
     for rule in rules:
         tmp = rule.to_dict()
-        status = CB_Status[rule.rule_id]
         if tmp['rule_type'] == 'timer':
             tmp['time_open'] = tmp['time_open'].strftime('%H:%M:%S')
             tmp['time_close'] = tmp['time_close'].strftime('%H:%M:%S')
@@ -228,7 +227,7 @@ def get_datum(cb_id):
     rules = UserRule.select(lambda ur: ur.sa.cb_id == sa.cb_id)[:]
     for rule in rules:
         tmp = rule.to_dict()
-        stats = CB_Status.select(lambda s: s.rule_id == tmp['rule_id'])  # one rule one status, can use get but select is better for testing
+        stats = CB_Status.select(lambda s: s.rule_id == tmp['rule_id'])
 
         for stat in stats:
             cbstatus[tmp['actuator_alias']] = stat.status

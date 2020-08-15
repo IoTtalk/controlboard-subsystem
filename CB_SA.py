@@ -119,6 +119,11 @@ class AG_SA():
             value = orm.Required(float)  # The sensory value received from IoTtalk.
             prev_trigger = orm.Required(int)  # epoch time of last triggering.
 
+        class CB_Field(self.cb_db.Entity):
+            field_id = PrimaryKey(int, auto=True)
+            field_name = Required(str)
+            sa_set = set("CB_SA")
+
     def connect_db(self):
         '''
         Connect to correspoinding database

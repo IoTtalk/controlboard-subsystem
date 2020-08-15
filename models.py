@@ -29,6 +29,12 @@ class UserRule(cb_db.Entity):
     sa = Required("CB_SA")  # which SA it belongs to
 
 
+class CB_Field(cb_db.Entity):
+    field_id = PrimaryKey(int, auto=True)
+    field_name = Required(str)
+    sa_set = set("CB_SA")
+
+
 class CB_SA(cb_db.Entity):
     cb_id = PrimaryKey(int, auto=True)  # id of this SA.
     cb_name = Required(str)  # User-defined cb_name. Can be repeated.
