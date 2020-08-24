@@ -199,7 +199,6 @@ def get_rules(cb_id):
 
     for rule in rules:
         tmp = rule.to_dict()
-        status = CB_Status[rule.rule_id]
         if tmp['rule_type'] == 'timer':
             tmp['time_open'] = tmp['time_open'].strftime('%H:%M:%S')
             tmp['time_close'] = tmp['time_close'].strftime('%H:%M:%S')
@@ -207,6 +206,12 @@ def get_rules(cb_id):
         res_list.append(tmp)
 
     return jsonify(res_list), 200
+
+
+@apis.route('sa/<cb_id>current_data', methods=['POST'])
+@orm.db_session
+def set_datum(cb_id):
+    pass
 
 
 @apis.route('/sa/<cb_id>/current_data', methods=['GET'])
@@ -223,39 +228,17 @@ def get_datum(cb_id):
         record_list: A json object containing the lastest data of each sensor and trigger status.
     '''
     res_dict = dict()
-    cbstatus = dict()
-    sa = CB_SA[cb_id]
-    rules = UserRule.select(lambda ur: ur.sa.cb_id == sa.cb_id)[:]
+    try:
+        rules = running_sa[cb_id].rule_set
+    except KeyError:
+        api_logger.error("Specified SA not running")
+        return "Specified SA not running", 400
+
     for rule in rules:
-        tmp = rule.to_dict()
-        stats = CB_Status.select(lambda s: s.rule_id == tmp['rule_id'])  # one rule one status, can use get but select is better for testing
+        stats = CB_Status.get(lambda s: s.rule_id == rule.rule_id).to_dict()
+        stats['time'] = datetime.datetime.now().strftime('%H:%M')
+        res_dict[rule.sensor_alias] = stats
 
-        for stat in stats:
-            cbstatus[tmp['actuator_alias']] = stat.status
-
-    for actuator_alias, rule_info in running_sa[cb_id].mappings.items():
-        rule_type = None
-        sensor_alias = rule_info[0]
-        if sensor_alias in running_sa[cb_id].df_hist_val:
-            val = running_sa[cb_id].df_hist_val[sensor_alias][-1]
-        else:
-            val = None
-
-        if actuator_alias in running_sa[cb_id].rules:
-            rule_type = running_sa[cb_id].rules[actuator_alias]['rule_type']
-            # status = running_sa[cb_id].rules[actuator_alias]['status']
-            status = cbstatus[actuator_alias]
-        else:
-            status = 'green'
-
-        time = datetime.datetime.now().strftime('%H:%M')
-
-        res_dict[sensor_alias] = {
-            "value": val,
-            'rule_type': rule_type,
-            'time': time,
-            'status': status
-        }
     return jsonify(res_dict), 200
 
 

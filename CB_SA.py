@@ -86,7 +86,7 @@ class AG_SA():
             rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
             rule_type = orm.Required(str)  # Sensor / Timer.
             actuator_alias = orm.Required(str)  # Alias of the actuator in this rule.
-            sensor_alias = orm.Optional(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
+            sensor_alias = orm.Required(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
             threshold_open = orm.Optional(float)  # Sensor value to decide trigger actuator or not.
             threshold_close = orm.Optional(float)  # Sensor value to decide close actuator or not.
             comparison_open = orm.Optional(str)  # Comparison method to decide trigger actuator or not.
@@ -117,7 +117,7 @@ class AG_SA():
             rule_id = orm.PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
             status = orm.Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
             value = orm.Required(float)  # The sensory value received from IoTtalk.
-            prev_trigger = orm.Required(int)  # epoch time of last triggering.
+            prev_trigger = orm.Required(int)  # epoch time of last triggering start time.
 
     def connect_db(self):
         '''
