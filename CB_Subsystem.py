@@ -19,7 +19,7 @@ from utils import get_iottalk_info
 def recover_sa(running_sa, config, logger):
     '''
     Recover SAs stored in Database.
-    TODO: Apply AG DA generation after AG subsystem complete.
+
     Args:
         running_sa: Dictionary used to record current AG SAs. Should be empty when passed in this function.
         config: Config object read from user specified .ini file.
