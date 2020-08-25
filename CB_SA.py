@@ -6,6 +6,9 @@ import datetime
 from collections import deque
 
 
+import zmq
+
+
 from pony import orm
 
 
@@ -78,6 +81,9 @@ class AG_SA():
                         'Threshold-O3', 'Trigger-I3', 'Threshold-O4', 'Trigger-I4',
                         'Threshold-O5', 'Trigger-I5']
         }}
+        context = zmq.Context()
+        self.socket = context.socket(zmq.PUB)
+        self.socket.connect("tcp://")
 
         DAN.profile = ctlboard_profile
         DAN.device_registration_with_retry(f'http://{{config["iottalk_server"]}}:9999', self.mac_addr)
@@ -135,14 +141,21 @@ class AG_SA():
             subsystem_db: connected db session of the database.
         '''
         retry_times = 0
-        self.cb_db.bind(
-            provider='mysql',
-            host=self.config['host'],
-            user=self.config['user'],
-            passwd=self.config['pwd'],
-            db=self.config['dbname'],
-            port=int(self.config['port'])
-        )
+        if self.config['database'] == 'sqlite':
+            self.cb_db.bind(
+                provider='sqlite',
+                filename='cb_db.sqlite',
+                create_db=True
+            )
+        else:
+            self.cb_db.bind(
+                provider='mysql',
+                host=self.config['host'],
+                user=self.config['user'],
+                passwd=self.config['pwd'],
+                db=self.config['dbname'],
+                port=int(self.config['port'])
+            )
 
         while (retry_times < 3):
             try:

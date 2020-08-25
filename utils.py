@@ -95,7 +95,9 @@ def connect_db(logger, cb_db):
     retry_times = 0
     if env_config['db']['database'] == 'sqlite':
         cb_db.bind(
-            provider='sqlite', filename='cb_db.sqlite', create_db=True
+            provider='sqlite',
+            filename='cb_db.sqlite',
+            create_db=True
         )
     else:
         cb_db.bind(
@@ -169,14 +171,13 @@ def connect_zmq(logger):
 
     Args:
         logger: Logger object to write log in.
-    
+
     Returns:
         socket: Created socket object for receiving messages from AG SA.
     '''
     context = zmq.Context()
-    socket = context.socket(zmq.PULL)
-    socket.bind("tcp://*:7790")
-    
+    socket = context.socket(zmq.SUB)
+    socket.bind(f"tcp://*:{env_config['env']['port_zmq']}")
 
 
 
