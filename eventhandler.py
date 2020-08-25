@@ -208,7 +208,7 @@ def get_rules(cb_id):
     return jsonify(res_list), 200
 
 
-@apis.route('sa/<cb_id>current_data', methods=['POST'])
+@apis.route('/sa/<cb_id>current_data', methods=['POST'])
 @orm.db_session
 def set_datum(cb_id):
     pass
