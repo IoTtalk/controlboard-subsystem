@@ -5,6 +5,9 @@ import uuid
 import json
 
 
+import zmq
+
+
 from pony import orm
 
 
@@ -158,6 +161,23 @@ def test_db(logger):
         logger.error(err)
 
     return
+
+
+def connect_zmq(logger):
+    '''
+    Create ZMQ Listener for AG SA to sync rule status
+
+    Args:
+        logger: Logger object to write log in.
+    
+    Returns:
+        socket: Created socket object for receiving messages from AG SA.
+    '''
+    context = zmq.Context()
+    socket = context.socket(zmq.PULL)
+    socket.bind("tcp://*:7790")
+    
+
 
 
 def get_iottalk_info(logger):

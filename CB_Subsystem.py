@@ -8,7 +8,7 @@ import models
 from config import env_config
 from EventHandler import apis
 from models import cb_db
-from utils import connect_db
+from utils import connect_db, connect_zmq
 from utils import make_logger
 from utils import running_sa
 from utils import register_ag
@@ -57,6 +57,8 @@ if __name__ == "__main__":
     recover_sa(running_sa, env_config, system_logger)
 
     get_iottalk_info(system_logger)
+
+    connect_zmq(system_logger)
 
     app.run(
         host=env_config['env']['host'],
