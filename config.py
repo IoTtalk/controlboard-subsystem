@@ -18,6 +18,7 @@ env_config.read(config_path)
 use_v1 = env_config['IoTtalk']['version'] == '1'
 
 reg_config = {
+    'database': env_config['db']['database'],
     'host': env_config['db']['host'],
     'user': env_config['db']['user'],
     'pwd': env_config['db']['pwd'],

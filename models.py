@@ -16,7 +16,7 @@ class UserRule(cb_db.Entity):
     rule_id = PrimaryKey(int, auto=True)  # For AG_SA to write status.
     rule_type = Required(str)  # Sensor / Timer.
     actuator_alias = Required(str)  # Alias of the actuator in this rule.
-    sensor_alias = Optional(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
+    sensor_alias = Required(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
     threshold_open = Optional(float)  # Sensor value to decide trigger actuator or not.
     threshold_close = Optional(float)  # Sensor value to decide close actuator or not.
     comparison_open = Optional(str)  # Comparison method to decide trigger actuator or not.
@@ -56,4 +56,4 @@ class CB_Status(cb_db.Entity):
     rule_id = PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
     status = Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
     value = Required(float)  # The sensory value received from IoTtalk.
-    prev_trigger = Required(int)  # epoch time of last triggering.
+    prev_trigger = Required(int)  # epoch time of last triggering start time.

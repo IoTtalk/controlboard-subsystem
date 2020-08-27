@@ -5,6 +5,9 @@ import uuid
 import json
 
 
+import zmq
+
+
 from pony import orm
 
 
@@ -90,14 +93,21 @@ def connect_db(logger, cb_db):
         cb_db: MySQL Database Connection
     '''
     retry_times = 0
-    cb_db.bind(
-        provider='mysql',
-        host=env_config['db']['host'],
-        user=env_config['db']['user'],
-        passwd=env_config['db']['pwd'],
-        db=env_config['db']['dbname'],
-        port=int(env_config['db']['port'])
-    )
+    if env_config['db']['database'] == 'sqlite':
+        cb_db.bind(
+            provider='sqlite',
+            filename='cb_db.sqlite',
+            create_db=True
+        )
+    else:
+        cb_db.bind(
+            provider='mysql',
+            host=env_config['db']['host'],
+            user=env_config['db']['user'],
+            passwd=env_config['db']['pwd'],
+            db=env_config['db']['dbname'],
+            port=int(env_config['db']['port'])
+        )
     cb_db.generate_mapping(check_tables=False)
     # cb_db.drop_all_tables(with_all_data=True) # used to clean testcase
     while (retry_times < 3):
@@ -153,6 +163,22 @@ def test_db(logger):
         logger.error(err)
 
     return
+
+
+def connect_zmq(logger):
+    '''
+    Create ZMQ Listener for AG SA to sync rule status
+
+    Args:
+        logger: Logger object to write log in.
+
+    Returns:
+        socket: Created socket object for receiving messages from AG SA.
+    '''
+    context = zmq.Context()
+    socket = context.socket(zmq.SUB)
+    socket.bind(f"tcp://*:{env_config['env']['port_zmq']}")
+
 
 
 def get_iottalk_info(logger):
