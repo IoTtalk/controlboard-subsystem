@@ -1,3 +1,6 @@
+import threading
+
+
 from flask import Flask
 from pony import orm
 
@@ -6,7 +9,7 @@ import models
 
 
 from config import env_config
-from EventHandler import apis
+from eventhandler import apis
 from models import cb_db
 from utils import connect_db, connect_zmq
 from utils import make_logger
@@ -58,7 +61,8 @@ if __name__ == "__main__":
 
     get_iottalk_info(system_logger)
 
-    connect_zmq(system_logger)
+    t = threading.Thread(target=connect_zmq, args=(system_logger,), daemon=True)
+    t.start()
 
     app.run(
         host=env_config['env']['host'],

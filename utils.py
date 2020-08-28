@@ -9,6 +9,8 @@ import zmq
 
 
 from pony import orm
+from tornado import ioloop
+from zmq.eventloop.zmqstream import ZMQStream
 
 
 from config import env_config, reg_config, use_v1
@@ -109,7 +111,7 @@ def connect_db(logger, cb_db):
             port=int(env_config['db']['port'])
         )
     cb_db.generate_mapping(check_tables=False)
-    # cb_db.drop_all_tables(with_all_data=True) # used to clean testcase
+    cb_db.drop_all_tables(with_all_data=True)  # used to clean testcase
     while (retry_times < 3):
         try:
             cb_db.create_tables()
@@ -165,6 +167,18 @@ def test_db(logger):
     return
 
 
+def status_receiver(msg):
+    '''
+    Receive execution status from AG SAs.
+
+    Args:
+        msg: Message sent from AG SAs.
+
+    Returns: None
+    '''
+    print("Server received", msg)
+
+
 def connect_zmq(logger):
     '''
     Create ZMQ Listener for AG SA to sync rule status
@@ -175,10 +189,16 @@ def connect_zmq(logger):
     Returns:
         socket: Created socket object for receiving messages from AG SA.
     '''
-    context = zmq.Context()
+    context = zmq.Context.instance()
     socket = context.socket(zmq.SUB)
     socket.bind(f"tcp://*:{env_config['env']['port_zmq']}")
+    socket.setsockopt(zmq.SUBSCRIBE, b"")
 
+    stream = ZMQStream(socket)
+    stream.on_recv(status_receiver)
+    ioloop.IOLoop.instance().start()
+
+    print('test end')
 
 
 def get_iottalk_info(logger):

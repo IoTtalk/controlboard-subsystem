@@ -126,8 +126,8 @@ class AG_SA():
             prev_trigger = orm.Required(int)  # epoch time of last triggering start time.
 
         class CB_Field(self.cb_db.Entity):
-            field_id = PrimaryKey(int, auto=True)
-            field_name = Required(str)
+            field_id = orm.PrimaryKey(int, auto=True)
+            field_name = orm.Required(str)
             sa_set = set("CB_SA")
 
     def connect_db(self):
