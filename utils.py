@@ -3,6 +3,7 @@ import requests
 import os
 import uuid
 import json
+import asyncio
 
 
 import zmq
@@ -17,11 +18,26 @@ from config import env_config, reg_config, use_v1
 from models import UserRule, CB_Account, CB_SA
 
 
-'''
-used to record AG SA. in format {sa_id: CB_SA entity}
-'''
+# used to record AG SA. In format {sa_id: CB_SA entity}
 running_sa = dict()
+
+'''
+used to record AG SA's rule status. In format
+    {
+        sa_id1: {
+            sensor_alias1: {
+                value: sensor value,
+                prev_trigger: -10000 or an epoch time, -10000 means no need to use this field data.
+                status: 'GREEN'/'RED'/'YELLOW'
+            },
+        },
+    }
+'''
+running_status = dict()
+
+# DF/DM id from IoTtalk to automatically create Project and DMO.
 iottalk_info = dict()
+
 
 log_root = env_config['env']['logroot']
 if not os.path.isdir(log_root):
@@ -176,7 +192,7 @@ def status_receiver(msg):
 
     Returns: None
     '''
-    print("Server received", msg)
+    print("Server received", msg[0].decode('utf-8'))
 
 
 def connect_zmq(logger):
@@ -189,6 +205,7 @@ def connect_zmq(logger):
     Returns:
         socket: Created socket object for receiving messages from AG SA.
     '''
+    asyncio.set_event_loop(asyncio.new_event_loop())
     context = zmq.Context.instance()
     socket = context.socket(zmq.SUB)
     socket.bind(f"tcp://*:{env_config['env']['port_zmq']}")

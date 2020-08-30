@@ -1,6 +1,9 @@
 import threading
 
 
+from datetime import timedelta
+
+
 from flask import Flask
 from pony import orm
 
@@ -12,10 +15,8 @@ from config import env_config
 from eventhandler import apis
 from models import cb_db
 from utils import connect_db, connect_zmq
-from utils import make_logger
-from utils import running_sa
-from utils import register_ag
-from utils import get_iottalk_info
+from utils import make_logger, register_ag, get_iottalk_info
+from utils import running_sa, running_status
 
 
 @orm.db_session
@@ -33,13 +34,14 @@ def recover_sa(running_sa, config, logger):
     '''
     assert len(running_sa) == 0
     to_recovered = cb_db.CB_SA.select()[:]
-    print(to_recovered)
+    print('SA in Database ', to_recovered)
 
     for sa in to_recovered:
         status, ag_token = register_ag(sa, logger)
         if status:
             sa.ag_token = ag_token
             running_sa[sa.cb_id] = sa
+            running_status[sa.cb_id] = dict()
     logger.info('Start Recovering SAs in Database......done')
     print(running_sa)
     return
@@ -50,6 +52,8 @@ if __name__ == "__main__":
     system_logger.info('Start Launching ControlBoard Subsystem......')
 
     app = Flask(__name__)
+    app.secret_key = 'asdaldkjalskdjllkd'
+    app.permanent_session_lifetime = timedelta(days=1)
     system_logger.info('\tCreating Server\t\t......done')
 
     app.register_blueprint(apis)
@@ -61,8 +65,9 @@ if __name__ == "__main__":
 
     get_iottalk_info(system_logger)
 
-    t = threading.Thread(target=connect_zmq, args=(system_logger,), daemon=True)
+    t = threading.Thread(target=connect_zmq, args=(system_logger,), daemon=True, name='status_collector')
     t.start()
+    system_logger.info('Start Creating status collector thread......done')
 
     app.run(
         host=env_config['env']['host'],

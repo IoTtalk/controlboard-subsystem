@@ -83,7 +83,7 @@ class AG_SA():
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
-        self.socket.connect("tcp://")
+        self.socket.connect("tcp://140.113.63.25:7790")
 
         DAN.profile = ctlboard_profile
         DAN.device_registration_with_retry(f'http://{{config["iottalk_server"]}}:9999', self.mac_addr)
@@ -135,7 +135,7 @@ class AG_SA():
         Connect to correspoinding database
 
         Args:
-            config: Database config containing
+            config: Database config recorded in self, containing
                 host: IP address of the database.
                 port: Port of the database.
                 user: Account provided to connect the database.
@@ -143,7 +143,7 @@ class AG_SA():
                 dbname: Which Database to use.
 
         Returns:
-            subsystem_db: connected db session of the database.
+            subsystem_db: connected db session of the database recorded in self.
         '''
         retry_times = 0
         if self.config['database'] == 'sqlite':
@@ -186,6 +186,7 @@ class AG_SA():
         '''
         # Pulling Alias
         DAN.state = "RESUME"
+        self.status = dict()
         while len(self.mappings) == 0:
             alias_in = DAN.get_alias('Threshold-O' + str(1))
             alias_out = DAN.get_alias('Trigger-I' + str(1))
@@ -198,7 +199,14 @@ class AG_SA():
                         alias_in = alias_in[0].replace('-O', '')
                         alias_out = alias_out[0].replace('-I', '')
                         self.mappings[alias_out] = (alias_in, i)
+                        self.status[alias_in] = {{
+                            'cb_id': self.cb_id,
+                            'status': 'RED',
+                            'prev_trigger': -10000,
+                            'value': 0
+                        }}
                         self.df_hist_val[alias_in] = deque(maxlen=200)
+                        self.socket.send_json(self.status[alias_in])
                     i += 1
                     alias_in = DAN.get_alias('Threshold-O' + str(i))
                     alias_out = DAN.get_alias('Trigger-I' + str(i))
@@ -222,13 +230,13 @@ class AG_SA():
                     sa=sa
                 )
                 self.cb_db.commit()
-                self.cb_db.CB_Status(
-                    rule_id=new_rule.rule_id,
-                    status='GREEN',
-                    value=0,
-                    prev_trigger=-1
-                )
-                self.cb_db.commit()
+                # self.cb_db.CB_Status(
+                #     rule_id=new_rule.rule_id,
+                #     status='GREEN',
+                #     value=0,
+                #     prev_trigger=-1
+                # )
+                # self.cb_db.commit()
         return
 
     @orm.db_session
@@ -245,27 +253,25 @@ class AG_SA():
         '''
         sa = self.cb_db.CB_SA[self.cb_id]
         for rule in sa.rule_set:
-            status = self.cb_db.CB_Status[rule.rule_id]
+            status = self.status[rule.sensor_alias]
             if rule.mode == 'on':
                 if status.status != 'RED':
                     actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias][1])
                     DAN.push(actuator_df, 1)
-                continue
             elif rule.mode == 'off':
                 if status.status == 'RED':
                     actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias][1])
                     DAN.push(actuator_df, 0)
-                continue
-
             # auto mode
-            if rule.rule_type == 'sensor':
-                self.sensor_checker(
-                    rule.rule_id, self.mappings[rule.actuator_alias]
-                )
             else:
-                self.timer_checker(
-                    rule.rule.rule_id, self.mappings[rule.actuator_alias]
-                )
+                if rule.rule_type == 'sensor':
+                    self.sensor_checker(
+                        rule.rule_id, self.mappings[rule.actuator_alias]
+                    )
+                else:
+                    self.timer_checker(
+                        rule.rule.rule_id, self.mappings[rule.actuator_alias]
+                    )
 
         return
 
@@ -282,7 +288,7 @@ class AG_SA():
             None
         """
         rule = self.cb_db.UserRule[rule_id]
-        status = self.cb_db.CB_Status[rule_id]
+        status = self.status[rule.sensor_alias]
         current = datetime.datetime.now()
         actuator_df = 'Trigger' + '-I' + str(mapping[1])
         time_open = datetime.datetime.combine(datetime.date.today(), rule.time_open)
@@ -359,7 +365,7 @@ class AG_SA():
 
         data = data[0]
         rule = self.cb_db.UserRule[rule_id]
-        status = self.cb_db.CB_Status[rule_id]
+        status = self.status[rule.sensor_alias]
         status.value = data
         self.df_hist_val[rule.sensor_alias].append(data)
         actuator_df = 'Trigger-I' + str(mapping[1])

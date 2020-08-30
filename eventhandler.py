@@ -6,6 +6,7 @@ from flask import Blueprint
 from flask import jsonify
 from flask import render_template
 from flask import request
+from flask import session
 from pony import orm
 
 
@@ -356,8 +357,22 @@ def get_sa(usr_account):
     return avail_sa, 200   # GET return cannot be list, must be dict or string or something... need to decide which type to use
 
 
-@apis.route('/account/create', methods=['POST'])
-def create_account():
-    # for account_info in request.json:
+@apis.route('/account/login', methods=['GET', 'POST'])
+def login():
+    # TODO: add redirect to AAA procedures.
+    account = request.json['account']
+    try:
+        usr = cb_db.get(lambda s: s.account == account)
+        print(usr)
+    except orm.RowNotFound:
+        # Add new user
+        usr = cb_db.CB_Account(account=account, privilege=0)
+        print(usr)
+    except Exception as err:
+        api_logger.error('An error encountered when handling login, check the follow logs')
+        api_logger.error(err)
 
-    pass
+    session['username'] = account
+    session
+
+    return 'hello', 200
