@@ -7,6 +7,7 @@ from flask import jsonify
 from flask import render_template
 from flask import request
 from flask import session
+from flask import redirect
 from pony import orm
 
 
@@ -361,18 +362,28 @@ def get_sa(usr_account):
 def login():
     # TODO: add redirect to AAA procedures.
     account = request.json['account']
-    try:
-        usr = cb_db.get(lambda s: s.account == account)
-        print(usr)
-    except orm.RowNotFound:
-        # Add new user
-        usr = cb_db.CB_Account(account=account, privilege=0)
-        print(usr)
-    except Exception as err:
-        api_logger.error('An error encountered when handling login, check the follow logs')
-        api_logger.error(err)
+    password = request.json['']
+    print(password)
+
+    status = redirect('path.to.AAA')
+
+    if status:
+        try:
+            usr = cb_db.get(lambda s: s.account == account)
+            print(usr)
+        except orm.RowNotFound:
+            if request.method == 'GET':
+                return "No such user"
+            # Add new user
+            usr = cb_db.CB_Account(account=account, privilege=0)
+            print(usr)
+        except Exception as err:
+            api_logger.error('An error encountered when handling login, check the follow logs')
+            api_logger.error(err)
+    else:
+        return "AAA login failed", 400
 
     session['username'] = account
-    session
+    session['']
 
     return 'hello', 200
