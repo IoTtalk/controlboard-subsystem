@@ -11,13 +11,13 @@ from flask import redirect
 from pony import orm
 
 
-from utils import running_sa
+from utils import running_sa, running_status
 from utils import make_logger
 from utils import create_proj_ag, delete_proj_ag
 from utils import create_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag
 from models import cb_db
-from models import UserRule, CB_Account, CB_SA, CB_Status
+from models import UserRule, CB_Account, CB_SA
 from config import default_rules
 from config import use_v1
 
@@ -237,7 +237,7 @@ def get_datum(cb_id):
         return "Specified SA not running", 400
 
     for rule in rules:
-        stats = CB_Status.get(lambda s: s.rule_id == rule.rule_id).to_dict()
+        stats = running_status[cb_id][rule.sensor_alias]
         stats['time'] = datetime.datetime.now().strftime('%H:%M')
         res_dict[rule.sensor_alias] = stats
 

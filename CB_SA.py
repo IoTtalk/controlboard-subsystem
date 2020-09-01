@@ -83,7 +83,8 @@ class AG_SA():
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
-        self.socket.connect("tcp://140.113.63.25:7790")
+        self.socket.connect("tcp://140.113.215.12:7790")
+        self.socket.send(b"hello world")
 
         DAN.profile = ctlboard_profile
         DAN.device_registration_with_retry(f'http://{{config["iottalk_server"]}}:9999', self.mac_addr)
@@ -118,12 +119,6 @@ class AG_SA():
             account = orm.Required(str)  # Account of this user.
             privilige = orm.Required(int)  # User level of this user.
             sa_set = orm.Set("CB_SA")  # SAs this user can see.
-
-        class CB_Status(self.cb_db.Entity):
-            rule_id = orm.PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
-            status = orm.Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
-            value = orm.Required(float)  # The sensory value received from IoTtalk.
-            prev_trigger = orm.Required(int)  # epoch time of last triggering start time.
 
         class CB_Field(self.cb_db.Entity):
             field_id = orm.PrimaryKey(int, auto=True)
@@ -214,7 +209,6 @@ class AG_SA():
                     print('End of finding alias')
                     break
 
-            time.sleep(2)
         print(self.mappings, self.cb_id)
 
         # Recover Rules from database according to fetched alias.
@@ -230,13 +224,6 @@ class AG_SA():
                     sa=sa
                 )
                 self.cb_db.commit()
-                # self.cb_db.CB_Status(
-                #     rule_id=new_rule.rule_id,
-                #     status='GREEN',
-                #     value=0,
-                #     prev_trigger=-1
-                # )
-                # self.cb_db.commit()
         return
 
     @orm.db_session
@@ -270,7 +257,7 @@ class AG_SA():
                     )
                 else:
                     self.timer_checker(
-                        rule.rule.rule_id, self.mappings[rule.actuator_alias]
+                        rule.rule_id, self.mappings[rule.actuator_alias]
                     )
 
         return
@@ -278,7 +265,7 @@ class AG_SA():
     @orm.db_session
     def timer_checker(self, rule_id, mapping):
         """
-        Timer-type rule checking handler. Push to IoTTalk server accordingly
+        Timer-type rule checking handler. Push to IoTTalk server accordingly.
 
         Args:
             rule_id: The id of the rule to be checked.
@@ -300,50 +287,50 @@ class AG_SA():
 
         satisfied = (current > time_open and current < time_close)
         about2trigger = (abs((time_open - current).total_seconds()) < 600 and time_open > current)
-        expired = time.time() > (status.prev_trigger + rule.period)
+        expired = time.time() > (status['prev_trigger'] + rule.period)
 
         try:
             if not expired:
                 if exetime == 0:  # timer set to not set
-                    if status.status == 'RED':
+                    if status['status'] == 'RED':
                         DAN.push(actuator_df, 0)
-                        status.status = 'GREEN'
-                    elif status.status == 'YELLOW':
-                        status.status = 'GREEN'
+                        status['status'] = 'GREEN'
+                    elif status['status'] == 'YELLOW':
+                        status['status'] = 'GREEN'
                 else:
-                    if status.status == 'RED':
+                    if status['status'] == 'RED':
                         if satisfied:
                             pass
                         else:
                             DAN.push(actuator_df, 0)
-                            status.status = 'GREEN'
-                    elif status.status == 'YELLOW':
+                            status['status'] = 'GREEN'
+                    elif status['status'] == 'YELLOW':
                         if satisfied:
                             DAN.push(actuator_df, 1)
-                            status.status = 'RED'
-                            status.prev_trigger = time.time() + rule.exetime
+                            status['status'] = 'RED'
+                            status['prev_trigger'] = time.time() + rule.exetime
                         elif about2trigger:
-                            status.status = 'YELLOW'
+                            status['status'] = 'YELLOW'
                         else:
-                            status.status = 'GREEN'
-                    elif status.status == 'GREEN':
+                            status['status'] = 'GREEN'
+                    elif status['status'] == 'GREEN':
                         if satisfied:
                             DAN.push(actuator_df, 1)
-                            status.status = 'RED'
-                            status.prev_trigger = time.time() + rule.exetime
+                            status['status'] = 'RED'
+                            status['prev_trigger'] = time.time() + rule.exetime
                         elif about2trigger:
-                            status.status = 'YELLOW'
+                            status['status'] = 'YELLOW'
                         else:
-                            status.status = 'GREEN'
+                            status['status'] = 'GREEN'
             else:
-                if status.status == 'RED':
+                if status['status'] == 'RED':
                     DAN.push(actuator_df, 0)
-                    status.status = 'GREEN'
+                    status['status'] = 'GREEN'
                 else:
-                    status.status = 'GREEN'
+                    status['status'] = 'GREEN'
         except Exception as err:
             print(err)
-
+        self.socket.send_json(status)
         return
 
     @orm.db_session
@@ -544,5 +531,6 @@ sa.recover()
 
 
 while True:
+    print('start checking rules')
     sa.check_rules()
     time.sleep(5)

@@ -50,10 +50,3 @@ class CB_Account(cb_db.Entity):
     account = Required(str)  # Account of this user.
     privilige = Required(int)  # User level of this user.
     sa_set = Set(CB_SA)  # SAs this user can see.
-
-
-class CB_Status(cb_db.Entity):
-    rule_id = PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
-    status = Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
-    value = Required(float)  # The sensory value received from IoTtalk.
-    prev_trigger = Required(int)  # epoch time of last triggering start time.
