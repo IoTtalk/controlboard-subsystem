@@ -153,6 +153,31 @@ select {
   padding-bottom: 4rem;
 }
 
+
+.period-input {
+  -webkit-appearance: none;
+  min-width: 50px;
+  max-width: 20%;
+  height: 1.5rem;
+  border-radius: 0.5rem;
+  border: solid 1px #e2e2e3;
+  background-color: #ffffff;
+  padding: 2px 0.5rem;
+}
+
+.period-state {
+  display: none;
+  float: right;
+}
+
+.period-state.active {
+  display: inline-flex;
+}
+
+.period-input:disabled {
+  background-color: #dcdcdc;
+}
+
 .sensor-container {
   background-color: #fcfcfe;
 }
@@ -366,12 +391,21 @@ input:checked+.slider:before {
   color: #202020;
 }
 
+.sensor-setting-condition-wrapper.hide {
+  visibility: hidden;
+}
+
 .sensor-setting-condition-wrapper>p {
   line-height: 2.5625rem;
 }
 
 .sensor-setting-condition-wrapper:first-of-type {
   margin-bottom: 0;
+}
+
+.input-unit {
+  margin-left:-20px;
+  font-size: small;
 }
 
 .comparison-select {
@@ -418,16 +452,20 @@ input:checked+.slider:before {
   font-weight: bold;
   text-align: center;
   color: #ffffff;
+  width: 15%;
 }
 
 .asking-clear {
   background-color: #545456;
-  margin-left: 40px;
 }
 
 .asking-confirm {
   background-color: #105acf;
+  margin-right: 40px;
 }
+
+
+
 
 @media(max-width:1200px) {
   html {
@@ -592,14 +630,22 @@ input:checked+.slider:before {
   .asking-wrapper>button {
     width: 60%;
   }
-
-  .asking-clear {
+  .asking-confirm {
     margin: 0 0 1rem 0;
+  }
+
+  .period-state {
+    float: right;
+    margin-top: 1.35%;
   }
 }
 
 @media(max-width:600px) {
   html {
     font-size: 10px;
+  }
+
+  .period-state {
+    float: none;
   }
 }

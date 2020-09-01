@@ -1,3 +1,4 @@
+Vue.use(SemanticUIVue);
 var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
@@ -5,18 +6,19 @@ var app = new Vue({
     hours: ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"],
     minuteAndSecond: ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59"],
     hamburgerActive: false,
+    hideStatus: false,
     rules: [],
     sensordata: {},
-    timeSave: {}
+    timeSave: {},
   },
   created: function () {
     self = this;
-    this.getRules();
     this.$http.get('./current_data').then(
       response => {
         self.sensordata = response.body;
       }
     );
+    this.getRules();
   },
   mounted: function () {
     // `this` points to the vm instance
@@ -43,6 +45,33 @@ var app = new Vue({
       }, 60000);
   },
   methods: {
+    click: function(type, pos, ind) {
+      if (pos === 0) {
+        this.rules[ind].mode = 'on';
+      } else if (pos === 1) {
+        this.rules[ind].mode = 'off';
+      } else {
+        this.rules[ind].mode = 'auto'
+      }
+      console.log(type);
+      var new_rules = [];
+      new_rules.push(this.rules[ind]);
+      
+      this.$http.post('/mode', new_rules).then( //post mode to rules
+        response => {
+          //alert(response.body.msg);
+          // this.getRules();
+        },
+        response => {
+          //alert(response.body.msg);
+          // this.getRules();
+        }
+      ).catch(
+        err => {
+          console.log(err);
+        }
+      );
+    },
     getRules: function () {
       this.$http.get('/rules').then(
         response => {
@@ -73,6 +102,10 @@ var app = new Vue({
           //error callback
         }
       );
+      setTimeout((() => {
+        this.hideStatus = false;
+        console.log('set hideStatus to False');
+      }), 1000);
     },
     checkingAbnormal: function (rule_object) {
       console.log('checking rule settings');
@@ -84,7 +117,7 @@ var app = new Vue({
         } else if (rule_object.comparison_open !== 'notset' && (rule_object.threshold_open === null || rule_object.threshold_open.length === 0)) {
           console.log("missing open value");
           return false;
-        } else if (rule_object.comparison_close != 'notset' && (rule_object.threshold_close == null || rule_object.threshold_close.length === 0)) {
+        } else if (rule_object.comparison_close != 'notset' && (rule_object.threshold_close === null || rule_object.threshold_close.length === 0)) {
           console.log("missing close value");
           return false;
         }
@@ -93,10 +126,16 @@ var app = new Vue({
           console.log("missing time");
           return false;
         } else if (rule_object.time_open == rule_object.time_close) {
-          console.log("invalid time input")
-          return false
+          console.log("invalid time input");
+          return false;
         }
       }
+
+      if (parseInt(rule_object.period, 10) > 0 && parseInt(rule_object.period_exe, 10) < 0) {
+        console.log("Invalid txecution time");
+        return false;
+      }
+
       return true;
     },
     askingConfirm: function () { //call this function when hitting the confirm button 
@@ -128,7 +167,6 @@ var app = new Vue({
         if (new_rules[i].rule_type == 'timer') {
           new_rules[i].time_open = this.timeSave[new_rules[i].actuator_alias].time_open;
           new_rules[i].time_close = this.timeSave[new_rules[i].actuator_alias].time_close;
-          new_rules[i].exetime = -1; // Should be removed once exetime can be set.
         }
 
         if (!this.checkingAbnormal(new_rules[i])) {
@@ -235,6 +273,12 @@ var app = new Vue({
             break;
         }
       }
+    },
+    onPeriodChange: function(index, event) {
+      this.onChange(index);
+      console.log('onperiod', event);
+      this.hideStatus = true;
+      // return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57))
     }
   }
 })

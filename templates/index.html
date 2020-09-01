@@ -78,14 +78,14 @@
               </sui-button-group>
               <span class="sensor-trigger-item"><%rule.actuator_alias%></span>
               <div class="sensor-trigger-switch">
-                <!-- <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='sensor'}">sensor</span> -->
+                <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='sensor'}">sensor</span> 
                 <label class="switch">
                   <input type="checkbox" v-on:click="sensorTypeHandler(index)"
-                    v-bind:checked="rule.rule_type==='timer'">
+                    v-bind:checked="rule.rule_type==='timer'"> 
                   <span class=" slider round"></span>
                 </label>
-                <!-- <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='timer'}">timer</span> -->
-                <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='timer'}"><% rule.rule_type %></span>
+                <span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='timer'}">timer</span>
+                <!-- span v-bind:class="{'sensor-trigger-span active':rule.rule_type==='timer'}"><% rule.rule_type %></span-->
               </div>
             </div>
             <div class="sensor-setting-condition-container">
@@ -122,6 +122,11 @@
                     </select>
                   </span>
                   <span> on.</span>
+                  <span v-bind:class="['period-state', hideStatus || rule.period===0 || rule.mode!=='auto' || rule.period_exe===null || rule.period==='0' || sensordata[rule.sensor_alias].prev_trigger===-10000?'':'active']">
+                    Status: <% sensordata[rule.sensor_alias].triggered? "Triggered,": "Expired," %>
+                    <% sensordata[rule.sensor_alias].triggered? Math.floor(sensordata[rule.sensor_alias].prev_trigger) + Math.floor(rule.period_exe) - Math.floor(Date.now()/1000):
+                     Math.floor(rule.period) - Math.floor(Date.now()/1000) + Math.floor(sensordata[rule.sensor_alias].prev_trigger + rule.period_exe) %> Seconds
+                  </span>
                 </p>
               </div>
 
@@ -160,6 +165,16 @@
                   <span> off.</span>
                 </p>
               </div>
+              <div v-bind:class="['sensor-setting-condition-wrapper', rule.mode!=='auto'?'hide':'']" >
+                <p> 
+                  <span>Every Other</span>
+                  <input class="period-input" type="text" v-model="rule.period" @keydown="onPeriodChange(index, $event)" />
+                  <span class="input-unit">s</span>
+                  <span>works</span>
+                  <input class="period-input" type="text" v-model="rule.period_exe" @keydown="onPeriodChange(index, $event)" :disabled="rule.period===0 || rule.period==='0'"/>
+                  <span class="input-unit">s</span>
+                <p>
+              </div>
             </div>
           </div>
         </div>
@@ -168,24 +183,6 @@
         <button class="asking-confirm" v-on:click="askingConfirm">Confirm</button>
         <button class="asking-clear" v-on:click="askingClear">Reset All</button>
       </div>
-
-      <!-- illustration -->
-      <div></div>
-      <div class="illu">
-        <div class="illu green"></div>
-        <div class="illu text">已達預設值條件，啟動器已被觸發 Actuator has been triggered as condition has been reached</div>
-      </div>
-
-      <div class="illu">
-        <div class="illu yellow"></div>
-        <div class="illu text">靠近預設值條件，啟動器擁有較高機率被觸發 Actuator may be triggered soon as condition has almost been reached</div>
-      
-      </div>
-      <div class="illu">
-        <div class="illu red"></div>
-        <div class="illu text">未達預設值條件，啟動器未被觸發 Actuator is not triggered</div>
-      </div>
-
       <div class="pad"></div>
 
       <script type="text/javascript" src="/static/main.js"></script>
