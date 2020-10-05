@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+
+        <!-- Add this to <head> -->
+
+        <!-- Load required Bootstrap and BootstrapVue CSS -->
+        <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap/dist/css/bootstrap.min.css" />
+        <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.css" />
+
+        <!-- Load polyfills to support older browsers -->
+        <!-- <script src="https://polyfill.io/v3/polyfill.min.js?features=es2015%2CIntersectionObserver" crossorigin="anonymous"></script> -->
+
+        <!-- Load Vue followed by BootstrapVue -->
+        <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script>
+        <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.js"></script>
+
+        <!-- Load the following for BootstrapVueIcons support -->
+        <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue-icons.min.js"></script>
+
+    </head>
+    <body>
+        <div id=app>
+            <div>
+                <b-navbar type="dark" variant="dark">
+                  <b-navbar-nav>
+                    <b-nav-item href="#">Home</b-nav-item>
+              
+                    <!-- Navbar dropdowns -->
+                    <b-nav-item-dropdown text="Lang" right>
+                      <b-dropdown-item href="#">EN</b-dropdown-item>
+                      <b-dropdown-item href="#">ES</b-dropdown-item>
+                      <b-dropdown-item href="#">RU</b-dropdown-item>
+                      <b-dropdown-item href="#">FA</b-dropdown-item>
+                    </b-nav-item-dropdown>
+              
+                    <b-nav-item-dropdown text="User" right>
+                      <b-dropdown-item href="#">Account</b-dropdown-item>
+                      <b-dropdown-item href="#">Settings</b-dropdown-item>
+                    </b-nav-item-dropdown>
+                  </b-navbar-nav>
+                </b-navbar>
+              </div>
+            <script type="text/javascript" src="../static/main.js"></script>
+        </div>
+    </body>
+</html>

@@ -183,6 +183,9 @@ def test_db(logger):
     return
 
 
+status_logger = make_logger('cb_status', 'status')
+
+
 def status_receiver(msg):
     '''
     Receive execution status from AG SAs.
@@ -192,7 +195,16 @@ def status_receiver(msg):
 
     Returns: None
     '''
-    print("Server received", msg[0].decode('utf-8'))
+    status = json.loads(msg[0].decode('utf-8'))
+    print("Server received", status)
+    try:
+        cb_id = status["cb_id"]
+        status.pop("cb_id")
+        running_status[cb_id] = status
+        status_logger.info(f"Receive status from CB {cb_id}")
+        status_logger.info(status)
+    except KeyError:
+        status_logger.error("Receive status error")
 
 
 def connect_zmq(logger):

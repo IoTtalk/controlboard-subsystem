@@ -83,7 +83,7 @@ class AG_SA():
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
-        self.socket.connect("tcp://140.113.215.12:7790")
+        self.socket.connect("tcp://140.113.63.25:7790")
         self.socket.send(b"hello world")
 
         DAN.profile = ctlboard_profile
@@ -196,7 +196,7 @@ class AG_SA():
                         self.mappings[alias_out] = (alias_in, i)
                         self.status[alias_in] = {{
                             'cb_id': self.cb_id,
-                            'status': 'RED',
+                            'status': 'GREEN',
                             'prev_trigger': -10000,
                             'value': 0
                         }}
