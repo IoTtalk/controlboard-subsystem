@@ -1,8 +1,8 @@
 Vue.component('project', {
-    props: ['project'],
+    props: ['field'],
     template: `
-        <img src="project.iconPath">
-        <b-dropdown-item>project.name/<b-dropdown-item>
+        <b-img src="../static/imgs/landscape.svg"></b-img>
+        <b-dropdown-item>{{field.name}}</b-dropdown-item>
     `
 })
 
@@ -11,12 +11,14 @@ Vue.component('select-projects', {
     template: `
         <div>
             <b-navbar-nav>
-                <!-- Navbar dropdowns -->
-                <slot></slot>
-                <b-nav-item-dropdown v-bind:text="projects[0].name">
+                <b-nav-item-dropdown>
+                    <template v-slot:button-content>
+                        <b-img src="../static/imgs/landscape.svg"></b-img>
+                        {{projects[0].name}}
+                    </template>
                     <project 
-                        v-for="project in projects.slice(1)"
-                        project="project"
+                        v-for="field in projects.slice(1)"
+                        v-bind:field="field"
                     ></project>
                 </b-nav-item-dropdown>
             </b-navbar-nav>

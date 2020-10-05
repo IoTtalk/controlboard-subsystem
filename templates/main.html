@@ -25,9 +25,9 @@
     <body>
         <div id=app>
             <b-navbar type="dark" variant="dark">
-              <select-projects v-bind:projects="projects">
-                <img :src="projects[0].iconPath"/>
-              </select-projects>
+              <select-projects
+                v-bind:projects="projects"  
+              ></select-projects>
             </b-nav-bar>
             <script type="text/javascript" src="../static/components.js"></script>
             <script type="text/javascript" src="../static/main.js"></script>
