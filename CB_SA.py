@@ -1,9 +1,13 @@
 import time
 import uuid
 import datetime
+import os
 
 
 from collections import deque
+
+
+import zmq
 
 
 from pony import orm
@@ -47,6 +51,10 @@ class AG_SA():
         self.cb_id = cb_id
         self.config = config
         self.cb_db = orm.Database()
+        self.checking = dict()
+        self.initial = dict()
+        self.prev_time = dict()
+        self.prev_status = dict()
         if mac_addr != 'None':
             self.mac_addr = mac_addr
         else:
@@ -70,14 +78,18 @@ class AG_SA():
         }}
 
         ctlboard_profile = {{
-            'd_name': str(cb_id) + '.Controlboard',
-            'dm_name': 'ControlBoard',
+            'd_name': str(cb_id) + '.ControlboardC',
+            'dm_name': 'ControlBoard-C',
             'u_name': 'yb',
             'is_sim': False,
             'df_list': ['Threshold-O1', 'Trigger-I1', 'Threshold-O2', 'Trigger-I2',
                         'Threshold-O3', 'Trigger-I3', 'Threshold-O4', 'Trigger-I4',
-                        'Threshold-O5', 'Trigger-I5']
+                        'Threshold-O5', 'Trigger-I5', 'Message-I', 'Message-O']
         }}
+        context = zmq.Context()
+        self.socket = context.socket(zmq.PUB)
+        self.socket.connect("tcp://140.113.215.12:7790")
+        self.socket.send(b"hello world")
 
         DAN.profile = ctlboard_profile
         DAN.device_registration_with_retry(f'http://{{config["iottalk_server"]}}:9999', self.mac_addr)
@@ -86,7 +98,7 @@ class AG_SA():
             rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
             rule_type = orm.Required(str)  # Sensor / Timer.
             actuator_alias = orm.Required(str)  # Alias of the actuator in this rule.
-            sensor_alias = orm.Optional(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
+            sensor_alias = orm.Required(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
             threshold_open = orm.Optional(float)  # Sensor value to decide trigger actuator or not.
             threshold_close = orm.Optional(float)  # Sensor value to decide close actuator or not.
             comparison_open = orm.Optional(str)  # Comparison method to decide trigger actuator or not.
@@ -113,18 +125,30 @@ class AG_SA():
             privilige = orm.Required(int)  # User level of this user.
             sa_set = orm.Set("CB_SA")  # SAs this user can see.
 
-        class CB_Status(self.cb_db.Entity):
-            rule_id = orm.PrimaryKey(int)  # For Subsystem to findout which rule this status entry represent.
-            status = orm.Required(str)  # The status of the corresponding rule, should be 'red'/'yellow'/'green'.
-            value = orm.Required(float)  # The sensory value received from IoTtalk.
-            prev_trigger = orm.Required(int)  # epoch time of last triggering.
+        class CB_Field(self.cb_db.Entity):
+            field_id = orm.PrimaryKey(int, auto=True)
+            field_name = orm.Required(str)
+            sa_set = set("CB_SA")
+
+        class Outlier(self.cb_db.Entity):
+            data_prio = orm.PrimaryKey(int, auto=True)
+            sensor = orm.Required(str)
+            initial_data = orm.Required(float)
+            ascent = orm.Required(float)
+            said = orm.Required(int)
+            
+        class Time_Threshold(self.cb_db.Entity):
+            data_prio = orm.PrimaryKey(int, auto=True)
+            sensor = orm.Required(str)
+            time_on = orm.Required(float)
+            said = orm.Required(int)
 
     def connect_db(self):
         '''
         Connect to correspoinding database
 
         Args:
-            config: Database config containing
+            config: Database config recorded in self, containing
                 host: IP address of the database.
                 port: Port of the database.
                 user: Account provided to connect the database.
@@ -132,17 +156,27 @@ class AG_SA():
                 dbname: Which Database to use.
 
         Returns:
-            subsystem_db: connected db session of the database.
+            subsystem_db: connected db session of the database recorded in self.
         '''
         retry_times = 0
-        self.cb_db.bind(
-            provider='mysql',
-            host=self.config['host'],
-            user=self.config['user'],
-            passwd=self.config['pwd'],
-            db=self.config['dbname'],
-            port=int(self.config['port'])
-        )
+        
+        if self.config['database'] == 'sqlite':
+            path = os.path.join(os.getcwd(), 'cb_db.sqlite')
+            print(path)
+            self.cb_db.bind(
+                provider='sqlite',
+                filename=path,
+                create_db=True
+            )
+        else:
+            self.cb_db.bind(
+                provider='mysql',
+                host=self.config['host'],
+                user=self.config['user'],
+                passwd=self.config['pwd'],
+                db=self.config['dbname'],
+                port=int(self.config['port'])
+            )
 
         while (retry_times < 3):
             try:
@@ -168,6 +202,7 @@ class AG_SA():
         '''
         # Pulling Alias
         DAN.state = "RESUME"
+        self.status = dict()
         while len(self.mappings) == 0:
             alias_in = DAN.get_alias('Threshold-O' + str(1))
             alias_out = DAN.get_alias('Trigger-I' + str(1))
@@ -180,7 +215,14 @@ class AG_SA():
                         alias_in = alias_in[0].replace('-O', '')
                         alias_out = alias_out[0].replace('-I', '')
                         self.mappings[alias_out] = (alias_in, i)
+                        self.status[alias_in] = {{
+                            'cb_id': self.cb_id,
+                            'status': 'RED',
+                            'prev_trigger': -10000,
+                            'value': 0
+                        }}
                         self.df_hist_val[alias_in] = deque(maxlen=200)
+                        self.socket.send_json(self.status[alias_in])
                     i += 1
                     alias_in = DAN.get_alias('Threshold-O' + str(i))
                     alias_out = DAN.get_alias('Trigger-I' + str(i))
@@ -188,7 +230,6 @@ class AG_SA():
                     print('End of finding alias')
                     break
 
-            time.sleep(2)
         print(self.mappings, self.cb_id)
 
         # Recover Rules from database according to fetched alias.
@@ -202,13 +243,6 @@ class AG_SA():
                     actuator_alias=actuator_alias,
                     sensor_alias=sensor_alias,
                     sa=sa
-                )
-                self.cb_db.commit()
-                self.cb_db.CB_Status(
-                    rule_id=new_rule.rule_id,
-                    status='GREEN',
-                    value=0,
-                    prev_trigger=-1
                 )
                 self.cb_db.commit()
         return
@@ -227,34 +261,180 @@ class AG_SA():
         '''
         sa = self.cb_db.CB_SA[self.cb_id]
         for rule in sa.rule_set:
-            status = self.cb_db.CB_Status[rule.rule_id]
+            status = self.status[rule.sensor_alias]
             if rule.mode == 'on':
                 if status.status != 'RED':
                     actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias][1])
                     DAN.push(actuator_df, 1)
-                continue
             elif rule.mode == 'off':
                 if status.status == 'RED':
                     actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias][1])
                     DAN.push(actuator_df, 0)
-                continue
-
             # auto mode
-            if rule.rule_type == 'sensor':
-                self.sensor_checker(
-                    rule.rule_id, self.mappings[rule.actuator_alias]
-                )
             else:
-                self.timer_checker(
-                    rule.rule.rule_id, self.mappings[rule.actuator_alias]
-                )
+                if rule.rule_type == 'sensor':
+                    self.sensor_checker(
+                        rule.rule_id, self.mappings[rule.actuator_alias]
+                    )
+                else:
+                    self.timer_checker(
+                        rule.rule_id, self.mappings[rule.actuator_alias]
+                    )
+            # check for sensor failure
+            self.calibration_checker(
+                rule.sensor_alias, rule.mode, status['status'], self.mappings[rule.actuator_alias], rule.rule_type, sa
+            )
+        return
+    
+    @orm.db_session
+    def calibration_checker(self, sensor, mode, status, mapping, rule_type, sa):
+        #outlier based
+        if status == 'RED' and mode == 'auto' or mode == 'on':
+            if sensor not in self.checking:
+                sensor_df = 'Threshold-O' + str(mapping[1])
+                data = DAN.pull(sensor_df)
+                if data is not None:
+                    data = data[0]
+                    self.checking[sensor] = datetime.datetime.now()
+                    self.initial[sensor] = data
+            else:
+                if self.checking[sensor] == 0:
+                    sensor_df = 'Threshold-O' + str(mapping[1])
+                    data = DAN.pull(sensor_df)
+                    if data is not None:
+                        data = data[0]
+                        self.checking[sensor] = datetime.datetime.now()
+                        self.initial[sensor] = data
+        
+        if sensor in self.checking:
+            if self.checking[sensor] != 0:
+                time = datetime.datetime.now() - self.checking[sensor] 
+                if time.total_seconds() > 15:
+                    sensor_df = 'Threshold-O' + str(mapping[1])
+                    data = DAN.pull(sensor_df)
+                    if data is not None:
+                        data = data[0]
+                        ascent = data-self.initial[sensor]
+                        self.cb_db.Outlier(
+                            sensor = sensor, initial_data = self.initial[sensor], 
+                            ascent = ascent, said = sa.cb_id
+                        )
+                        # do calculation for MSE here
+                        sensor_data = self.cb_db.Outlier.select(lambda r: r.sensor == sensor and r.said == sa.cb_id)[:]
+                        X = list()
+                        Y = list()
+                        order = list()
+                        for d in sensor_data:
+                            d = d.to_dict()
+                            order.append(d["data_prio"])
+                            X.append(d["initial_data"])
+                            Y.append(d["ascent"])
+                        if( len(X) > 50):
+                            x_avg = sum(X) / len(X)
+                            y_avg = sum(Y) / len(Y)
+                            x_mse = 0
+                            y_mse = 0
+                            xy_mse = 0
+                            for i in range(len(X)):
+                                x_mse += (X[i] - x_avg)**2
+                                y_mse += (Y[i] - y_avg)**2
+                                xy_mse += (X[i] - x_avg) * (Y[i] - y_avg)
+                            self.outlier_test(sensor, self.initial[sensor], ascent, len(X), x_avg, y_avg, x_mse, y_mse, xy_mse)
+                            self.cb_db.Outlier[min(order)].delete()
+                        self.checking[sensor] = 0
+                    else:
+                        pass
+        
+        # threshold based
+        if rule_type == 'sensor' and mode == 'auto' and status == 'RED':
+            if sensor not in self.prev_time:
+                self.prev_time[sensor] = datetime.datetime.now()
+                if sensor not in self.prev_status:
+                    self.prev_time[sensor] = datetime.datetime.now()
+                    self.prev_status[sensor] = 1
+                elif self.prev_status[sensor] == 0:
+                    self.prev_time[sensor] = datetime.datetime.now()
+                    self.prev_status[sensor] = 1
+            elif sensor in self.prev_status:
+                if self.prev_status[sensor] == 0:
+                    self.prev_time[sensor] = datetime.datetime.now()
+                    self.prev_status[sensor] = 1
+        elif rule_type == 'sensor' and mode == 'auto' and status == 'GREEN':
+            if sensor in self.prev_status:
+                if self.prev_status[sensor] == 1:
+                    time_diff = self.prev_time[sensor] - datetime.datetime.now()
+                    time_diff = time_diff.total_seconds()
+                    self.prev_status[sensor] = 0
+                    self.cb_db.Time_Threshold(
+                        sensor = sensor, time_on = time_diff, said = sa.cb_id
+                    )
+                    self.threshold_test(sensor, time_diff)
+        else:
+            self.prev_status[sensor] = 0
 
         return
+    
+    def threshold_test(self, sensor, time_diff):
+        # do the calculation with given data
+        if time_diff > 1800: 
+            calib_request(sensor)
+        return 
+    
+    def outlier_test(self, sensor, initial_data, ascent, sample_size, x_avg, y_avg, x_mse, y_mse, xy_mse):
+        # calculate the regression model and calculate m first
+        m = xy_mse / x_mse
+        b = y_avg - m * x_avg
+        error = ascent - m * initial_data + b
+        sigma = math.sqrt ( ( y_mse - m * xy_mse ) / (sample_size - 2) )
+        rate = ( error / sigma ) / math.sqrt( ( 1 - 1/sample_size - (initial_data - x_avg)**2 / x_mse) )
+        rate = rate * math.sqrt((sample_size-3)/(sample_size-2-rate**2))
+        if abs(rate) > 2: 
+            calib_request(sensor) # error detected
+        return
+    
+    def calib_request(self, sensor):
+        # call this when the two tests are not passed
+        try:
+            DAN.push('Message-I', 'start calibration '+sensor)
+        except Exception as e:
+            print("calibration request error: ")
+            print(e)
+        return
+    
+    def calib_complete_check(self, sensor):
+        # under calibration mode, keep checking for DA's return message
+        try:
+            msg = DAN.pull('Message-O')
+            if msg is not None:
+                msg = msg[0]
+            if msg is 'complete' or msg is 'failed':
+                self.checking[sensor] = False
+            else:
+                pass
+        except Exception as e:
+            print("Pull control message error: ")
+            print(e)
+
+        try:
+            if msg is 'complete':
+                DAN.push('Message-I', 'not calibrating')
+                pass
+            elif msg is 'failed': # also need to add notification for changing sensors, using line bot or something
+                DAN.push('Message-I', 'change sensor')
+                pass
+            else:  # msg is 'processing'
+                pass
+        except Exception as e:
+            print("Push message to control channel error: ")
+            print(e)
+
+        return
+    
 
     @orm.db_session
     def timer_checker(self, rule_id, mapping):
         """
-        Timer-type rule checking handler. Push to IoTTalk server accordingly
+        Timer-type rule checking handler. Push to IoTTalk server accordingly.
 
         Args:
             rule_id: The id of the rule to be checked.
@@ -264,7 +444,7 @@ class AG_SA():
             None
         """
         rule = self.cb_db.UserRule[rule_id]
-        status = self.cb_db.CB_Status[rule_id]
+        status = self.status[rule.sensor_alias]
         current = datetime.datetime.now()
         actuator_df = 'Trigger' + '-I' + str(mapping[1])
         time_open = datetime.datetime.combine(datetime.date.today(), rule.time_open)
@@ -276,50 +456,50 @@ class AG_SA():
 
         satisfied = (current > time_open and current < time_close)
         about2trigger = (abs((time_open - current).total_seconds()) < 600 and time_open > current)
-        expired = time.time() > (status.prev_trigger + rule.period)
+        expired = time.time() > (status['prev_trigger'] + rule.period)
 
         try:
             if not expired:
                 if exetime == 0:  # timer set to not set
-                    if status.status == 'RED':
+                    if status['status'] == 'RED':
                         DAN.push(actuator_df, 0)
-                        status.status = 'GREEN'
-                    elif status.status == 'YELLOW':
-                        status.status = 'GREEN'
+                        status['status'] = 'GREEN'
+                    elif status['status'] == 'YELLOW':
+                        status['status'] = 'GREEN'
                 else:
-                    if status.status == 'RED':
+                    if status['status'] == 'RED':
                         if satisfied:
                             pass
                         else:
                             DAN.push(actuator_df, 0)
-                            status.status = 'GREEN'
-                    elif status.status == 'YELLOW':
+                            status['status'] = 'GREEN'
+                    elif status['status'] == 'YELLOW':
                         if satisfied:
                             DAN.push(actuator_df, 1)
-                            status.status = 'RED'
-                            status.prev_trigger = time.time() + rule.exetime
+                            status['status'] = 'RED'
+                            status['prev_trigger'] = time.time() + rule.exetime
                         elif about2trigger:
-                            status.status = 'YELLOW'
+                            status['status'] = 'YELLOW'
                         else:
-                            status.status = 'GREEN'
-                    elif status.status == 'GREEN':
+                            status['status'] = 'GREEN'
+                    elif status['status'] == 'GREEN':
                         if satisfied:
                             DAN.push(actuator_df, 1)
-                            status.status = 'RED'
-                            status.prev_trigger = time.time() + rule.exetime
+                            status['status'] = 'RED'
+                            status['prev_trigger'] = time.time() + rule.exetime
                         elif about2trigger:
-                            status.status = 'YELLOW'
+                            status['status'] = 'YELLOW'
                         else:
-                            status.status = 'GREEN'
+                            status['status'] = 'GREEN'
             else:
-                if status.status == 'RED':
+                if status['status'] == 'RED':
                     DAN.push(actuator_df, 0)
-                    status.status = 'GREEN'
+                    status['status'] = 'GREEN'
                 else:
-                    status.status = 'GREEN'
+                    status['status'] = 'GREEN'
         except Exception as err:
             print(err)
-
+        self.socket.send_json(status)
         return
 
     @orm.db_session
@@ -341,7 +521,7 @@ class AG_SA():
 
         data = data[0]
         rule = self.cb_db.UserRule[rule_id]
-        status = self.cb_db.CB_Status[rule_id]
+        status = self.status[rule.sensor_alias]
         status.value = data
         self.df_hist_val[rule.sensor_alias].append(data)
         actuator_df = 'Trigger-I' + str(mapping[1])
@@ -520,5 +700,6 @@ sa.recover()
 
 
 while True:
+    print('start checking rules')
     sa.check_rules()
     time.sleep(5)

@@ -6,7 +6,7 @@ import models
 
 
 from config import env_config
-from EventHandler import apis
+from eventhandler import apis
 from models import cb_db
 from utils import connect_db
 from utils import make_logger
