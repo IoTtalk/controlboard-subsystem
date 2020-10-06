@@ -1,8 +1,10 @@
 Vue.component('project', {
     props: ['field'],
     template: `
-        <b-img src="../static/imgs/landscape.svg"></b-img>
-        <b-dropdown-item>{{field.name}}</b-dropdown-item>
+        <b-dropdown-item>
+            <b-img v-bind:src="field.icon"></b-img>
+            {{field.name}}
+        </b-dropdown-item>
     `
 })
 
@@ -13,7 +15,7 @@ Vue.component('select-projects', {
             <b-navbar-nav>
                 <b-nav-item-dropdown>
                     <template v-slot:button-content>
-                        <b-img src="../static/imgs/landscape.svg"></b-img>
+                        <b-img v-bind:src="projects[0].icon"></b-img>
                         {{projects[0].name}}
                     </template>
                     <project 
