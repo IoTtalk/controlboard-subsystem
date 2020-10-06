@@ -24,10 +24,18 @@
     </head>
     <body>
         <div id=app>
-            <b-navbar type="dark" variant="dark">
-              <select-projects
-                v-bind:projects="projects"  
-              ></select-projects>
+            <b-navbar type="dark" variant="dark" toggleable="sm">
+              <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
+                
+                <select-projects
+                  v-bind:projects="projects"  
+                ></select-projects>
+                <b-navbar-nav class="ml-auto">
+                  <b-collapse id="nav-collapse" is-nav>
+                    <b-nav-item>System</b-nav-item>
+                    <b-nav-item>Logout</b-nav-item>
+                  </b-collapse>
+                </b-navbar-nav>
             </b-nav-bar>
             <script type="text/javascript" src="../static/components.js"></script>
             <script type="text/javascript" src="../static/main.js"></script>
