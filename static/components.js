@@ -1,8 +1,9 @@
 Vue.component('project', {
     props: ['field'],
     template: `
-        <b-dropdown-item>
+        <b-dropdown-item class="ml-auto">
             <b-img v-bind:src="field.icon"></b-img>
+            &nbsp;
             {{field.name}}
         </b-dropdown-item>
     `

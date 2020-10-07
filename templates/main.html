@@ -10,6 +10,7 @@
         <!-- Load required Bootstrap and BootstrapVue CSS -->
         <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap/dist/css/bootstrap.min.css" />
         <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.css" />
+        <link type="text/css" rel="stylesheet" href="../static/control_board.css" />
 
         <!-- Load polyfills to support older browsers -->
         <!-- <script src="https://polyfill.io/v3/polyfill.min.js?features=es2015%2CIntersectionObserver" crossorigin="anonymous"></script> -->
@@ -23,19 +24,28 @@
 
     </head>
     <body>
-        <div id=app>
-            <b-navbar type="dark" variant="dark">
-              <select-projects
-                  v-bind:projects="projects"  
-              ></select-projects>
+      <div id=app>
+        <b-navbar type="dark" variant="dark">
+          <b-container fluid="sm">
+            <select-projects
+                v-bind:projects="projects"  
+            ></select-projects>
 
-              <b-navbar-nav class="ml-auto">
-                <b-nav-item right> <% user.superuser? "System": "" %> </b-nav-item>
-                <b-nav-item right>Logout</b-nav-item>
-              </b-navbar-nav>
-              
-            <script type="text/javascript" src="../static/components.js"></script>
-            <script type="text/javascript" src="../static/main.js"></script>
+            <b-navbar-nav class="ml-auto">
+              <b-nav-item right> <% user.superuser? "System": "" %> </b-nav-item>
+              <b-nav-item right>Logout</b-nav-item>
+            </b-navbar-nav>
+          </b-container>
+        </b-navbar>
+
+               
+        <div v-bind:class="['field-manage', user.superuser?'active':'']">
+          <b-button size="sm" variant="outline-dark" @click="createField" class="create-field">+ New Field</b-button>
+          <b-button size="sm" variant="danger">Delete</b-button>
         </div>
+
+      </div>
+      <script type="text/javascript" src="../static/components.js"></script>
+      <script type="text/javascript" src="../static/main.js"></script>
     </body>
 </html>

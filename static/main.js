@@ -12,6 +12,11 @@ var app = new Vue({
       {icon: "../static/imgs/landscape.svg", name: "test_2"},
       {icon: "../static/imgs/landscape.svg", name: "test_3"}
     ]
+  }, 
+  methods: {
+    createField: function() {
+      console.log("create field triggered");
+    }
   }
 
 })
