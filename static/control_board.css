@@ -1,9 +1,10 @@
 .field-manage {
-  display: none;
+  margin-right: 2px;
+  margin-top: 2px;
 }
 
-.field-manage.active {
-  display: inline-block;
+.field-manage.inactive {
+  display: none;
 }
 
 .create-field {

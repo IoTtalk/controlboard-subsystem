@@ -38,10 +38,11 @@
           </b-container>
         </b-navbar>
 
-               
-        <div v-bind:class="['field-manage', user.superuser?'active':'']">
-          <b-button size="sm" variant="outline-dark" @click="createField" class="create-field">+ New Field</b-button>
-          <b-button size="sm" variant="danger">Delete</b-button>
+        <div v-bind:class="['field-manage', user.superuser?'':'inactive']">
+          <div class="d-flex justify-content-between">
+            <b-button size="sm" variant="outline-dark" @click="createField" class="create-field">+ New Field</b-button>
+            <b-button size="sm" variant="danger">Delete Field</b-button>
+          </div>
         </div>
 
       </div>
