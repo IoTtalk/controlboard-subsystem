@@ -25,17 +25,17 @@
     </head>
     <body>
       <div id=app>
-        <b-navbar type="dark" variant="dark">
-          <b-container fluid="sm">
-            <select-projects
+        <b-navbar type="dark" variant="dark" id="nav" class="d-flex">
+              <select-projects
                 v-bind:projects="projects"  
-            ></select-projects>
-
-            <b-navbar-nav class="ml-auto">
-              <b-nav-item right> <% user.superuser? "System": "" %> </b-nav-item>
-              <b-nav-item right>Logout</b-nav-item>
-            </b-navbar-nav>
-          </b-container>
+              ></select-projects>
+            
+              <div class="ml-auto">
+                <b-navbar-nav>
+                  <b-nav-item v-bind:class="['system-button', user.superuser?'': 'inactive']">System</b-nav-item>
+                  <b-nav-item class="system-button">Logout</b-nav-item>
+                </b-navbar-nav>
+              </div>
         </b-navbar>
 
         <div v-bind:class="['field-manage', user.superuser?'':'inactive']">
