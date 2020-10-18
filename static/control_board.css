@@ -1,10 +1,15 @@
-.navbar-dark, .navbar-nav, .nav-link {
+html {
+  background-color: #F6F4FB;
+}
+
+.custom-nav-item {
   color: rgba(255, 255, 255, 1) !important;
 }
 
 .field-manage {
   margin-right: 2px;
   margin-top: 2px;
+  background-color: #F6F4FB;
 }
 
 .field-manage.inactive {

@@ -1,9 +1,10 @@
+Vue.component('')
+
 Vue.component('project', {
     props: ['field'],
     template: `
-        <b-dropdown-item class="ml-auto">
+        <b-dropdown-item align-self="start">
             <b-img v-bind:src="field.icon"></b-img>
-            &nbsp;
             {{field.name}}
         </b-dropdown-item>
     `
@@ -14,7 +15,7 @@ Vue.component('select-projects', {
     template: `
         <div>
             <b-navbar-nav>
-                <b-nav-item-dropdown>
+                <b-nav-item-dropdown right>
                     <template v-slot:button-content>
                         <b-img v-bind:src="projects[0].icon"></b-img>
                         {{projects[0].name}}
