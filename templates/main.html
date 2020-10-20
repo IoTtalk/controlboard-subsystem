@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Document</title>
+        <title>Control Board</title>
 
         <!-- Add this to <head> -->
 
@@ -25,6 +25,7 @@
     </head>
     <body>
       <div id=app>
+<<<<<<< HEAD
         <b-navbar type="dark" variant="dark">
           <b-navbar-toggle target="nav-collapes"></b-navbar-toggle>
 
@@ -36,13 +37,67 @@
             <b-nav-item right> <% user.superuser? "System": "" %> </b-nav-item>
             <b-nav-item right>Logout</b-nav-item>
           </b-navbar-nav>
+=======
+        <!-- Navigation bar -->
+        <b-navbar type="dark" variant="dark" class="d-flex">
+              <select-projects
+                v-bind:projects="projects"  
+              ></select-projects>
+            
+              <div class="ml-auto">
+                <b-navbar-nav>
+                  <b-nav-item v-bind:class="['system-button', user.superuser?'': 'inactive']">System</b-nav-item>
+                  <b-nav-item class="system-button custom-nav-item" >Logout</b-nav-item>
+                </b-navbar-nav>
+              </div>
+>>>>>>> c3fc4b2154e9794d0e7476b4662921832b601e90
         </b-navbar>
-
+        
+        <!-- Add/delete field button -->
         <div v-bind:class="['field-manage', user.superuser?'':'inactive']">
           <div class="d-flex justify-content-between">
-            <b-button size="sm" variant="outline-dark" @click="createField" class="create-field">+ New Field</b-button>
+            <b-button size="sm" variant="success" @click="createField" class="create-field">+ New Field</b-button>
             <b-button size="sm" variant="danger">Delete Field</b-button>
           </div>
+        </div>
+
+        <!-- Field tabs -->
+        <div>
+          <b-card title="Card Title" no-body>
+            <b-card-header header-tag="nav">
+              <b-nav card-header tabs>
+                <b-nav-item 
+                  v-for="(field, index) in fields.slice(0, 7)"
+                  v-bind:active="index===currentField"
+                  v-on:click="switchField(index)"
+                  > <% field %>
+                </b-nav-item>
+
+                <b-nav-item-dropdown right class="ml-auto" text="More" lazy v-if="fields.length > 7">
+                  <b-dropdown-item
+                    v-for="(field, index) in fields.slice(7)"
+                    v-bind:active="index + 7===currentField"
+                    v-on:click="switchField(index + 7)"
+                    align-self="end"
+                  > <% field %>
+                  </b-dropdown-item>
+
+                  <b-dropdown-item>
+
+                  </b-dropdown-item>
+                </b-nav-item-dropdown>
+              </b-nav>
+            </b-card-header>
+        
+            <b-card-body class="text-center">
+
+              <b-card-text>
+                With supporting text below as a natural lead-in to additional content.
+              </b-card-text>
+        
+              <b-button variant="primary">Go somewhere</b-button>
+            </b-card-body>
+          </b-card>
         </div>
 
       </div>
