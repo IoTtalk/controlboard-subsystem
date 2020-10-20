@@ -26,16 +26,16 @@
     <body>
       <div id=app>
         <b-navbar type="dark" variant="dark">
-          <b-container fluid="sm">
-            <select-projects
-                v-bind:projects="projects"  
-            ></select-projects>
+          <b-navbar-toggle target="nav-collapes"></b-navbar-toggle>
 
-            <b-navbar-nav class="ml-auto">
-              <b-nav-item right> <% user.superuser? "System": "" %> </b-nav-item>
-              <b-nav-item right>Logout</b-nav-item>
-            </b-navbar-nav>
-          </b-container>
+          <select-projects
+              v-bind:projects="projects"  
+          ></select-projects>
+
+          <b-navbar-nav class="ml-auto">
+            <b-nav-item right> <% user.superuser? "System": "" %> </b-nav-item>
+            <b-nav-item right>Logout</b-nav-item>
+          </b-navbar-nav>
         </b-navbar>
 
         <div v-bind:class="['field-manage', user.superuser?'':'inactive']">
