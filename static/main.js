@@ -16,8 +16,11 @@ var app = new Vue({
       {icon: "../static/imgs/landscape.svg", name: "test_6"},
       {icon: "../static/imgs/landscape.svg", name: "test_7"}
     ],
+    pinnedFields: [
+      "Field111111111111111111111111111", "Field2", "Field3", "Field4", "Field5"  
+    ],
     fields: [
-      "Field1", "Field2", "Field3", "Field4", "Field5", "Field6",
+      "Field111111111111111111111111111", "Field2", "Field3", "Field4", "Field5", "Field6",
       "Field7", "Field8", "Field9", "Field10", "Field11", "Field12", 
     ],
     currentField: 0,

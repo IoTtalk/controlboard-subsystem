@@ -2,8 +2,25 @@ html {
   background-color: #F6F4FB;
 }
 
+.fieldName > a{
+  overflow-x: hidden;
+  max-width: 100px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .custom-nav-item {
   color: rgba(255, 255, 255, 1) !important;
+}
+
+.card-header {
+  padding-left: 0px;
+  padding-right: 0px;
+}
+
+.card-header-tabs {
+  flex-flow: row nowrap;
+  overflow: hidden;
 }
 
 .field-manage {

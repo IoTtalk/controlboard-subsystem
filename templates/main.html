@@ -25,19 +25,6 @@
     </head>
     <body>
       <div id=app>
-<<<<<<< HEAD
-        <b-navbar type="dark" variant="dark">
-          <b-navbar-toggle target="nav-collapes"></b-navbar-toggle>
-
-          <select-projects
-              v-bind:projects="projects"  
-          ></select-projects>
-
-          <b-navbar-nav class="ml-auto">
-            <b-nav-item right> <% user.superuser? "System": "" %> </b-nav-item>
-            <b-nav-item right>Logout</b-nav-item>
-          </b-navbar-nav>
-=======
         <!-- Navigation bar -->
         <b-navbar type="dark" variant="dark" class="d-flex">
               <select-projects
@@ -50,7 +37,6 @@
                   <b-nav-item class="system-button custom-nav-item" >Logout</b-nav-item>
                 </b-navbar-nav>
               </div>
->>>>>>> c3fc4b2154e9794d0e7476b4662921832b601e90
         </b-navbar>
         
         <!-- Add/delete field button -->
@@ -66,14 +52,7 @@
           <b-card title="Card Title" no-body>
             <b-card-header header-tag="nav">
               <b-nav card-header tabs>
-                <b-nav-item 
-                  v-for="(field, index) in fields.slice(0, 7)"
-                  v-bind:active="index===currentField"
-                  v-on:click="switchField(index)"
-                  > <% field %>
-                </b-nav-item>
-
-                <b-nav-item-dropdown right class="ml-auto" text="More" lazy v-if="fields.length > 7">
+                <b-nav-item-dropdown text="More" lazy v-if="fields.length > 7">
                   <b-dropdown-item
                     v-for="(field, index) in fields.slice(7)"
                     v-bind:active="index + 7===currentField"
@@ -83,14 +62,21 @@
                   </b-dropdown-item>
 
                   <b-dropdown-item>
-
+                    Pin Field
                   </b-dropdown-item>
                 </b-nav-item-dropdown>
+
+                <b-nav-item
+                  v-for="(field, index) in pinnedFields"
+                  v-bind:active="index===currentField"
+                  v-on:click="switchField(index)"
+                  class="fieldName"
+                  > <% field %>
+                </b-nav-item>
               </b-nav>
             </b-card-header>
-        
-            <b-card-body class="text-center">
 
+            <b-card-body class="text-center">
               <b-card-text>
                 With supporting text below as a natural lead-in to additional content.
               </b-card-text>
