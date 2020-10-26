@@ -1,10 +1,11 @@
 html {
   background-color: #F6F4FB;
+  min-width: 480px;
 }
 
 .fieldName > a{
   overflow-x: hidden;
-  max-width: 100px;
+  max-width: 80px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -20,7 +21,7 @@ html {
 
 .card-header-tabs {
   flex-flow: row nowrap;
-  overflow: hidden;
+  /* overflow: hidden; */
 }
 
 .field-manage {
