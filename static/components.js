@@ -1,7 +1,6 @@
 Vue.component('sensor-row', {
     props: ['sensors', 'value'],
     template: `
-        {{sensors}}
         <b-row class="sensor-list text-left">
             <b-col align-self="start" text-align="start">
                 <b-dropdown v-bind:text="sensors[0]" variant="danger">
@@ -16,31 +15,29 @@ Vue.component('sensor-row', {
 })
 
 Vue.component('actuator-row', {
-    props: [],
+    props: ['mode', 'actuator'],
     template: `
         <b-row class="text-left actuator-control">
             <b-col>
                 <b-button-group>
                     <b-button size="md" variant="outline-secondary">
-                    <b-form-checkbox switch disabled>Manual</b-form-checkbox>
+                        <b-form-checkbox switch 
+                            v-bind:disabled="(mode==='Sensor' || mode==='Timer')"
+                        >Manual</b-form-checkbox>
                     </b-button>
-                    <b-button variant="outline-secondary" pressed="true">Sensor</b-button>
-                    <b-button variant="outline-secondary">Timer</b-button>
+                    <b-button variant="outline-secondary" 
+                        v-bind:pressed="mode==='Sensor'"
+                    >Sensor</b-button>
+                    <b-button variant="outline-secondary"
+                        v-bind:pressed="mode==='Timer'"
+                    >Timer</b-button>
                 </b-button-group>
-                <span>Bulb</span>
+                <span>{{actuator}}</span>
             </b-col>
         </b-row>
     `
 })
 
-Vue.component('setting-area', {
-    props: ['setting'],
-    template: `
-        <sensor-row
-            
-        ></sensor-row>
-    `
-})
 
 Vue.component('project', {
     props: ['field'],

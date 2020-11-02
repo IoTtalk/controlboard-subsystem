@@ -48,61 +48,49 @@
         </div>
 
         <!-- Field tabs -->
-        <div>
-          <b-card title="Card Title" no-body>
-            <b-card-header header-tag="nav">
-              <b-nav card-header tabs>
-                <b-nav-item-dropdown text="More" lazy v-if="fields.length > 7">
-                  <b-dropdown-item
-                    v-for="(field, index) in fields.slice(7)"
-                    v-bind:active="index + 7===currentField"
-                    v-on:click="switchField(index + 7)"
-                    align-self="end"
-                  > <% field %>
-                  </b-dropdown-item>
+        <b-card title="Card Title" no-body>
+          <b-card-header header-tag="nav">
+            <b-nav card-header tabs>
+              <b-nav-item-dropdown text="More" lazy v-if="fields.length > 7">
+                <b-dropdown-item
+                  v-for="(field, index) in fields.slice(7)"
+                  v-bind:active="index + 7===currentField"
+                  v-on:click="switchField(index + 7)"
+                  align-self="end"
+                > <% field %>
+                </b-dropdown-item>
 
-                  <b-dropdown-item>
-                    Pin Field
-                    <b-img src="../static/imgs/pin.svg"></b-img>
-                  </b-dropdown-item>
-                </b-nav-item-dropdown>
+                <b-dropdown-item>
+                  Pin Field
+                  <b-img src="../static/imgs/pin.svg"></b-img>
+                </b-dropdown-item>
+              </b-nav-item-dropdown>
 
-                <b-nav-item
-                  v-for="(field, index) in pinnedFields"
-                  v-bind:active="index===currentField"
-                  v-on:click="switchField(index)"
-                  class="fieldName"
-                  > <% field %>
-                </b-nav-item>
-              </b-nav>
-            </b-card-header>
+              <b-nav-item
+                v-for="(field, index) in pinnedFields"
+                v-bind:active="index===currentField"
+                v-on:click="switchField(index)"
+                class="fieldName"
+                > <% field %>
+              </b-nav-item>
+            </b-nav>
+          </b-card-header>
 
-            <b-card-body class="text-center">
-              <!-- sensor List and sensor value -->
-              <!-- <setting-area
-                v-for="setting in settings"
-                v-bind:setting="setting"
-              ></setting-area> -->
-              <!-- Actuator Name and trigger mode -->
-              <b-row class="text-left actuator-control">
-                <b-col>
-                  <b-button-group>
-                    <b-button size="md" variant="outline-secondary">
-                      <b-form-checkbox switch disabled>Manual</b-form-checkbox>
-                    </b-button>
-                    <b-button variant="outline-secondary" pressed="true">Sensor</b-button>
-                    <b-button variant="outline-secondary">Timer</b-button>
-                  </b-button-group>
-                  <span>Bulb</span>
-                </b-col>
-              </b-row>
-              <!-- Setting area -->
-              <b-row>
-                
-              </b-row>
-            </b-card-body>
-          </b-card>
-        </div>
+          <b-card-body class="text-center">
+            <!-- sensor List and sensor value -->
+            <div v-for="setting in settings">
+              <sensor-row
+                v-bind:sensors="setting.sensors"
+                v-bind:value="setting.value"
+              ></sensor-row>
+              <actuator-row
+                v-bind:mode="setting.mode"
+                v-bind:actuator="setting.actuator"
+              ></actuator-row>
+              
+            </div>
+          </b-card-body>
+        </b-card>
 
         <!-- Confirm/Reset all buttons -->
         <b-container fluid="sm">

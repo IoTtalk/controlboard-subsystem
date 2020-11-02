@@ -29,21 +29,25 @@ var app = new Vue({
         actuator: "Bulb",
         sensors: ["Luminance", "sensor1", "sensor2", "sensor3"],
         mode: "Timer",
+        value: 100
       },
       {
         actuator: "Actuator2",
         sensors: ["Humidity", "sensor4", "sensor5", "sensor6"],
         mode: "Sensor",
+        value: 200
       },
       {
         actuator: "Actuator3",
         sensors: ["Test", "sensor7", "sensor8", "sensor9"],
         mode: "ON",
+        value: 300
       },
       {
         actuator: "Actuator4",
         sensors: ["Test1", "sensor10", "sensor11", "sensor12"],
         mode: "OFF",
+        value: 400
       },
     ]
   }, 
