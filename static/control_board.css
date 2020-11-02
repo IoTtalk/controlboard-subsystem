@@ -30,10 +30,6 @@ html {
   background-color: #F6F4FB;
 }
 
-.field-manage.inactive {
-  display: none;
-  border-left: 0px solid #ffffff;
-}
 
 .container {
   padding: 0rem;
@@ -47,10 +43,6 @@ html {
   border-left: 1.5px solid #ffffff;
 }
 
-.system-button.inactive {
-  border-left: 0px solid #ffffff;
-  display: none;
-}
 
 .justify-content-between {
   padding: 0.2rem 0.1rem;
@@ -79,4 +71,9 @@ html {
 .actuator-control > div > div > button {
   padding-top: 0px;
   padding-bottom: 0px;
+}
+
+.actuator-control > div > span {
+  padding: 2px;
+  font-weight: bold;
 }

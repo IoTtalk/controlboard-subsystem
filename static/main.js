@@ -24,6 +24,28 @@ var app = new Vue({
       "Field7", "Field8", "Field9", "Field10", "Field11", "Field12", 
     ],
     currentField: 0,
+    settings: [
+      {
+        actuator: "Bulb",
+        sensors: ["Luminance", "sensor1", "sensor2", "sensor3"],
+        mode: "Timer",
+      },
+      {
+        actuator: "Actuator2",
+        sensors: ["Humidity", "sensor4", "sensor5", "sensor6"],
+        mode: "Sensor",
+      },
+      {
+        actuator: "Actuator3",
+        sensors: ["Test", "sensor7", "sensor8", "sensor9"],
+        mode: "ON",
+      },
+      {
+        actuator: "Actuator4",
+        sensors: ["Test1", "sensor10", "sensor11", "sensor12"],
+        mode: "OFF",
+      },
+    ]
   }, 
   methods: {
     createField: function() {

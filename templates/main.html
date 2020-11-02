@@ -27,20 +27,20 @@
       <div id=app>
         <!-- Navigation bar -->
         <b-navbar type="dark" variant="dark" class="d-flex">
-              <select-projects
-                v-bind:projects="projects"  
-              ></select-projects>
-            
-              <div class="ml-auto">
-                <b-navbar-nav>
-                  <b-nav-item v-bind:class="['system-button', user.superuser?'': 'inactive']">System</b-nav-item>
-                  <b-nav-item class="system-button custom-nav-item" >Logout</b-nav-item>
-                </b-navbar-nav>
-              </div>
+          <select-projects
+            v-bind:projects="projects"  
+          ></select-projects>
+        
+          <div class="ml-auto">
+            <b-navbar-nav>
+              <b-nav-item class="system-button" v-if="user.superuser">System</b-nav-item>
+              <b-nav-item class="system-button custom-nav-item">Logout</b-nav-item>
+            </b-navbar-nav>
+          </div>
         </b-navbar>
         
         <!-- Add/delete field button -->
-        <div v-bind:class="['field-manage', user.superuser?'':'inactive']">
+        <div class="field-manage" v-if="user.superuser">
           <div class="d-flex justify-content-between">
             <b-button size="sm" variant="success" @click="createField" class="create-field">+ New Field</b-button>
             <b-button size="sm" variant="danger">Delete Field</b-button>
@@ -63,6 +63,7 @@
 
                   <b-dropdown-item>
                     Pin Field
+                    <b-img src="../static/imgs/pin.svg"></b-img>
                   </b-dropdown-item>
                 </b-nav-item-dropdown>
 
@@ -78,16 +79,10 @@
 
             <b-card-body class="text-center">
               <!-- sensor List and sensor value -->
-              <b-row class="sensor-list text-left">
-                <b-col align-self="start" text-align="start">
-                  <b-dropdown text="Luminance" variant="danger">
-                    <b-dropdown-item>Sensor1</b-dropdown-item>
-                    <b-dropdown-item>Sensor2</b-dropdown-item>
-                    <b-dropdown-item>Sensor3</b-dropdown-item>
-                  </b-dropdown>
-                </b-col>
-                <span><b>500</b></span>
-              </b-row>
+              <!-- <setting-area
+                v-for="setting in settings"
+                v-bind:setting="setting"
+              ></setting-area> -->
               <!-- Actuator Name and trigger mode -->
               <b-row class="text-left actuator-control">
                 <b-col>
@@ -98,7 +93,7 @@
                     <b-button variant="outline-secondary" pressed="true">Sensor</b-button>
                     <b-button variant="outline-secondary">Timer</b-button>
                   </b-button-group>
-                  <span><b>Bulb</b></span>
+                  <span>Bulb</span>
                 </b-col>
               </b-row>
               <!-- Setting area -->
