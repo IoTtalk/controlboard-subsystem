@@ -59,3 +59,24 @@ html {
 .create-field {
   border-color: #ffffff;
 }
+
+.sensor-list {
+  background-color: #DC3545;
+  border-top-right-radius: 5px;
+  border-top-left-radius: 5px;
+  padding-right: 20px;
+  align-items: center;
+}
+
+.actuator-control {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.actuator-control > div {
+  padding-left: 0px;
+}
+
+.actuator-control > div > div > button {
+  padding-top: 0px;
+  padding-bottom: 0px;
+}

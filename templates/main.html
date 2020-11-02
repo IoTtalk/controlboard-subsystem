@@ -77,15 +77,45 @@
             </b-card-header>
 
             <b-card-body class="text-center">
-              <b-card-text>
-                With supporting text below as a natural lead-in to additional content.
-              </b-card-text>
-        
-              <b-button variant="primary">Go somewhere</b-button>
+              <!-- sensor List and sensor value -->
+              <b-row class="sensor-list text-left">
+                <b-col align-self="start" text-align="start">
+                  <b-dropdown text="Luminance" variant="danger">
+                    <b-dropdown-item>Sensor1</b-dropdown-item>
+                    <b-dropdown-item>Sensor2</b-dropdown-item>
+                    <b-dropdown-item>Sensor3</b-dropdown-item>
+                  </b-dropdown>
+                </b-col>
+                <span><b>500</b></span>
+              </b-row>
+              <!-- Actuator Name and trigger mode -->
+              <b-row class="text-left actuator-control">
+                <b-col>
+                  <b-button-group>
+                    <b-button size="md" variant="outline-secondary">
+                      <b-form-checkbox switch disabled>Manual</b-form-checkbox>
+                    </b-button>
+                    <b-button variant="outline-secondary" pressed="true">Sensor</b-button>
+                    <b-button variant="outline-secondary">Timer</b-button>
+                  </b-button-group>
+                  <span><b>Bulb</b></span>
+                </b-col>
+              </b-row>
+              <!-- Setting area -->
+              <b-row>
+                
+              </b-row>
             </b-card-body>
           </b-card>
         </div>
 
+        <!-- Confirm/Reset all buttons -->
+        <b-container fluid="sm">
+          <b-row class="text-center">
+            <b-col><b-button size="lg">Confirm</b-button></b-col>
+            <b-col><b-button size="lg">Reset All</b-button></b-col>
+          </b-row>
+        </b-container>
       </div>
       <script type="text/javascript" src="../static/components.js"></script>
       <script type="text/javascript" src="../static/main.js"></script>
