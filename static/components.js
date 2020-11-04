@@ -20,15 +20,15 @@ Vue.component('actuator-row', {
         <b-row class="text-left actuator-control">
             <b-col>
                 <b-button-group>
-                    <b-button size="md" variant="outline-secondary">
+                    <b-button size="md" variant="outline-primary">
                         <b-form-checkbox switch 
                             v-bind:disabled="(mode==='Sensor' || mode==='Timer')"
                         >Manual</b-form-checkbox>
                     </b-button>
-                    <b-button variant="outline-secondary" 
+                    <b-button variant="outline-primary" 
                         v-bind:pressed="mode==='Sensor'"
                     >Sensor</b-button>
-                    <b-button variant="outline-secondary"
+                    <b-button variant="outline-primary"
                         v-bind:pressed="mode==='Timer'"
                     >Timer</b-button>
                 </b-button-group>

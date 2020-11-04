@@ -77,3 +77,21 @@ html {
   padding: 2px;
   font-weight: bold;
 }
+
+.setting-area-top {
+  /* border-top: 1.5px solid gainsboro; */
+  padding-top: 5px;
+  border-left: 1.5px solid gainsboro;
+  border-right: 1.5px solid gainsboro;
+  border-bottom: 2px;
+}
+
+.setting-area-mid {
+  border-left: 1.5px solid gainsboro;
+  border-right: 1.5px solid gainsboro;
+}
+
+.setting-area-bottom {
+  border-bottom: 1.5px solid gainsboro;
+  margin-bottom: 10px;
+}

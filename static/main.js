@@ -2,6 +2,11 @@ var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
   data: {
+    comparisons: [
+      {value: null, text: ""},
+      {value: "bigger", html: "&lt;"},
+      {value: "smaller", html:"&gt;"}
+    ],
     user: {
       "superuser": 1,
       "username": "luk1684tw"

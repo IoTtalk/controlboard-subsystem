@@ -87,7 +87,38 @@
                 v-bind:mode="setting.mode"
                 v-bind:actuator="setting.actuator"
               ></actuator-row>
+
+              <b-row class="text-left setting-area-top">
+                <b-col><b>Trigger</b></b-col>
+              </b-row>
+
               
+              <b-row class="text-left setting-area-mid">
+                <b-col cols="2">
+                  <b-form-select plain required size="sm"
+                    :options="comparisons"
+                  ></b-form-select>
+                </b-col>
+                <b-col cols="3">
+                  <b-form-input placeholder="Enter your name" size="sm"></b-form-input>
+                </b-col>
+                <span>ON.</span>
+
+                <b-col cols="2">
+                  <b-form-select
+                    :options="comparisons" plain required size="sm"
+                  ></b-form-select>
+                </b-col>
+                <b-col cols="3">
+                  <b-form-input placeholder="Enter your name" size="sm"></b-form-input>
+                </b-col>
+                <span>OFF.</span>
+
+              </b-row>
+
+              <b-row class="text-left setting-area-mid">
+                <b-col><b>Duty Cycle</b></b-col>
+              </b-row>
             </div>
           </b-card-body>
         </b-card>
