@@ -1,6 +1,6 @@
 html {
   background-color: #F6F4FB;
-  min-width: 480px;
+  min-width: 500px;
 }
 
 .fieldName > a{
@@ -52,6 +52,24 @@ html {
   border-color: #ffffff;
 }
 
+.custom-card-body {
+  overflow-y:scroll;
+  max-height: 730px;
+}
+
+.custom-input {
+  padding-top: 0px;
+  padding-bottom: 0px;
+  font-size: 10px;
+}
+
+
+.custom-select {
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+
+
 .sensor-list {
   background-color: #DC3545;
   border-top-right-radius: 5px;
@@ -62,6 +80,9 @@ html {
 
 .actuator-control {
   background-color: rgba(0, 0, 0, 0.03);
+  border-left: 1.5px solid gainsboro;
+  border-right: 1.5px solid gainsboro;
+  padding: 2px;
 }
 
 .actuator-control > div {
@@ -92,6 +113,14 @@ html {
 }
 
 .setting-area-bottom {
+  padding-bottom: 10px;
+  border-left: 1.5px solid gainsboro;
+  border-right: 1.5px solid gainsboro;
   border-bottom: 1.5px solid gainsboro;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+.bottom-button {
+  position: fixed;
+  bottom: 0px;
 }

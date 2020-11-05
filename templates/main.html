@@ -76,55 +76,80 @@
             </b-nav>
           </b-card-header>
 
-          <b-card-body class="text-center">
-            <!-- sensor List and sensor value -->
+          <b-card-body class="text-center custom-card-body">
             <div v-for="setting in settings">
+              <!-- sensor List and sensor value -->
               <sensor-row
                 v-bind:sensors="setting.sensors"
                 v-bind:value="setting.value"
               ></sensor-row>
+              <!-- Mode select and actuator name, Undo And Save -->
               <actuator-row
                 v-bind:mode="setting.mode"
                 v-bind:actuator="setting.actuator"
               ></actuator-row>
 
-              <b-row class="text-left setting-area-top">
-                <b-col><b>Trigger</b></b-col>
-              </b-row>
+              <!-- Trigger Area -->
+              <span>
+                <b-row class="text-left setting-area-top">
+                  <b-col><b>Trigger</b></b-col>
+                </b-row>
+                <b-row class="text-left setting-area-mid">
+                  <b-col cols="2">
+                    <b-form-select required size="sm" class="custom-select"
+                      :options="comparisons"
+                    ></b-form-select>
+                  </b-col>
+                  <b-col cols="3">
+                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
+                  </b-col>
+                  <span>ON.</span>
+  
+                  <b-col cols="2">
+                    <b-form-select
+                      :options="comparisons" required size="sm" class="custom-select"
+                    ></b-form-select>
+                  </b-col>
+                  <b-col cols="3">
+                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
+                  </b-col>
+                  <span>OFF.</span>
+                </b-row>
+                <b-row class="text-left setting-area-mid" v-if="setting.mode==='Timer'">
+                  <b-col>
+                    <b-form-group>
+                      <b-form-checkbox-group
+                        :options="weekdays" size="sm"
+                      ></b-form-checkbox-group>
+                    </b-form-group>
+                  </b-col>
+                </b-row>
+              </span>
 
-              
-              <b-row class="text-left setting-area-mid">
-                <b-col cols="2">
-                  <b-form-select plain required size="sm"
-                    :options="comparisons"
-                  ></b-form-select>
-                </b-col>
-                <b-col cols="3">
-                  <b-form-input placeholder="Enter your name" size="sm"></b-form-input>
-                </b-col>
-                <span>ON.</span>
-
-                <b-col cols="2">
-                  <b-form-select
-                    :options="comparisons" plain required size="sm"
-                  ></b-form-select>
-                </b-col>
-                <b-col cols="3">
-                  <b-form-input placeholder="Enter your name" size="sm"></b-form-input>
-                </b-col>
-                <span>OFF.</span>
-
-              </b-row>
-
-              <b-row class="text-left setting-area-mid">
-                <b-col><b>Duty Cycle</b></b-col>
-              </b-row>
+              <!-- Duty Cycle Area -->
+              <span>
+                <b-row class="text-left setting-area-mid">
+                  <b-col><b>Duty Cycle</b></b-col>
+                </b-row>
+                <b-row class="text-left setting-area-bottom">
+                  <b-col cols="2">ON</b-col>
+                  <b-col cols="3">
+                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
+                  </b-col>
+                  <span> secs.</span>
+                  <b-col cols="2">OFF</b-col>
+                  <b-col cols="3">
+                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
+                  </b-col>
+                  <span> secs.</span>
+                </b-row>
+              </span>
             </div>
           </b-card-body>
         </b-card>
 
         <!-- Confirm/Reset all buttons -->
-        <b-container fluid="sm">
+        <b-container fluid="sm" class="bottom-button">
           <b-row class="text-center">
             <b-col><b-button size="lg">Confirm</b-button></b-col>
             <b-col><b-button size="lg">Reset All</b-button></b-col>

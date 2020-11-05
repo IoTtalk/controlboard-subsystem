@@ -7,6 +7,16 @@ var app = new Vue({
       {value: "bigger", html: "&lt;"},
       {value: "smaller", html:"&gt;"}
     ],
+    weekdays: [
+      {value: 0, text: "Mon"},
+      {value: 1, text: "Tue"},
+      {value: 2, text: "Wen"},
+      {value: 3, text: "Thu"},
+      {value: 4, text: "Fri"},
+      {value: 5, text: "Sat"},
+      {value: 6, text: "Sun"},
+      {value: 7, text: "All"}
+    ],
     user: {
       "superuser": 1,
       "username": "luk1684tw"
@@ -53,7 +63,7 @@ var app = new Vue({
         sensors: ["Test1", "sensor10", "sensor11", "sensor12"],
         mode: "OFF",
         value: 400
-      },
+      }
     ]
   }, 
   methods: {

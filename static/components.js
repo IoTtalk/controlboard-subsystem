@@ -20,20 +20,24 @@ Vue.component('actuator-row', {
         <b-row class="text-left actuator-control">
             <b-col>
                 <b-button-group>
-                    <b-button size="md" variant="outline-primary">
+                    <b-button size="md" variant="outline-success">
                         <b-form-checkbox switch 
                             v-bind:disabled="(mode==='Sensor' || mode==='Timer')"
                         >Manual</b-form-checkbox>
                     </b-button>
-                    <b-button variant="outline-primary" 
+                    <b-button variant="outline-success" 
                         v-bind:pressed="mode==='Sensor'"
                     >Sensor</b-button>
-                    <b-button variant="outline-primary"
+                    <b-button variant="outline-success"
                         v-bind:pressed="mode==='Timer'"
                     >Timer</b-button>
                 </b-button-group>
                 <span>{{actuator}}</span>
             </b-col>
+            <div class="ml-auto"> 
+                <b-button size="sm" variant="secondary" plain>Undo</b-button>
+                <b-button size="sm" variant="secondary">Save</b-button>
+            <div>
         </b-row>
     `
 })
