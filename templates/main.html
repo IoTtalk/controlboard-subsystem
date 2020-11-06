@@ -90,60 +90,61 @@
               ></actuator-row>
 
               <!-- Trigger Area -->
-              <span>
+              <div>
                 <b-row class="text-left setting-area-top">
                   <b-col><b>Trigger</b></b-col>
                 </b-row>
                 <b-row class="text-left setting-area-mid">
-                  <b-col cols="2">
+                  <b-col cols="2" sm>
                     <b-form-select required size="sm" class="custom-select"
                       :options="comparisons"
                     ></b-form-select>
                   </b-col>
-                  <b-col cols="3">
+                  <b-col cols="3" sm>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
                   </b-col>
-                  <span>ON.</span>
+                  <span class="setting-text">ON.</span>
   
-                  <b-col cols="2">
+                  <b-col cols="2" sm>
                     <b-form-select
                       :options="comparisons" required size="sm" class="custom-select"
                     ></b-form-select>
                   </b-col>
-                  <b-col cols="3">
+                  <b-col cols="3" sm>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
                   </b-col>
-                  <span>OFF.</span>
+                  <span class="setting-text">OFF.</span>
                 </b-row>
                 <b-row class="text-left setting-area-mid" v-if="setting.mode==='Timer'">
-                  <b-col>
+                  <b-col sm>
                     <b-form-group>
                       <b-form-checkbox-group
-                        :options="weekdays" size="sm"
+                        :options="weekdays" size="sm" plain
                       ></b-form-checkbox-group>
                     </b-form-group>
                   </b-col>
                 </b-row>
-              </span>
+              </div>
 
               <!-- Duty Cycle Area -->
-              <span>
+              <div>
                 <b-row class="text-left setting-area-mid">
                   <b-col><b>Duty Cycle</b></b-col>
                 </b-row>
-                <b-row class="text-left setting-area-bottom">
-                  <b-col cols="2">ON</b-col>
-                  <b-col cols="3">
+                <b-row class="text-left setting-area-bottom">                  
+                  <span class="setting-text-start">ON</span>
+                  <b-col cols="3" sm>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
                   </b-col>
-                  <span> secs.</span>
-                  <b-col cols="2">OFF</b-col>
-                  <b-col cols="3">
+                  <span class="setting-text-mid">secs</span>
+
+                  <span class="setting-text">OFF</span>
+                  <b-col cols="3" sm>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
                   </b-col>
-                  <span> secs.</span>
+                  <span class="setting-text">secs</span>
                 </b-row>
-              </span>
+              </div>
             </div>
           </b-card-body>
         </b-card>

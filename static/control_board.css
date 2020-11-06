@@ -31,9 +31,9 @@ html {
 }
 
 
-.container {
+/* .container {
   padding: 0rem;
-}
+} */
 
 .navbar {
   padding: 0.05rem 0.1rem;
@@ -60,15 +60,26 @@ html {
 .custom-input {
   padding-top: 0px;
   padding-bottom: 0px;
-  font-size: 10px;
 }
 
 
 .custom-select {
   padding-top: 0px;
   padding-bottom: 0px;
+  background: url(./imgs/expand_more-24px.svg) no-repeat right .25rem center/20px 20px;
 }
 
+/* bootstrap-vue class of form-checkbox item */
+.form-check {
+  font-size: 0.8rem;
+}
+
+
+/* bootstrap-vue class of flex column */
+.col-sm {
+  padding-left: 15px;
+  padding-right: 3px;
+}
 
 .sensor-list {
   background-color: #DC3545;
@@ -100,7 +111,6 @@ html {
 }
 
 .setting-area-top {
-  /* border-top: 1.5px solid gainsboro; */
   padding-top: 5px;
   border-left: 1.5px solid gainsboro;
   border-right: 1.5px solid gainsboro;
@@ -123,4 +133,18 @@ html {
 .bottom-button {
   position: fixed;
   bottom: 0px;
+}
+
+.setting-text {
+  padding-top: 5px;
+}
+
+.setting-text-start {
+  padding-top: 5px;
+  padding-left: 15px;
+}
+
+.setting-text-mid {
+  padding-top: 5px;
+  padding-right: 15px;
 }
