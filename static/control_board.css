@@ -60,13 +60,17 @@ html {
 .custom-input {
   padding-top: 0px;
   padding-bottom: 0px;
+  max-width: 100px;
 }
 
 
 .custom-select {
   padding-top: 0px;
   padding-bottom: 0px;
-  background: url(./imgs/expand_more-24px.svg) no-repeat right .25rem center/20px 20px;
+  padding-right: 20px;
+  min-width: 8px;
+  max-width: 45px;
+  background: url(./imgs/expand_more-24px.svg) no-repeat right .25rem center/15px 15px;
 }
 
 /* bootstrap-vue class of form-checkbox item */
@@ -74,15 +78,20 @@ html {
   font-size: 0.8rem;
 }
 
-
-/* bootstrap-vue class of flex column */
-.col-sm {
-  padding-left: 15px;
-  padding-right: 3px;
+.setting-card {
+  padding-left: 14.5px;
+  padding-right: 14.5px;
+  border-left: 1.5px solid gainsboro;
+  border-right: 1.5px solid gainsboro;
+  border-top-right-radius: 5px;
+  border-top-left-radius: 5px;
+  border-bottom: 1.5px solid gainsboro;
+  margin-bottom: 15px;
 }
 
 .sensor-list {
   background-color: #DC3545;
+  border: 0.1px;
   border-top-right-radius: 5px;
   border-top-left-radius: 5px;
   padding-right: 20px;
@@ -91,13 +100,13 @@ html {
 
 .actuator-control {
   background-color: rgba(0, 0, 0, 0.03);
-  border-left: 1.5px solid gainsboro;
-  border-right: 1.5px solid gainsboro;
-  padding: 2px;
+  border-bottom: 1.5px solid gainsboro;
+  padding: 2px 0px;
 }
 
 .actuator-control > div {
   padding-left: 0px;
+  padding-right: 1px;
 }
 
 .actuator-control > div > div > button {
@@ -106,29 +115,19 @@ html {
 }
 
 .actuator-control > div > span {
-  padding: 2px;
-  font-weight: bold;
-}
-
-.setting-area-top {
   padding-top: 5px;
-  border-left: 1.5px solid gainsboro;
-  border-right: 1.5px solid gainsboro;
-  border-bottom: 2px;
+  font-weight: bold;
+  font-size: 1.1rem;
 }
 
-.setting-area-mid {
-  border-left: 1.5px solid gainsboro;
-  border-right: 1.5px solid gainsboro;
+.setting-area {
+  text-align: start;
 }
 
-.setting-area-bottom {
-  padding-bottom: 10px;
-  border-left: 1.5px solid gainsboro;
-  border-right: 1.5px solid gainsboro;
-  border-bottom: 1.5px solid gainsboro;
-  margin-bottom: 15px;
+.setting-sensor {
+  display: inline-flex;
 }
+
 
 .bottom-button {
   position: fixed;
@@ -141,10 +140,11 @@ html {
 
 .setting-text-start {
   padding-top: 5px;
-  padding-left: 15px;
+  padding-right: 15px;
 }
 
 .setting-text-mid {
   padding-top: 5px;
+  padding-left: 5px;
   padding-right: 15px;
 }

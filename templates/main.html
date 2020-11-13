@@ -77,7 +77,7 @@
           </b-card-header>
 
           <b-card-body class="text-center custom-card-body">
-            <div v-for="setting in settings">
+            <div v-for="setting in settings" class="setting-card">
               <!-- sensor List and sensor value -->
               <sensor-row
                 v-bind:sensors="setting.sensors"
@@ -90,67 +90,82 @@
               ></actuator-row>
 
               <!-- Trigger Area -->
-              <div>
-                <b-row class="text-left setting-area-top">
-                  <b-col><b>Trigger</b></b-col>
-                </b-row>
-                <b-row class="text-left setting-area-mid">
-                  <b-col cols="2" sm>
-                    <b-form-select required size="sm" class="custom-select"
-                      :options="comparisons"
-                    ></b-form-select>
-                  </b-col>
-                  <b-col cols="3" sm>
-                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
-                  </b-col>
+              <div class="setting-area">
+                <div><b>Trigger</b></div>
+
+                <!-- Sensor settings -->
+                <div v-if="setting.mode==='Sensor'" class="setting-sensor">
+                  <custom-sel
+                    v-bind:options="comparisons"
+                  ></custom-sel> 
+                  <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
                   <span class="setting-text">ON.</span>
-  
-                  <b-col cols="2" sm>
-                    <b-form-select
-                      :options="comparisons" required size="sm" class="custom-select"
-                    ></b-form-select>
-                  </b-col>
-                  <b-col cols="3" sm>
-                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
-                  </b-col>
+                  <custom-sel
+                    v-bind:options="comparisons"
+                  ></custom-sel> 
+                  <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
                   <span class="setting-text">OFF.</span>
-                </b-row>
-                <b-row class="text-left setting-area-mid" v-if="setting.mode==='Timer'">
-                  <b-col sm>
-                    <b-form-group>
-                      <b-form-checkbox-group
-                        :options="weekdays" size="sm" plain
-                      ></b-form-checkbox-group>
-                    </b-form-group>
-                  </b-col>
-                </b-row>
-              </div>
+                </div>
 
-              <!-- Duty Cycle Area -->
-              <div>
-                <b-row class="text-left setting-area-mid">
-                  <b-col><b>Duty Cycle</b></b-col>
-                </b-row>
-                <b-row class="text-left setting-area-bottom">                  
-                  <span class="setting-text-start">ON</span>
-                  <b-col cols="3" sm>
-                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
-                  </b-col>
-                  <span class="setting-text-mid">secs</span>
+                <!-- Timer setting area -->
+                <div v-if="setting.mode==='Timer'">
+                  <custom-sel
+                    v-bind:options="hours"
+                  ></custom-sel>
+                  <span>:</span>
+                  <custom-sel
+                    v-bind:options="minutes"
+                  ></custom-sel>
+                  <span>:</span>
+                  <custom-sel
+                    v-bind:options="seconds"
+                  ></custom-sel>
+                  <span style="padding-right: 10px;">on</span>
+                  <custom-sel
+                    v-bind:options="hours"
+                  ></custom-sel>
+                  <span>:</span>
+                  <custom-sel
+                    v-bind:options="minutes"
+                  ></custom-sel>
+                  <span>:</span>
+                  <custom-sel
+                    v-bind:options="seconds"
+                  ></custom-sel>
+                  <span>off</span>
+                </div>
+                
+                <div>
+                  <b-row class="text-left">
+                    <b-col>
+                      <b-form-group>
+                        <b-form-checkbox-group
+                          :options="weekdays" size="sm" plain
+                        ></b-form-checkbox-group>
+                      </b-form-group>
+                    </b-col>
+                  </b-row>
+                </div>
 
-                  <span class="setting-text">OFF</span>
-                  <b-col cols="3" sm>
+                <!-- Duty Cycle Area -->
+                <div>
+                  <div><b>Duty Cycle</b></div>
+                  <div class="setting-sensor">
+                    <span class="setting-text-start">ON</span>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
-                  </b-col>
-                  <span class="setting-text">secs</span>
-                </b-row>
+                    <span class="setting-text-mid">secs</span>
+                    <span class="setting-text-start">OFF</span>
+                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
+                    <span class="setting-text-mid">secs</span>
+                  </div>               
+                </div>
               </div>
             </div>
           </b-card-body>
         </b-card>
 
         <!-- Confirm/Reset all buttons -->
-        <b-container fluid="sm" class="bottom-button">
+        <b-container fluid class="bottom-button">
           <b-row class="text-center">
             <b-col><b-button size="lg">Confirm</b-button></b-col>
             <b-col><b-button size="lg">Reset All</b-button></b-col>

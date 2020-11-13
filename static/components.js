@@ -1,3 +1,12 @@
+Vue.component('custom-sel', {
+    props: ['options'],
+    template: `
+        <b-form-select required size="sm" class="custom-select"
+        :options="options"
+        ></b-form-select>
+    `
+})
+
 Vue.component('sensor-row', {
     props: ['sensors', 'value'],
     template: `
@@ -32,7 +41,7 @@ Vue.component('actuator-row', {
                         v-bind:pressed="mode==='Timer'"
                     >Timer</b-button>
                 </b-button-group>
-                <span>{{actuator}}</span>
+                <span class="setting-test">{{actuator}}</span>
             </b-col>
             <div class="ml-auto"> 
                 <b-button size="sm" variant="secondary" plain>Undo</b-button>
