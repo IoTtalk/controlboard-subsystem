@@ -2,20 +2,29 @@ Vue.component('custom-sel', {
     props: ['options'],
     template: `
         <b-form-select required size="sm" class="custom-select"
-        :options="options"
+            :options="options"
         ></b-form-select>
     `
 })
 
 Vue.component('sensor-row', {
-    props: ['sensors', 'value'],
+    props: ['sensors', 'value', 'index'],
+    methods: {
+        onSelectSensor: function (idx) {
+            var temp = this.sensors[0];
+            this.$set(this.sensors, 0, this.sensors[idx]);
+            this.$set(this.sensors, idx, temp);
+            return;
+        }
+    },
     template: `
         <b-row class="sensor-list text-left">
             <b-col align-self="start" text-align="start">
                 <b-dropdown v-bind:text="sensors[0]" variant="danger">
-                    <b-dropdown-item v-for="sensor in sensors.slice(1)">
-                        {{sensor}}
-                    </b-dropdown-item>
+                    <b-dropdown-item 
+                        v-for="(sensor, idx) in sensors.slice(1)"
+                        v-on:click="onSelectSensor(idx)"
+                    >{{sensor}}</b-dropdown-item>
                 </b-dropdown>
             </b-col>
             <span><b>{{value}}</b></span>
@@ -24,7 +33,7 @@ Vue.component('sensor-row', {
 })
 
 Vue.component('actuator-row', {
-    props: ['mode', 'actuator'],
+    props: ['mode', 'actuator', 'dirty'],
     template: `
         <b-row class="text-left actuator-control">
             <b-col>
@@ -43,9 +52,9 @@ Vue.component('actuator-row', {
                 </b-button-group>
                 <span class="setting-test">{{actuator}}</span>
             </b-col>
-            <div class="ml-auto"> 
+            <div class="ml-auto" v-if="dirty"> 
                 <b-button size="sm" variant="secondary" plain>Undo</b-button>
-                <b-button size="sm" variant="secondary">Save</b-button>
+                <b-button size="sm" variant="primary">Save</b-button>
             <div>
         </b-row>
     `

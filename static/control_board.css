@@ -1,6 +1,7 @@
-html {
+html, body {
   background-color: #F6F4FB;
   min-width: 500px;
+  height: auto;
 }
 
 .fieldName > a{
@@ -14,6 +15,12 @@ html {
   color: rgba(255, 255, 255, 1) !important;
 }
 
+.card {
+  width: 98%;
+  margin-left: auto;
+  margin-right: auto
+}
+
 .card-header {
   padding-left: 0px;
   padding-right: 0px;
@@ -21,7 +28,6 @@ html {
 
 .card-header-tabs {
   flex-flow: row nowrap;
-  /* overflow: hidden; */
 }
 
 .field-manage {
@@ -29,11 +35,6 @@ html {
   margin-top: 2px;
   background-color: #F6F4FB;
 }
-
-
-/* .container {
-  padding: 0rem;
-} */
 
 .navbar {
   padding: 0.05rem 0.1rem;
@@ -54,13 +55,14 @@ html {
 
 .custom-card-body {
   overflow-y:scroll;
-  max-height: 730px;
+  max-height: 700px;
 }
 
 .custom-input {
   padding-top: 0px;
   padding-bottom: 0px;
   max-width: 100px;
+  margin: 0 8px;
 }
 
 
@@ -128,10 +130,13 @@ html {
   display: inline-flex;
 }
 
+.duty-area {
+  margin-bottom: 5px;
+}
 
 .bottom-button {
+  margin-top: 2%;
   position: fixed;
-  bottom: 0px;
 }
 
 .setting-text {
@@ -140,11 +145,9 @@ html {
 
 .setting-text-start {
   padding-top: 5px;
-  padding-right: 15px;
 }
 
 .setting-text-mid {
   padding-top: 5px;
-  padding-left: 5px;
   padding-right: 15px;
 }

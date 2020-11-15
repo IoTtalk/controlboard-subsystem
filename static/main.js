@@ -60,25 +60,29 @@ var app = new Vue({
         actuator: "Bulb",
         sensors: ["Luminance", "sensor1", "sensor2", "sensor3"],
         mode: "Timer",
-        value: 100
+        value: 100,
+        dirty: false
       },
       {
         actuator: "Actuator2",
         sensors: ["Humidity", "sensor4", "sensor5", "sensor6"],
         mode: "Sensor",
-        value: 200
+        value: 200,
+        dirty: false
       },
       {
         actuator: "Actuator3",
         sensors: ["Test", "sensor7", "sensor8", "sensor9"],
         mode: "ON",
-        value: 300
+        value: 300,
+        dirty: false
       },
       {
         actuator: "Actuator4",
         sensors: ["Test1", "sensor10", "sensor11", "sensor12"],
         mode: "OFF",
-        value: 400
+        value: 400,
+        dirty: false
       }
     ]
   }, 
@@ -93,6 +97,14 @@ var app = new Vue({
 
     reqFieldData: function(index) {
 
+    },
+
+    onSelectSensor: function(sensorIndex, settingIndex) {
+      var temp = this.settings[settingIndex]['sensors'][0];
+      this.settings[settingIndex]['sensors'].$set(0, this.settings[settingIndex]['sensors'][sensorIndex]);
+      this.settings[settingIndex]['sensors'].$set(sensorIndex, temp);
+      console.log(this.settings[settingIndex]['sensors']);
+      return;
     }
   }
 

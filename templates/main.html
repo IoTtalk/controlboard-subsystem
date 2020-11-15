@@ -33,8 +33,8 @@
         
           <div class="ml-auto">
             <b-navbar-nav>
-              <b-nav-item class="system-button" v-if="user.superuser">System</b-nav-item>
-              <b-nav-item class="system-button custom-nav-item">Logout</b-nav-item>
+              <b-nav-item class="system-button" v-if="user.superuser"><b>System</b></b-nav-item>
+              <b-nav-item class="system-button custom-nav-item"><b>Logout</b></b-nav-item>
             </b-navbar-nav>
           </div>
         </b-navbar>
@@ -48,7 +48,7 @@
         </div>
 
         <!-- Field tabs -->
-        <b-card title="Card Title" no-body>
+        <b-card title="Card Title" no-body class="card">
           <b-card-header header-tag="nav">
             <b-nav card-header tabs>
               <b-nav-item-dropdown text="More" lazy v-if="fields.length > 7">
@@ -77,16 +77,18 @@
           </b-card-header>
 
           <b-card-body class="text-center custom-card-body">
-            <div v-for="setting in settings" class="setting-card">
+            <div v-for="(setting, index) in settings" class="setting-card">
               <!-- sensor List and sensor value -->
               <sensor-row
                 v-bind:sensors="setting.sensors"
                 v-bind:value="setting.value"
+                v-bind:index="index"
               ></sensor-row>
               <!-- Mode select and actuator name, Undo And Save -->
               <actuator-row
                 v-bind:mode="setting.mode"
                 v-bind:actuator="setting.actuator"
+                v-bind:dirty="setting.dirty"
               ></actuator-row>
 
               <!-- Trigger Area -->
@@ -97,7 +99,7 @@
                 <div v-if="setting.mode==='Sensor'" class="setting-sensor">
                   <custom-sel
                     v-bind:options="comparisons"
-                  ></custom-sel> 
+                  ></custom-sel>
                   <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
                   <span class="setting-text">ON.</span>
                   <custom-sel
@@ -148,15 +150,15 @@
                 </div>
 
                 <!-- Duty Cycle Area -->
-                <div>
+                <div class="duty-area">
                   <div><b>Duty Cycle</b></div>
                   <div class="setting-sensor">
                     <span class="setting-text-start">ON</span>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
-                    <span class="setting-text-mid">secs</span>
+                    <span class="setting-text-mid">Seconds.</span>
                     <span class="setting-text-start">OFF</span>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"></b-form-input>
-                    <span class="setting-text-mid">secs</span>
+                    <span class="setting-text-mid">Seconds.</span>
                   </div>               
                 </div>
               </div>
@@ -167,8 +169,8 @@
         <!-- Confirm/Reset all buttons -->
         <b-container fluid class="bottom-button">
           <b-row class="text-center">
-            <b-col><b-button size="lg">Confirm</b-button></b-col>
-            <b-col><b-button size="lg">Reset All</b-button></b-col>
+            <b-col><b-button size="lg" variant="primary">Confirm</b-button></b-col>
+            <b-col><b-button size="lg" variant="secondary">Reset All</b-button></b-col>
           </b-row>
         </b-container>
       </div>
