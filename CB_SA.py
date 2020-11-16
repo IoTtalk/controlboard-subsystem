@@ -2,7 +2,7 @@ import time
 import uuid
 import datetime
 import os
-
+import math
 
 from collections import deque
 
@@ -51,10 +51,15 @@ class AG_SA():
         self.cb_id = cb_id
         self.config = config
         self.cb_db = orm.Database()
+
         self.checking = dict()
         self.initial = dict()
         self.prev_time = dict()
         self.prev_status = dict()
+        self.erlang = dict()
+        self.threshold_time = dict()
+        self.calibrate = False;
+
         if mac_addr != 'None':
             self.mac_addr = mac_addr
         else:
@@ -261,13 +266,14 @@ class AG_SA():
         '''
         sa = self.cb_db.CB_SA[self.cb_id]
         for rule in sa.rule_set:
+            print(rule)
             status = self.status[rule.sensor_alias]
             if rule.mode == 'on':
-                if status.status != 'RED':
+                if status['status'] != 'RED':
                     actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias][1])
                     DAN.push(actuator_df, 1)
             elif rule.mode == 'off':
-                if status.status == 'RED':
+                if status['status'] == 'RED':
                     actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias][1])
                     DAN.push(actuator_df, 0)
             # auto mode
@@ -294,6 +300,7 @@ class AG_SA():
                 sensor_df = 'Threshold-O' + str(mapping[1])
                 data = DAN.pull(sensor_df)
                 if data is not None:
+                    # print('SAVE SENSOR DATA FOR CHECKING')
                     data = data[0]
                     self.checking[sensor] = datetime.datetime.now()
                     self.initial[sensor] = data
@@ -309,7 +316,8 @@ class AG_SA():
         if sensor in self.checking:
             if self.checking[sensor] != 0:
                 time = datetime.datetime.now() - self.checking[sensor] 
-                if time.total_seconds() > 15:
+                if time.total_seconds() > 10:
+                    # print('SAVE DATA TO DATABASE')
                     sensor_df = 'Threshold-O' + str(mapping[1])
                     data = DAN.pull(sensor_df)
                     if data is not None:
@@ -319,28 +327,10 @@ class AG_SA():
                             sensor = sensor, initial_data = self.initial[sensor], 
                             ascent = ascent, said = sa.cb_id
                         )
-                        # do calculation for MSE here
-                        sensor_data = self.cb_db.Outlier.select(lambda r: r.sensor == sensor and r.said == sa.cb_id)[:]
-                        X = list()
-                        Y = list()
-                        order = list()
-                        for d in sensor_data:
-                            d = d.to_dict()
-                            order.append(d["data_prio"])
-                            X.append(d["initial_data"])
-                            Y.append(d["ascent"])
-                        if( len(X) > 50):
-                            x_avg = sum(X) / len(X)
-                            y_avg = sum(Y) / len(Y)
-                            x_mse = 0
-                            y_mse = 0
-                            xy_mse = 0
-                            for i in range(len(X)):
-                                x_mse += (X[i] - x_avg)**2
-                                y_mse += (Y[i] - y_avg)**2
-                                xy_mse += (X[i] - x_avg) * (Y[i] - y_avg)
-                            self.outlier_test(sensor, self.initial[sensor], ascent, len(X), x_avg, y_avg, x_mse, y_mse, xy_mse)
-                            self.cb_db.Outlier[min(order)].delete()
+                        self.cb_db.commit()
+                        
+                        if self.calibrate == False:
+                            self.outlier_test(sensor, self.initial[sensor], ascent)
                         self.checking[sensor] = 0
                     else:
                         pass
@@ -362,40 +352,138 @@ class AG_SA():
         elif rule_type == 'sensor' and mode == 'auto' and status == 'GREEN':
             if sensor in self.prev_status:
                 if self.prev_status[sensor] == 1:
-                    time_diff = self.prev_time[sensor] - datetime.datetime.now()
+                    time_diff = datetime.datetime.now() - self.prev_time[sensor]
                     time_diff = time_diff.total_seconds()
                     self.prev_status[sensor] = 0
                     self.cb_db.Time_Threshold(
                         sensor = sensor, time_on = time_diff, said = sa.cb_id
                     )
-                    self.threshold_test(sensor, time_diff)
+                    self.cb_db.commit()
+                    if self.calibrate == False: 
+                        self.threshold_test(sensor, time_diff)
         else:
             self.prev_status[sensor] = 0
-
+        self.calib_complete_check(sensor)
         return
     
     def threshold_test(self, sensor, time_diff):
         # do the calculation with given data
-        if time_diff > 1800: 
-            calib_request(sensor)
+        if sensor not in self.erlang:
+            time_data = self.cb_db.Time_Threshold.select(lambda r: r.sensor == sensor and r.said == sa.cb_id)[:]
+            actime = list()
+            data_order = list()
+            for data in time_data:
+                data = data.to_dict()
+                actime.append(data['time_on'])
+                data_order.append(data['data_prio'])
+            if(len(actime) < 50): pass
+            else:  # delete the oldest time data 
+                pass
+            histogram_bins = dict()
+            find_medium = 0
+            medium = -1
+            for act in actime:
+                act = math.floor(act / 60 / 2)
+                if act not in histogram_bins:
+                    histogram_bins[act] = 1
+                else:
+                    histogram_bins[act] += 1
+            for bins in histogram_bins:
+                histogram_bins[bins] = histogram_bins[bins] / len(actime)
+                find_medium += histogram_bins[bins]
+                if(find_medium >= 0.5 and medium == -1): medium = float(bins)*2+1
+            # find the erlang distribution function that fits this histogram find lambda and n
+            # y = rate = histogram bins output, act = time(t)
+            # E[t] is the middle value in this histogram
+            # save the time which has error of < 0.001 into threshold_time[sensor]
+            least_error = 0
+            for n in range(3,6):
+                error = 0
+                for lam in range(0, 10):
+                    l = float(lam)/10
+                    for bins in histogram_bins:
+                        t = float(bins)*2+1
+                        ft = ((l**n) * t**(n-1) * math.exp((-1)*l*t)) / math.factorial(n-1) 
+                        error += abs(ft - histogram_bins[bins])
+                    if least_error == 0: 
+                        least_error = error
+                        erlang[sensor] = (l, n)
+                    elif least_error > error:
+                        least_error = error
+                        erlang[sensor] = (l, n)
+            # found best lambda and n
+            # erlang[sensor][0] = lambda   erlang[sensor][1] = n
+            l = self.erlang[sensor][0]
+            n = self.erlang[sensor][1]
+            for t in range(int(medium), 60):
+                pr = 0
+                for i in range(1, n):
+                    pr += (l**i * t**i * math.exp((-1)*l*t))/math.factorial(i)
+                if pr <= 0.001:
+                    threshold_time[sensor] = t
+                    break
+            if sensor not in threshold_time: threshold_time[sensor] = 60
+
+        if sensor in threshold_time:
+            if time_diff > threshold_time[sensor]: 
+                self.calib_request(sensor)
+                self.calibrate = True
         return 
     
-    def outlier_test(self, sensor, initial_data, ascent, sample_size, x_avg, y_avg, x_mse, y_mse, xy_mse):
-        # calculate the regression model and calculate m first
-        m = xy_mse / x_mse
-        b = y_avg - m * x_avg
-        error = ascent - m * initial_data + b
-        sigma = math.sqrt ( ( y_mse - m * xy_mse ) / (sample_size - 2) )
-        rate = ( error / sigma ) / math.sqrt( ( 1 - 1/sample_size - (initial_data - x_avg)**2 / x_mse) )
-        rate = rate * math.sqrt((sample_size-3)/(sample_size-2-rate**2))
-        if abs(rate) > 2: 
-            calib_request(sensor) # error detected
+    def outlier_test(self, sensor, initial_data, ascent):
+        # do calculation for MSE here
+        sensor_data = self.cb_db.Outlier.select(lambda r: r.sensor == sensor and r.said == sa.cb_id)[:]
+        X = list()
+        Y = list()
+        order = list()
+        for d in sensor_data:
+            d = d.to_dict()
+            order.append(d["data_prio"])
+            X.append(d["initial_data"])
+            Y.append(d["ascent"])
+        if( len(X) > 10):
+            x_avg = sum(X) / len(X)
+            y_avg = sum(Y) / len(Y)
+            x_mse = 0
+            y_mse = 0
+            xy_mse = 0
+            for i in range(len(X)):
+                x_mse += (X[i] - x_avg)**2
+                y_mse += (Y[i] - y_avg)**2
+                xy_mse += (X[i] - x_avg) * (Y[i] - y_avg)
+            self.cb_db.Outlier[min(order)].delete()
+            self.cb_db.commit()
+            sample_size = len(X)
+            # calculate the regression model and calculate m first
+            m = xy_mse / x_mse
+            b = y_avg - m * x_avg
+            error = ascent - m * initial_data + b
+            # for testing
+            sigma_square = ( y_mse - m * xy_mse ) / (sample_size - 2)
+            if(sigma_square < 0): sigma_square = (-1) * sigma_square
+            sigma = math.sqrt ( sigma_square )
+
+            rate_denom = ( 1 - 1/sample_size - (initial_data - x_avg)**2 / x_mse)
+            if(rate_denom < 0): rate_denom = (-1) * rate_denom
+            rate = ( error / sigma ) / math.sqrt( rate_denom )
+
+            rate_change = (sample_size-3)/(sample_size-2-rate**2)
+            if(rate_change < 0): rate_change = (-1) * rate_change
+            rate = rate * math.sqrt(rate_change)
+            
+            if abs(rate) > 2: 
+                self.calib_request(sensor) # error detected
+                print('sensor in need of calibration')
+                self.calibrate = True
+            else:
+                pass
+                # print('sensor normal')
         return
     
     def calib_request(self, sensor):
-        # call this when the two tests are not passed
+        # call this when the tests are not passed
         try:
-            DAN.push('Message-I', 'start calibration '+sensor)
+            DAN.push('Message-I', 'start calibration ' + sensor)
         except Exception as e:
             print("calibration request error: ")
             print(e)
@@ -408,7 +496,8 @@ class AG_SA():
             if msg is not None:
                 msg = msg[0]
             if msg is 'complete' or msg is 'failed':
-                self.checking[sensor] = False
+                self.checking[sensor] = 0
+                self.calibrate = False
             else:
                 pass
         except Exception as e:
@@ -418,9 +507,11 @@ class AG_SA():
         try:
             if msg is 'complete':
                 DAN.push('Message-I', 'not calibrating')
+                print("not calibrating")
                 pass
             elif msg is 'failed': # also need to add notification for changing sensors, using line bot or something
                 DAN.push('Message-I', 'change sensor')
+                print("calibration failed")
                 pass
             else:  # msg is 'processing'
                 pass
@@ -522,16 +613,16 @@ class AG_SA():
         data = data[0]
         rule = self.cb_db.UserRule[rule_id]
         status = self.status[rule.sensor_alias]
-        status.value = data
+        status['value'] = data
         self.df_hist_val[rule.sensor_alias].append(data)
         actuator_df = 'Trigger-I' + str(mapping[1])
 
         try:
             avg = sum(self.df_hist_val[rule.sensor_alias]) / len(self.df_hist_val[rule.sensor_alias])
             if 'notset' in rule.comparison_open and 'notset' in rule.comparison_close:
-                if status.status == 'RED':
+                if status['status'] == 'RED':
                     DAN.push(actuator_df, 0)
-                status.status = 'GREEN'
+                status['status'] = 'GREEN'
                 return
             elif 'notset' in rule.comparison_open:
                 action = 'CLOSE'
@@ -548,41 +639,41 @@ class AG_SA():
 
             expired = time.time() > (status.prev_trigger + rule.period)
             if not expired:
-                if status.status == 'RED':
+                if status['status'] == 'RED':
                     if action == 'CLOSE':
                         if satisfied:
                             DAN.push(actuator_df, 0)
                             if next_action == 'YELLOW':
-                                status.status = 'YELLOW'
+                                status['status'] = 'YELLOW'
                             else:
-                                status.status = 'GREEN'
-                elif status.status == 'GREEN':
+                                status['status'] = 'GREEN'
+                elif status['status'] == 'GREEN':
                     if action == 'OPEN':
                         if satisfied:
                             DAN.push(actuator_df, 1)
-                            status.status = 'RED'
+                            status['status'] = 'RED'
                             status.prev_triiger = time.time() + rule.exetime
                         else:
                             if next_action == 'YELLOW':
-                                status.status = 'YELLOW'
+                                status['status'] = 'YELLOW'
                 else:
                     if action == 'OPEN':
                         if satisfied:
                             DAN.push(actuator_df, 1)
-                            status.status = 'RED'
-                            status.prev_triiger = time.time() + rule.exetime
+                            status['status'] = 'RED'
+                            status['prev_trigger'] = time.time() + rule.exetime
                         else:
                             if next_action != 'YELLOW':
-                                status.status = 'GREEN'
+                                status['status'] = 'GREEN'
                     else:
                         if next_action != 'YELLOW':
-                            status.status = 'GREEN'
+                            status['status'] = 'GREEN'
             else:
-                if status.status == 'RED':
+                if status['status'] == 'RED':
                     DAN.push(actuator_df, 0)
-                    status.status = 'GREEN'
+                    status['status'] = 'GREEN'
                 else:
-                    status.status = 'GREEN'
+                    status['status'] = 'GREEN'
 
             return
         except Exception as err:
