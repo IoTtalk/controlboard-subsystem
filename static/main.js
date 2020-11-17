@@ -61,28 +61,32 @@ var app = new Vue({
         sensors: ["Luminance", "sensor1", "sensor2", "sensor3"],
         mode: "Timer",
         value: 100,
-        dirty: false
+        dirty: false,
+        status: true
       },
       {
         actuator: "Actuator2",
         sensors: ["Humidity", "sensor4", "sensor5", "sensor6"],
         mode: "Sensor",
         value: 200,
-        dirty: false
+        dirty: false,
+        status: false
       },
       {
         actuator: "Actuator3",
         sensors: ["Test", "sensor7", "sensor8", "sensor9"],
         mode: "ON",
         value: 300,
-        dirty: false
+        dirty: false,
+        status: true
       },
       {
         actuator: "Actuator4",
         sensors: ["Test1", "sensor10", "sensor11", "sensor12"],
         mode: "OFF",
         value: 400,
-        dirty: false
+        dirty: false,
+        status: true
       }
     ]
   }, 

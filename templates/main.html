@@ -71,7 +71,7 @@
                 v-bind:active="index===currentField"
                 v-on:click="switchField(index)"
                 class="fieldName"
-                > <% field %>
+              ><% field %>
               </b-nav-item>
             </b-nav>
           </b-card-header>
@@ -83,12 +83,13 @@
                 v-bind:sensors="setting.sensors"
                 v-bind:value="setting.value"
                 v-bind:index="index"
+                v-bind:status="setting.status"
               ></sensor-row>
               <!-- Mode select and actuator name, Undo And Save -->
               <actuator-row
-                v-bind:mode="setting.mode"
-                v-bind:actuator="setting.actuator"
-                v-bind:dirty="setting.dirty"
+                v-bind:mode.sync="setting.mode"
+                v-bind:actuator.sync="setting.actuator"
+                v-bind:dirty.sync="setting.dirty"
               ></actuator-row>
 
               <!-- Trigger Area -->

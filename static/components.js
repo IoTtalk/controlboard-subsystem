@@ -8,7 +8,7 @@ Vue.component('custom-sel', {
 })
 
 Vue.component('sensor-row', {
-    props: ['sensors', 'value', 'index'],
+    props: ['sensors', 'value', 'index', 'status'],
     methods: {
         onSelectSensor: function (idx) {
             var temp = this.sensors[0];
@@ -18,12 +18,12 @@ Vue.component('sensor-row', {
         }
     },
     template: `
-        <b-row class="sensor-list text-left">
+        <b-row v-bind:class="['sensor-list', status?'triggered':'']" class="text-left">
             <b-col align-self="start" text-align="start">
-                <b-dropdown v-bind:text="sensors[0]" variant="danger">
+                <b-dropdown v-bind:text="sensors[0]" v-bind:variant="status?'success':'danger'">
                     <b-dropdown-item 
                         v-for="(sensor, idx) in sensors.slice(1)"
-                        v-on:click="onSelectSensor(idx)"
+                        v-on:click="onSelectSensor(idx + 1)"
                     >{{sensor}}</b-dropdown-item>
                 </b-dropdown>
             </b-col>
@@ -34,20 +34,56 @@ Vue.component('sensor-row', {
 
 Vue.component('actuator-row', {
     props: ['mode', 'actuator', 'dirty'],
+    methods: {
+        onSelectMode: function(nextMode) {
+            switch (nextMode) {
+                case 0: // Manual mode
+                    this.$set(this, "dirty", true);
+                    if (this.mode==="ON") {
+                        this.$set(this, "mode", "OFF");
+                    } else {
+                        this.$set(this, "mode", "ON");
+                    }
+                    break;
+                case 1: // Sensor mode
+                    if (this.mode!=="Sensor") {
+                        this.$set(this, "dirty", true);
+                        this.$set(this, "mode", "Sensor");
+                    }
+                    break;
+
+                case 2: // Timer mode
+                    if (this.mode!=="Timer") {
+                        this.$set(this, "dirty", true);
+                        this.$set(this, "mode", "Timer");
+                    }
+                    break;
+                default:
+                    console.log("Unsupported Input mode");
+                    break;
+            }
+            console.log(this.dirty, this.mode);
+            return;
+        }
+    },
     template: `
         <b-row class="text-left actuator-control">
             <b-col>
                 <b-button-group>
-                    <b-button size="md" variant="outline-success">
+                    <b-button size="md" variant="outline-success"
+                        v-bind:pressed="mode==='ON' || mode==='OFF'"
+                    >
                         <b-form-checkbox switch 
-                            v-bind:disabled="(mode==='Sensor' || mode==='Timer')"
+                            v-on:input="onSelectMode(0)"
                         >Manual</b-form-checkbox>
                     </b-button>
                     <b-button variant="outline-success" 
                         v-bind:pressed="mode==='Sensor'"
+                        v-on:click="onSelectMode(1)"
                     >Sensor</b-button>
                     <b-button variant="outline-success"
                         v-bind:pressed="mode==='Timer'"
+                        v-on:click="onSelectMode(2)"
                     >Timer</b-button>
                 </b-button-group>
                 <span class="setting-test">{{actuator}}</span>

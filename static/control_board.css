@@ -100,6 +100,10 @@ html, body {
   align-items: center;
 }
 
+.sensor-list.triggered {
+  background-color: #28A745;
+}
+
 .actuator-control {
   background-color: rgba(0, 0, 0, 0.03);
   border-bottom: 1.5px solid gainsboro;
