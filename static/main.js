@@ -1,11 +1,12 @@
+Vue.config.devtools = true;
 var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
   data: {
     comparisons: [
       {value: null, text: ""},
-      {value: "bigger", html: "&lt;"},
-      {value: "smaller", html:"&gt;"}
+      {value: "smaller", html: "&lt;"},
+      {value: "bigger", html:"&gt;"}
     ],
     weekdays: [
       {value: 0, text: "Mon"},
@@ -59,12 +60,12 @@ var app = new Vue({
       {
         actuator: "Bulb",
         sensors: ["Luminance", "sensor1", "sensor2", "sensor3"],
-        mode: "Timer",
+        mode: "Sensor",
         value: 100,
         dirty: false,
         status: true,
         content: {
-          "open_sensor": null,
+          "open_sensor": "bigger",
           "close_sensor": null,
           "open_timer": [0, 0, 0],
           "close_timer": [0, 0, 0],
@@ -81,7 +82,7 @@ var app = new Vue({
         dirty: false,
         status: false,
         content: {
-          "open_sensor": null,
+          "open_sensor": "bigger",
           "close_sensor": null,
           "open_timer": [0, 0, 0],
           "close_timer": [0, 0, 0],
@@ -144,6 +145,7 @@ var app = new Vue({
     reqFieldData: function(index) {
 
     },
+    // Select source sensor value handler
     onSelectSensor: function(sensorIndex, settingIndex) {
       var temp = this.settings[settingIndex]['sensors'][0];
       this.settings[settingIndex]['sensors'].$set(0, this.settings[settingIndex]['sensors'][sensorIndex]);
@@ -151,12 +153,14 @@ var app = new Vue({
       console.log(this.settings[settingIndex]['sensors']);
       return;
     },
+    // Select trigger mode handler
     onSelectMode: function(nextMode, settingIndex) {
+      console.log(nextMode);
       if (nextMode === undefined || settingIndex === undefined) return;
       switch (nextMode) {
         case 0: // Manual mode
           this.$set(this.settings[settingIndex], "dirty", true);
-          if (this.this.settings[settingIndex].mode==="ON") {
+          if (this.settings[settingIndex].mode==="ON") {
             this.$set(this.settings[settingIndex], "mode", "OFF");
           } else {
             this.$set(this.settings[settingIndex], "mode", "ON");
@@ -180,7 +184,18 @@ var app = new Vue({
       }
       console.log(this.settings[settingIndex]);
       return;
-    }
+    },
+    // Sensor comparision select handler
+    onSelectCompare: function(val, settingIndex, content) {
+      console.log(val, settingIndex, content);
+      if (content==="open") {
+        this.settings[settingIndex].content.open_sensor = val;
+      } else {
+        this.settings[settingIndex].content.close_sensor = val;
+      }
+    },
+    // Time select handler
+    onSelectTime: function()
   }
 
 })

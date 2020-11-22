@@ -1,17 +1,16 @@
 Vue.component('custom-sel', {
-    props: ['options', 'selected'],
+    props: ['options', 'index', 'content', 'select'],
     methods:{
         onTimingSelect(val) {
-            console.log(val);
-            this.$set(this, "selected", val);
+            this.$emit("update-option", val, this.index, this.content);
             return;
         }
     },
     template: `
         <b-form-select required size="sm" class="custom-select"
             :options="options"
-            v-model="selected"
             v-on:change="onTimingSelect"
+            v-model="select"
         ></b-form-select>
     `
 })
@@ -74,7 +73,7 @@ Vue.component('actuator-row', {
             <div class="ml-auto" v-if="dirty"> 
                 <b-button size="sm" variant="secondary" plain>Undo</b-button>
                 <b-button size="sm" variant="primary">Save</b-button>
-            <div>
+            </div>
         </b-row>
     `
 })
