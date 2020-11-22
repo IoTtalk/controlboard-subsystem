@@ -62,7 +62,16 @@ var app = new Vue({
         mode: "Timer",
         value: 100,
         dirty: false,
-        status: true
+        status: true,
+        content: {
+          "open_sensor": null,
+          "close_sensor": null,
+          "open_timer": [0, 0, 0],
+          "close_timer": [0, 0, 0],
+          "open_sensorVal": 0,
+          "close_sensorVal": 0,
+          "weekdays": [7],
+        }
       },
       {
         actuator: "Actuator2",
@@ -70,7 +79,16 @@ var app = new Vue({
         mode: "Sensor",
         value: 200,
         dirty: false,
-        status: false
+        status: false,
+        content: {
+          "open_sensor": null,
+          "close_sensor": null,
+          "open_timer": [0, 0, 0],
+          "close_timer": [0, 0, 0],
+          "open_sensorVal": 0,
+          "close_sensorVal": 0,
+          "weekdays": [7],
+        }
       },
       {
         actuator: "Actuator3",
@@ -78,7 +96,16 @@ var app = new Vue({
         mode: "ON",
         value: 300,
         dirty: false,
-        status: true
+        status: true,
+        content: {
+          "open_sensor": null,
+          "close_sensor": null,
+          "open_timer": [0, 0, 0],
+          "close_timer": [0, 0, 0],
+          "open_sensorVal": 0,
+          "close_sensorVal": 0,
+          "weekdays": [7],
+        }
       },
       {
         actuator: "Actuator4",
@@ -86,28 +113,72 @@ var app = new Vue({
         mode: "OFF",
         value: 400,
         dirty: false,
-        status: true
+        status: true,
+        content: {
+          "open_sensor": null,
+          "close_sensor": null,
+          "open_timer": [0, 0, 0],
+          "close_timer": [0, 0, 0],
+          "open_sensorVal": 0,
+          "close_sensorVal": 0,
+          "weekdays": [7],
+        }
       }
     ]
   }, 
   methods: {
+    getDefaultSensorSettings: function() {
+      return {
+        mode: "OFF",
+        value: 0,
+        dirty: false,
+        status: false,
+      };
+    },
     createField: function() {
       console.log("create field triggered");
     },
-
     switchField: function(index) {
       this.currentField = index;
     },
-
     reqFieldData: function(index) {
 
     },
-
     onSelectSensor: function(sensorIndex, settingIndex) {
       var temp = this.settings[settingIndex]['sensors'][0];
       this.settings[settingIndex]['sensors'].$set(0, this.settings[settingIndex]['sensors'][sensorIndex]);
       this.settings[settingIndex]['sensors'].$set(sensorIndex, temp);
       console.log(this.settings[settingIndex]['sensors']);
+      return;
+    },
+    onSelectMode: function(nextMode, settingIndex) {
+      if (nextMode === undefined || settingIndex === undefined) return;
+      switch (nextMode) {
+        case 0: // Manual mode
+          this.$set(this.settings[settingIndex], "dirty", true);
+          if (this.this.settings[settingIndex].mode==="ON") {
+            this.$set(this.settings[settingIndex], "mode", "OFF");
+          } else {
+            this.$set(this.settings[settingIndex], "mode", "ON");
+          }
+          break;
+        case 1: // Sensor mode
+          if (this.settings[settingIndex].mode!=="Sensor") {
+            this.$set(this.settings[settingIndex], "dirty", true);
+            this.$set(this.settings[settingIndex], "mode", "Sensor");
+          }
+          break;
+        case 2: // Timer mode
+          if (this.settings[settingIndex].mode!=="Timer") {
+            this.$set(this.settings[settingIndex], "dirty", true);
+            this.$set(this.settings[settingIndex], "mode", "Timer");
+          }
+          break;
+        default:
+          console.log("Unsupported Input mode");
+          break;
+      }
+      console.log(this.settings[settingIndex]);
       return;
     }
   }

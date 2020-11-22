@@ -1,8 +1,17 @@
 Vue.component('custom-sel', {
-    props: ['options'],
+    props: ['options', 'selected'],
+    methods:{
+        onTimingSelect(val) {
+            console.log(val);
+            this.$set(this, "selected", val);
+            return;
+        }
+    },
     template: `
         <b-form-select required size="sm" class="custom-select"
             :options="options"
+            v-model="selected"
+            v-on:change="onTimingSelect"
         ></b-form-select>
     `
 })
@@ -33,36 +42,10 @@ Vue.component('sensor-row', {
 })
 
 Vue.component('actuator-row', {
-    props: ['mode', 'actuator', 'dirty'],
+    props: ['mode', 'actuator', 'dirty', 'index'],
     methods: {
         onSelectMode: function(nextMode) {
-            switch (nextMode) {
-                case 0: // Manual mode
-                    this.$set(this, "dirty", true);
-                    if (this.mode==="ON") {
-                        this.$set(this, "mode", "OFF");
-                    } else {
-                        this.$set(this, "mode", "ON");
-                    }
-                    break;
-                case 1: // Sensor mode
-                    if (this.mode!=="Sensor") {
-                        this.$set(this, "dirty", true);
-                        this.$set(this, "mode", "Sensor");
-                    }
-                    break;
-
-                case 2: // Timer mode
-                    if (this.mode!=="Timer") {
-                        this.$set(this, "dirty", true);
-                        this.$set(this, "mode", "Timer");
-                    }
-                    break;
-                default:
-                    console.log("Unsupported Input mode");
-                    break;
-            }
-            console.log(this.dirty, this.mode);
+            this.$emit("update-mode", nextMode, this.index);
             return;
         }
     },

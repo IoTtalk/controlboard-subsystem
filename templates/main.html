@@ -87,9 +87,11 @@
               ></sensor-row>
               <!-- Mode select and actuator name, Undo And Save -->
               <actuator-row
-                v-bind:mode.sync="setting.mode"
-                v-bind:actuator.sync="setting.actuator"
-                v-bind:dirty.sync="setting.dirty"
+                v-bind:mode="setting.mode"
+                v-bind:actuator="setting.actuator"
+                v-bind:dirty="setting.dirty"
+                v-bind:index="index"
+                v-on:update-mode="onSelectMode"
               ></actuator-row>
 
               <!-- Trigger Area -->
@@ -114,14 +116,17 @@
                 <div v-if="setting.mode==='Timer'">
                   <custom-sel
                     v-bind:options="hours"
+                    v-bind:selected.sync="setting.value"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="minutes"
+                    v-bind:selected.sync="setting.content['open_timer'][1]"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="seconds"
+                    v-bind:selected.sync="setting.content['open_timer'][2]"
                   ></custom-sel>
                   <span style="padding-right: 10px;">on</span>
                   <custom-sel
