@@ -88,6 +88,8 @@ var app = new Vue({
           "close_timer": [0, 0, 0],
           "open_sensorVal": 0,
           "close_sensorVal": 0,
+          "duty_pos": 0,
+          "duty_neg": 0,
           "weekdays": [4],
         }
       },
