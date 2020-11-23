@@ -126,7 +126,7 @@
                   <custom-sel
                     v-bind:options="hours"
                     v-bind:index="index"
-                    v-bind:content=""
+                    v-bind:content="0"
                     v-bind:select="setting.content.open_timer[0]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
@@ -134,7 +134,7 @@
                   <custom-sel
                     v-bind:options="minutes"
                     v-bind:index="index"
-                    v-bind:content="'close'"
+                    v-bind:content="1"
                     v-bind:select="setting.content.open_timer[1]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
@@ -142,7 +142,7 @@
                   <custom-sel
                     v-bind:options="seconds"
                     v-bind:index="index"
-                    v-bind:content="'close'"
+                    v-bind:content="2"
                     v-bind:select="setting.content.open_timer[2]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
@@ -150,7 +150,7 @@
                   <custom-sel
                     v-bind:options="hours"
                     v-bind:index="index"
-                    v-bind:content="'close'"
+                    v-bind:content="3"
                     v-bind:select="setting.content.close_timer[0]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
@@ -158,7 +158,7 @@
                   <custom-sel
                     v-bind:options="minutes"
                     v-bind:index="index"
-                    v-bind:content="'close'"
+                    v-bind:content="4"
                     v-bind:select="setting.content.close_timer[1]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
@@ -166,23 +166,20 @@
                   <custom-sel
                     v-bind:options="seconds"
                     v-bind:index="index"
-                    v-bind:content="'close'"
+                    v-bind:content="5"
                     v-bind:select="setting.content.close_timer[2]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
                   <span>off</span>
                 </div>
-                
                 <div>
-                  <b-row class="text-left">
-                    <b-col>
-                      <b-form-group>
-                        <b-form-checkbox-group
-                          :options="weekdays" size="sm" plain
-                        ></b-form-checkbox-group>
-                      </b-form-group>
-                    </b-col>
-                  </b-row>
+                  <b-form-group>
+                      <b-form-checkbox-group
+                        :options="weekdays" size="sm" plain
+                        v-on:change="onSelectWeekdays($event, index)"
+                        v-bind:checked="setting.content.weekdays"
+                      ></b-form-checkbox-group>
+                  </b-form-group>
                 </div>
 
                 <!-- Duty Cycle Area -->

@@ -71,7 +71,7 @@ var app = new Vue({
           "close_timer": [0, 0, 0],
           "open_sensorVal": 0,
           "close_sensorVal": 0,
-          "weekdays": [7],
+          "weekdays": [3],
         }
       },
       {
@@ -88,7 +88,7 @@ var app = new Vue({
           "close_timer": [0, 0, 0],
           "open_sensorVal": 0,
           "close_sensorVal": 0,
-          "weekdays": [7],
+          "weekdays": [4],
         }
       },
       {
@@ -105,7 +105,7 @@ var app = new Vue({
           "close_timer": [0, 0, 0],
           "open_sensorVal": 0,
           "close_sensorVal": 0,
-          "weekdays": [7],
+          "weekdays": [5],
         }
       },
       {
@@ -122,11 +122,16 @@ var app = new Vue({
           "close_timer": [0, 0, 0],
           "open_sensorVal": 0,
           "close_sensorVal": 0,
-          "weekdays": [7],
+          "weekdays": [6],
         }
       }
     ]
-  }, 
+  },
+  watch: {
+    selectAll(newVal, oldVal) {
+      console.log(newVal, oldVal);
+    }
+  },
   methods: {
     getDefaultSensorSettings: function() {
       return {
@@ -144,14 +149,6 @@ var app = new Vue({
     },
     reqFieldData: function(index) {
 
-    },
-    // Select source sensor value handler
-    onSelectSensor: function(sensorIndex, settingIndex) {
-      var temp = this.settings[settingIndex]['sensors'][0];
-      this.settings[settingIndex]['sensors'].$set(0, this.settings[settingIndex]['sensors'][sensorIndex]);
-      this.settings[settingIndex]['sensors'].$set(sensorIndex, temp);
-      console.log(this.settings[settingIndex]['sensors']);
-      return;
     },
     // Select trigger mode handler
     onSelectMode: function(nextMode, settingIndex) {
@@ -188,6 +185,7 @@ var app = new Vue({
     // Sensor comparision select handler
     onSelectCompare: function(val, settingIndex, content) {
       console.log(val, settingIndex, content);
+      this.settings[settingIndex].dirty = true;
       if (content==="open") {
         this.settings[settingIndex].content.open_sensor = val;
       } else {
@@ -195,7 +193,42 @@ var app = new Vue({
       }
     },
     // Time select handler
-    onSelectTime: function()
+    onSelectTime: function(val, settingIndex, content) {
+      console.log(val, settingIndex, content);
+      this.settings[settingIndex].dirty = true;
+      if (content < 3) {
+        this.settings[settingIndex].content.open_timer[content] = val;
+      } else {
+        this.settings[settingIndex].content.close_timer[content - 3] = val;
+      }
+    },
+    onSelectWeekdays: function(event, settingIndex) {
+      console.log(event, settingIndex);
+      console.log(this.settings[settingIndex].content.weekdays);
+      this.settings[settingIndex].dirty = true;
+      inputSelectAll = (event.indexOf(7) >= 0);
+      dataSelectAll = (this.settings[settingIndex].content.weekdays.indexOf(7) >= 0);
+      tempArr = [];
+      if (dataSelectAll && event.length <= 7) {
+        event.forEach(element => {
+          if (element !== 7) {
+            tempArr.push(element);
+          }
+        });
+      } else {
+        if (inputSelectAll) {
+          for (i = 0; i < 8; i++) {
+            tempArr.push(i);
+          }
+        } else {
+          event.forEach(element => {
+              tempArr.push(element);
+          });
+        }
+      }
+      this.$set(this.settings[settingIndex].content, "weekdays", tempArr);
+      return;
+    }
   }
 
 })
