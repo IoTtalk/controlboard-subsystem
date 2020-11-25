@@ -20,7 +20,6 @@
         <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
         <!-- Production version -->
         <!-- <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script> -->
-        <script src="https://unpkg.com/vue-router@2.0.0/dist/vue-router.js"></script>
         <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.js"></script>
 
         <!-- Load the following for BootstrapVueIcons support -->
@@ -37,25 +36,31 @@
         
           <div class="ml-auto">
             <b-navbar-nav>
-              <b-nav-item class="system-button" v-if="user.superuser"><b>System</b></b-nav-item>
+              <b-nav-item class="system-button" v-if="user.current.superuser" v-on:click="onSwitchManage"><b>System</b></b-nav-item>
               <b-nav-item class="system-button custom-nav-item"><b>Logout</b></b-nav-item>
             </b-navbar-nav>
           </div>
         </b-navbar>
         
         <!-- Add/delete field button -->
-        <div class="field-manage" v-if="user.superuser">
-          <div class="d-flex justify-content-between">
-            <b-button size="sm" variant="success" @click="createField" class="create-field">+ New Field</b-button>
-            <b-button size="sm" variant="danger">Delete Field</b-button>
+        <div v-if="!manageMode">
+          <div class="field-manage" v-if="user.current.superuser">
+            <div class="d-flex justify-content-between">
+              <b-button size="sm" variant="success" @click="createField" class="create-field">+ New Field</b-button>
+              <b-button size="sm" variant="danger">Delete Field</b-button>
+            </div>
           </div>
+        </div>
+
+        <div v-if="manageMode" class="manage-title">
+          <b>System Management</b>
         </div>
 
         <!-- Field tabs -->
         <b-card title="Card Title" no-body class="card">
           <b-card-header header-tag="nav">
             <b-nav card-header tabs>
-              <b-nav-item-dropdown text="More" lazy v-if="fields.length > 7">
+              <b-nav-item-dropdown text="More" lazy v-if="fields.length > 7 && !manageMode">
                 <b-dropdown-item
                   v-for="(field, index) in fields.slice(7)"
                   v-bind:active="index + 7===currentField"
@@ -69,19 +74,26 @@
                   <b-img src="../static/imgs/pin.svg"></b-img>
                 </b-dropdown-item>
               </b-nav-item-dropdown>
-
               <b-nav-item
+                v-if="!manageMode"
                 v-for="(field, index) in pinnedFields"
                 v-bind:active="index===currentField"
                 v-on:click="switchField(index)"
                 class="fieldName"
-              ><% field %>
+              ><% field %></b-nav-item>
+
+              <b-nav-item v-if="manageMode" v-bind:active="managePage" v-on:click="onSwitchManagePage">
+                User
               </b-nav-item>
+              <b-nav-item v-if="manageMode" v-bind:active="!managePage" v-on:click="onSwitchManagePage">
+                ControlBoard
+              </b-nav-item>
+
             </b-nav>
           </b-card-header>
 
           <b-card-body class="text-center custom-card-body">
-            <div v-for="(setting, index) in settings" class="setting-card">
+            <div v-for="(setting, index) in settings" class="setting-card" v-if="!manageMode">
               <!-- sensor List and sensor value -->
               <sensor-row
                 v-bind:sensors="setting.sensors"
@@ -210,11 +222,32 @@
                 </div>
               </div>
             </div>
+            <div v-if="manageMode && user.current.superuser">
+              <div v-if="manageMode">
+                <b-row class="text-left ">
+                  <b-col><b>UserName</b></b-col>
+                  <b-col><b>Privilege</b></b-col>
+                </b-row>
+                <b-row class="text-left manage-row"
+                  v-for="(user, index) in user.users"
+                >
+                  <b-col><b-link v-b-modal.modal-1 size="sm" variant="outline-primary"> <% user.username %> </b-link></b-col>
+                  <b-col> <% user.superuser %> </b-col>
+                </b-row>
+                <b-modal id="modal-1" size="lg" centered title="BootstrapVue">
+                  <p class="my-4">Hello from modal!</p>
+                </b-modal>
+              </div>
+
+              <div v-if="!manageMode">
+
+              </div>
+            </div>
           </b-card-body>
         </b-card>
 
         <!-- Confirm/Reset all buttons -->
-        <b-container fluid class="bottom-button">
+        <b-container fluid class="bottom-button" v-if="!manageMode">
           <b-row class="text-center">
             <b-col><b-button size="lg" variant="primary">Confirm</b-button></b-col>
             <b-col><b-button size="lg" variant="secondary">Reset All</b-button></b-col>

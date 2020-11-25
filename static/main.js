@@ -3,6 +3,8 @@ var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
   data: {
+    manageMode: false,  // Switch bwtween CB page & manage page
+    managePage: true, // Used to switch active state between User/CB management
     comparisons: [
       {value: null, text: ""},
       {value: "smaller", html: "&lt;"},
@@ -35,8 +37,17 @@ var app = new Vue({
       45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
     ],
     user: {
-      "superuser": 1,
-      "username": "luk1684tw"
+      current: {
+        "superuser": 1,
+        "username": "luk1684tw"
+      },
+      users: [
+        {"superuser": "Admin", "username": "liny@gmail.com"},
+        {"superuser": "Super User", "username": "jyneda@gmail.com"},
+        {"superuser": "Super User", "username": "ksoy@gmail.com"},
+        {"superuser": "Super User", "username": "iblis@gmail.com"},
+        {"superuser": "User", "username": "awscloud666@gmail.com"},
+      ]
     },
     projects: [
       {icon: "../static/imgs/landscape.svg", name: "Hello World"},
@@ -129,11 +140,6 @@ var app = new Vue({
       }
     ]
   },
-  watch: {
-    selectAll(newVal, oldVal) {
-      console.log(newVal, oldVal);
-    }
-  },
   methods: {
     getDefaultSensorSettings: function() {
       return {
@@ -142,6 +148,13 @@ var app = new Vue({
         dirty: false,
         status: false,
       };
+    },
+    onSwitchManage: function() {
+      this.manageMode = !this.manageMode;
+      return;
+    },
+    onSwitchManagePage: function() {
+      this.managePage = !this.managePage;
     },
     createField: function() {
       console.log("create field triggered");

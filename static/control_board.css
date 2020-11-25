@@ -15,21 +15,6 @@ html, body {
   color: rgba(255, 255, 255, 1) !important;
 }
 
-.card {
-  width: 98%;
-  margin-left: auto;
-  margin-right: auto
-}
-
-.card-header {
-  padding-left: 0px;
-  padding-right: 0px;
-}
-
-.card-header-tabs {
-  flex-flow: row nowrap;
-}
-
 .field-manage {
   margin-right: 2px;
   margin-top: 2px;
@@ -65,7 +50,6 @@ html, body {
   margin: 0 8px;
 }
 
-
 .custom-select {
   padding-top: 0px;
   padding-bottom: 0px;
@@ -78,6 +62,22 @@ html, body {
 /* bootstrap-vue class of form-checkbox item */
 .form-check {
   font-size: 0.8rem;
+}
+
+/* bootstrap-vue class of card */
+.card {
+  width: 98%;
+  margin-left: auto;
+  margin-right: auto
+}
+
+.card-header {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.card-header-tabs {
+  flex-flow: row nowrap;
 }
 
 .setting-card {
@@ -154,4 +154,18 @@ html, body {
 .setting-text-mid {
   padding-top: 5px;
   padding-right: 15px;
+}
+
+/* Belows are for Management page CSS */
+.manage-title {
+  font-size: 1.5rem;
+  padding-left: 1%;
+  padding-bottom: 5px;
+}
+
+.manage-row {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1.5px solid gainsboro;
+  border-bottom: 1.5px solid gainsboro;
 }
