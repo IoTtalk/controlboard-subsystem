@@ -163,9 +163,21 @@ html, body {
   padding-bottom: 5px;
 }
 
-.manage-row {
+.divide-top {
   padding-top: 10px;
-  padding-bottom: 10px;
   border-top: 1.5px solid gainsboro;
+}
+
+.divide-bottom {
+  padding-bottom: 10px;
   border-bottom: 1.5px solid gainsboro;
+}
+
+.select-privilege {
+  max-width: 70px;
+}
+
+.custom-checkbox {
+  padding-left: 15px;
+  padding-right: 15px;
 }

@@ -3,12 +3,17 @@ var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
   data: {
-    manageMode: false,  // Switch bwtween CB page & manage page
+    manageMode: true,  // Switch bwtween CB page & manage page
     managePage: true, // Used to switch active state between User/CB management
     comparisons: [
       {value: null, text: ""},
       {value: "smaller", html: "&lt;"},
       {value: "bigger", html:"&gt;"}
+    ],
+    userlvls: [
+      {value: 0, text: "User"},
+      {value: 1, text: "Super User"},
+      {value: 2, text: "Admin"}
     ],
     weekdays: [
       {value: 0, text: "Mon"},
@@ -42,23 +47,35 @@ var app = new Vue({
         "username": "luk1684tw"
       },
       users: [
-        {"superuser": "Admin", "username": "liny@gmail.com"},
-        {"superuser": "Super User", "username": "jyneda@gmail.com"},
-        {"superuser": "Super User", "username": "ksoy@gmail.com"},
-        {"superuser": "Super User", "username": "iblis@gmail.com"},
-        {"superuser": "User", "username": "awscloud666@gmail.com"},
+        {"superuser": 2, "username": "liny@gmail.com"},
+        {"superuser": 1, "username": "jyneda@gmail.com"},
+        {"superuser": 1, "username": "ksoy@gmail.com"},
+        {"superuser": 1, "username": "iblis@gmail.com"},
+        {"superuser": 0, "username": "awscloud666@gmail.com"},
       ]
     },
-    projects: [
-      {icon: "../static/imgs/landscape.svg", name: "Hello World"},
-      {icon: "../static/imgs/landscape.svg", name: "test_1"},
-      {icon: "../static/imgs/landscape.svg", name: "test_2"},
-      {icon: "../static/imgs/landscape.svg", name: "test_3"},
-      {icon: "../static/imgs/landscape.svg", name: "test_4"},
-      {icon: "../static/imgs/landscape.svg", name: "test_5"},
-      {icon: "../static/imgs/landscape.svg", name: "test_6"},
-      {icon: "../static/imgs/landscape.svg", name: "test_7"}
+    accessibleProjects: [ // Accessible projects of current logined user
+      {icon: "../static/imgs/landscape.svg", text: "Hello World"},
+      {icon: "../static/imgs/landscape.svg", text: "test_1"},
+      {icon: "../static/imgs/landscape.svg", text: "test_2"},
+      {icon: "../static/imgs/landscape.svg", text: "test_3"},
+      {icon: "../static/imgs/landscape.svg", text: "test_4"},
+      {icon: "../static/imgs/landscape.svg", text: "test_5"},
+      {icon: "../static/imgs/landscape.svg", text: "test_6"},
+      {icon: "../static/imgs/landscape.svg", text: "test_7"}
     ],
+    projects: { // All Shared projects of CB Subsystem + User's projects
+      accessibleProjects: [5, 7, 8, 10], // Accessible CBs' IDs 
+      optionProjects: [
+        {text: "test_7", value: 10},
+        {text: "test_8", value: 7},
+        {text: "test_9", value: 8},
+        {text: "test_10", value: 5},
+        {text: "test_11", value: 0},
+        {text: "test_12", value: 1},
+        {text: "test_13", value: 2}
+      ]
+    },
     pinnedFields: [
       "Field111111111111111111111111111", "Field2", "Field3", "Field4", "Field5"  
     ],
@@ -242,6 +259,19 @@ var app = new Vue({
         }
       }
       this.$set(this.settings[settingIndex].content, "weekdays", tempArr);
+      return;
+    },
+    lvlToText: function(userLvl) {
+      if (userLvl === 2) {
+        return "Admin";
+      } else if (userLvl === 1) {
+        return "Super User";
+      } else {
+        return "User";
+      }
+    },
+    onSelectUserLvl: function(event, userIndex) {
+      console.log(event, userIndex);
       return;
     }
   }

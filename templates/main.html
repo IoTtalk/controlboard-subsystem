@@ -31,7 +31,7 @@
         <!-- Navigation bar -->
         <b-navbar type="dark" variant="dark" class="d-flex">
           <select-projects
-            v-bind:projects="projects"  
+            v-bind:projects="accessibleProjects"  
           ></select-projects>
         
           <div class="ml-auto">
@@ -195,11 +195,11 @@
                 </div>
                 <div>
                   <b-form-group>
-                      <b-form-checkbox-group
-                        :options="weekdays" size="sm" plain
-                        v-on:change="onSelectWeekdays($event, index)"
-                        v-bind:checked="setting.content.weekdays"
-                      ></b-form-checkbox-group>
+                    <b-form-checkbox-group
+                      :options="weekdays" size="sm" plain
+                      v-on:change="onSelectWeekdays($event, index)"
+                      v-bind:checked="setting.content.weekdays"
+                    ></b-form-checkbox-group>
                   </b-form-group>
                 </div>
 
@@ -228,15 +228,35 @@
                   <b-col><b>UserName</b></b-col>
                   <b-col><b>Privilege</b></b-col>
                 </b-row>
-                <b-row class="text-left manage-row"
+                <b-row class="text-left divide-top divide-bottom"
                   v-for="(user, index) in user.users"
                 >
-                  <b-col><b-link v-b-modal.modal-1 size="sm" variant="outline-primary"> <% user.username %> </b-link></b-col>
-                  <b-col> <% user.superuser %> </b-col>
+                  <b-col><b-link v-b-modal="'modal'+index" size="sm" variant="outline-primary"> <% user.username %> </b-link></b-col>
+                  <b-col> <% lvlToText(user.superuser) %> </b-col>
+
+                  <b-modal v-bind:id="'modal'+index" size="lg" centered title="User Management">
+                    <b-container fluid>
+                      <b-row class="divide-bottom">
+                        <b-col>Privilege</b-col>
+                        <custom-sel
+                          v-bind:options="userlvls"
+                          v-bind:index="index"
+                          v-bind:select="user.superuser"
+                          v-on:update-option="onSelectUserLvl($event, index)"
+                          class="select-privilege"
+                        ></custom-sel>
+                      </b-row>
+                      <b-row class="divide-top"> 
+                        <b-col>Accessible Fields</b-col>
+                        <b-form-checkbox-group
+                          class="custom-checkbox" size="sm"
+                          v-bind:options="projects.optionProjects" 
+                          v-bind:checked="projects.accessibleProjects"
+                        ></b-form-checkbox-group>
+                      </b-row>
+                    </b-container>
+                  </b-modal>
                 </b-row>
-                <b-modal id="modal-1" size="lg" centered title="BootstrapVue">
-                  <p class="my-4">Hello from modal!</p>
-                </b-modal>
               </div>
 
               <div v-if="!manageMode">

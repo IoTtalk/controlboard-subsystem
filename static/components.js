@@ -1,7 +1,7 @@
 Vue.component('custom-sel', {
     props: ['options', 'index', 'content', 'select'],
     methods:{
-        onTimingSelect(val) {
+        onSelect(val) {
             this.$emit("update-option", val, this.index, this.content);
             return;
         }
@@ -9,7 +9,7 @@ Vue.component('custom-sel', {
     template: `
         <b-form-select required size="sm" class="custom-select"
             :options="options"
-            v-on:change="onTimingSelect"
+            v-on:change="onSelect"
             v-model="select"
         ></b-form-select>
     `
@@ -84,7 +84,7 @@ Vue.component('project', {
     template: `
         <b-dropdown-item align-self="start">
             <b-img v-bind:src="field.icon"></b-img>
-            {{field.name}}
+            {{field.text}}
         </b-dropdown-item>
     `
 })
@@ -97,7 +97,7 @@ Vue.component('select-projects', {
                 <b-nav-item-dropdown right>
                     <template v-slot:button-content>
                         <b-img v-bind:src="projects[0].icon"></b-img>
-                        {{projects[0].name}}
+                        {{projects[0].text}}
                     </template>
                     <project 
                         v-for="field in projects.slice(1)"
