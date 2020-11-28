@@ -222,17 +222,16 @@
               </div>
             </div>
             <div v-if="manageMode && user.current.superuser">
-              <b-row v-if="!managePage" class="text-left">
-                <b-col style="font-size:large;">
-                  <b>ControlBoard</b>
-
-                </b-col>
-              </b-row>
               <b-row class="text-left">
-                  <b-col v-if="managePage"><b>UserName</b></b-col>
-                  <b-col v-if="managePage"><b>Privilege</b></b-col>
-                  <b-col v-if="!managePage"><b>CB Name</b></b-col>
-                  <b-col v-if="!managePage"><b>Actions</b></b-col>
+                <b-col v-if="managePage"><b>UserName</b></b-col>
+                <b-col v-if="managePage"><b>Privilege</b></b-col>
+                <b-col v-if="!managePage">
+                  <b>CB Name</b>
+                  <b-button size="sm" variant="light">
+                    <b-icon icon="plus" aria-hidden="true"></b-icon>
+                  </b-button>
+                </b-col>
+                <b-col v-if="!managePage"><b>Actions</b></b-col>
               </b-row>
               <b-row class="text-left divide-top divide-bottom"
                 v-for="(user, index) in user.users"

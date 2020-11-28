@@ -86,6 +86,14 @@ html, body {
   padding-right: 5px;
 }
 
+/* bootstrap-vue class of light button to create trapsparent background button*/
+.btn-light {
+  background-color: #ffffff;
+  border-color: #ffffff;
+  padding: 0px;
+  padding-bottom: 4px;
+}
+
 .setting-card {
   padding-left: 14.5px;
   padding-right: 14.5px;

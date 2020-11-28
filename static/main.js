@@ -4,7 +4,7 @@ var app = new Vue({
   delimiters: ["<%", "%>"],
   data: {
     manageMode: true,  // Switch bwtween CB page & manage page
-    managePage: true, // Used to switch active state between User/CB management
+    managePage: false, // Used to switch active state between User/CB management
     comparisons: [
       {value: null, text: ""},
       {value: "smaller", html: "&lt;"},
