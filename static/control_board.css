@@ -80,6 +80,12 @@ html, body {
   flex-flow: row nowrap;
 }
 
+/* bootstrap-vue class of dropdown-item */
+.dropdown-item {
+  padding-left: 15px;
+  padding-right: 5px;
+}
+
 .setting-card {
   padding-left: 14.5px;
   padding-right: 14.5px;

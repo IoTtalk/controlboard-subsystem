@@ -10,10 +10,8 @@
         <!-- Load required Bootstrap and BootstrapVue CSS -->
         <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap/dist/css/bootstrap.min.css" />
         <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.css" />
-        <link type="text/css" rel="stylesheet" href="../static/control_board.css" />
-
         <!-- Load polyfills to support older browsers -->
-        <!-- <script src="https://polyfill.io/v3/polyfill.min.js?features=es2015%2CIntersectionObserver" crossorigin="anonymous"></script> -->
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es2015%2CIntersectionObserver" crossorigin="anonymous"></script>
 
         <!-- Load Vue followed by BootstrapVue -->
         <!-- Develop version -->
@@ -25,6 +23,7 @@
         <!-- Load the following for BootstrapVueIcons support -->
         <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue-icons.min.js"></script>
 
+        <link type="text/css" rel="stylesheet" href="../static/control_board.css" />
     </head>
     <body>
       <div id=app>
@@ -65,13 +64,13 @@
                   v-for="(field, index) in fields.slice(7)"
                   v-bind:active="index + 7===currentField"
                   v-on:click="switchField(index + 7)"
-                  align-self="end"
+                  align-self="start"
                 > <% field %>
                 </b-dropdown-item>
-
-                <b-dropdown-item>
+                <b-dropdown-item align-self="start">
+                  <b-icon icon="tags-fill" aria-hidden="true"></b-icon>
                   Pin Field
-                  <b-img src="../static/imgs/pin.svg"></b-img>
+                  <!-- <b-img src="../static/imgs/pin.svg"></b-img> -->
                 </b-dropdown-item>
               </b-nav-item-dropdown>
               <b-nav-item
@@ -223,45 +222,48 @@
               </div>
             </div>
             <div v-if="manageMode && user.current.superuser">
-              <div v-if="manageMode">
-                <b-row class="text-left ">
-                  <b-col><b>UserName</b></b-col>
-                  <b-col><b>Privilege</b></b-col>
-                </b-row>
-                <b-row class="text-left divide-top divide-bottom"
-                  v-for="(user, index) in user.users"
-                >
-                  <b-col><b-link v-b-modal="'modal'+index" size="sm" variant="outline-primary"> <% user.username %> </b-link></b-col>
-                  <b-col> <% lvlToText(user.superuser) %> </b-col>
+              <b-row v-if="!managePage" class="text-left">
+                <b-col style="font-size:large;">
+                  <b>ControlBoard</b>
 
-                  <b-modal v-bind:id="'modal'+index" size="lg" centered title="User Management">
-                    <b-container fluid>
-                      <b-row class="divide-bottom">
-                        <b-col>Privilege</b-col>
-                        <custom-sel
-                          v-bind:options="userlvls"
-                          v-bind:index="index"
-                          v-bind:select="user.superuser"
-                          v-on:update-option="onSelectUserLvl($event, index)"
-                          class="select-privilege"
-                        ></custom-sel>
-                      </b-row>
-                      <b-row class="divide-top"> 
-                        <b-col>Accessible Fields</b-col>
-                        <b-form-checkbox-group
-                          class="custom-checkbox" size="sm"
-                          v-bind:options="projects.optionProjects" 
-                          v-bind:checked="projects.accessibleProjects"
-                        ></b-form-checkbox-group>
-                      </b-row>
-                    </b-container>
-                  </b-modal>
-                </b-row>
-              </div>
+                </b-col>
+              </b-row>
+              <b-row class="text-left">
+                  <b-col v-if="managePage"><b>UserName</b></b-col>
+                  <b-col v-if="managePage"><b>Privilege</b></b-col>
+                  <b-col v-if="!managePage"><b>CB Name</b></b-col>
+                  <b-col v-if="!managePage"><b>Actions</b></b-col>
+              </b-row>
+              <b-row class="text-left divide-top divide-bottom"
+                v-for="(user, index) in user.users"
+              >
+                <b-col><b-link v-b-modal="'modal'+index" size="sm" variant="outline-primary"> <% user.username %> </b-link></b-col>
+                <b-col> <% lvlToText(user.superuser) %> </b-col>
 
-              <div v-if="!manageMode">
+                <b-modal v-bind:id="'modal'+index" size="lg" centered title="User Management">
+                  <b-container fluid>
+                    <b-row class="divide-bottom">
+                      <b-col>Privilege</b-col>
+                      <custom-sel
+                        v-bind:options="userlvls"
+                        v-bind:index="index"
+                        v-bind:select="user.superuser"
+                        v-on:update-option="onSelectUserLvl($event, index)"
+                        class="select-privilege"
+                      ></custom-sel>
+                    </b-row>
+                    <b-row class="divide-top"> 
+                      <b-col>Accessible Fields</b-col>
+                      <b-form-checkbox-group
+                        class="custom-checkbox" size="sm"
+                        v-bind:options="projects.optionProjects" 
+                        v-bind:checked="projects.accessibleProjects"
+                      ></b-form-checkbox-group>
+                    </b-row>
+                  </b-container>
+                </b-modal>
+              </b-row>
 
-              </div>
             </div>
           </b-card-body>
         </b-card>
