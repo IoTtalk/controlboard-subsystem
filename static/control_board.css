@@ -188,7 +188,7 @@ html, body {
 }
 
 .select-privilege {
-  max-width: 70px;
+  max-width: fit-content;
 }
 
 .custom-checkbox {

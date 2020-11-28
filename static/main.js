@@ -5,6 +5,10 @@ var app = new Vue({
   data: {
     manageMode: true,  // Switch bwtween CB page & manage page
     managePage: false, // Used to switch active state between User/CB management
+    newCB: {
+      text: "",
+      shared: false
+    },
     comparisons: [
       {value: null, text: ""},
       {value: "smaller", html: "&lt;"},
@@ -273,6 +277,20 @@ var app = new Vue({
     onSelectUserLvl: function(event, userIndex) {
       console.log(event, userIndex);
       return;
+    },
+    onNewCBCreate: function() {
+      console.log("create cb triggered");
+      return;
+    },
+    onNewCBCancel: function() {
+      console.log("cancel cb triggered");
+      return;
+    },
+    onUserUpdateOK: function(index) {
+      console.log(index);
+    },
+    onUserUpdateCancel: function(index) {
+      console.log(index);
     }
   }
 

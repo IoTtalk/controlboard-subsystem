@@ -227,19 +227,34 @@
                 <b-col v-if="managePage"><b>Privilege</b></b-col>
                 <b-col v-if="!managePage">
                   <b>CB Name</b>
-                  <b-button size="sm" variant="light">
+                  <b-button size="sm" variant="light" v-b-modal="'CreateCB'">
                     <b-icon icon="plus" aria-hidden="true"></b-icon>
                   </b-button>
+                  <b-modal id="CreateCB" size="lg" centered title="Create ControlBoard"
+                    v-on:ok="onNewCBCreate" v-on:cancel="onNewCBCancel" v-on:close="onNewCBCancel"
+                  >
+                    <b-container fluid>
+                      ControlBoard 
+                      <b-form-input placeholder="Enter Your ControlBoard's Name Here"
+                        size="sm" v-model="newCB.text"
+                      ></b-form-input>
+                      <b-form-checkbox plain size="sm" class="mt-1"
+                        v-model="newCB.shared"
+                      >Visible to other users.</b-form-checkbox>
+                    </b-container>
+                  </b-modal>
                 </b-col>
                 <b-col v-if="!managePage"><b>Actions</b></b-col>
               </b-row>
               <b-row class="text-left divide-top divide-bottom"
-                v-for="(user, index) in user.users"
+                v-for="(user, index) in user.users" v-if="managePage"
               >
                 <b-col><b-link v-b-modal="'modal'+index" size="sm" variant="outline-primary"> <% user.username %> </b-link></b-col>
                 <b-col> <% lvlToText(user.superuser) %> </b-col>
-
-                <b-modal v-bind:id="'modal'+index" size="lg" centered title="User Management">
+                <b-modal v-bind:id="'modal'+index" size="lg" centered title="User Management"
+                  v-on:ok="onUserUpdateOK(index)" v-on:cancel="onUserUpdateCancel(index)" 
+                  v-on:close="onUserUpdateCancel(index)"
+                >
                   <b-container fluid>
                     <b-row class="divide-bottom">
                       <b-col>Privilege</b-col>
