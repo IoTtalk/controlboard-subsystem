@@ -226,7 +226,7 @@
                 <b-col v-if="managePage"><b>UserName</b></b-col>
                 <b-col v-if="managePage"><b>Privilege</b></b-col>
                 <b-col v-if="!managePage">
-                  <b>CB Name</b>
+                  <b>ControlBoard</b>
                   <b-button size="sm" variant="light" v-b-modal="'CreateCB'">
                     <b-icon icon="plus" aria-hidden="true"></b-icon>
                   </b-button>
@@ -249,7 +249,7 @@
               <b-row class="text-left divide-top divide-bottom"
                 v-for="(user, index) in user.users" v-if="managePage"
               >
-                <b-col><b-link v-b-modal="'modal'+index" size="sm" variant="outline-primary"> <% user.username %> </b-link></b-col>
+                <b-col><b-link v-b-modal="'modal'+index" size="sm" variant="outline-primary"><% user.username %></b-link></b-col>
                 <b-col> <% lvlToText(user.superuser) %> </b-col>
                 <b-modal v-bind:id="'modal'+index" size="lg" centered title="User Management"
                   v-on:ok="onUserUpdateOK(index)" v-on:cancel="onUserUpdateCancel(index)" 
@@ -276,6 +276,16 @@
                     </b-row>
                   </b-container>
                 </b-modal>
+              </b-row>
+
+              <b-row class="text-left divide-top divide-bottom"
+                v-for="(project, index) in projects.optionProjects" v-if="!managePage"
+              >
+                <b-col><% project.text %></b-col>
+                <b-col>
+                  <b-link v-b-modal="'deleteCB'" size="sm" variant="outline-primary" class="mr-1">Delete</b-link>
+                  <b-link v-b-modal="'resetIcon'" size="sm" variant="outline-primary">Icon</b-link>
+                </b-col>
               </b-row>
 
             </div>
