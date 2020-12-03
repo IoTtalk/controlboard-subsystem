@@ -5,6 +5,7 @@ var app = new Vue({
   data: {
     manageMode: true,  // Switch bwtween CB page & manage page
     managePage: false, // Used to switch active state between User/CB management
+    newCBIcon: null,
     newCB: {
       text: "",
       shared: false

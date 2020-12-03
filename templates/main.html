@@ -283,11 +283,29 @@
               >
                 <b-col><% project.text %></b-col>
                 <b-col>
-                  <b-link v-b-modal="'deleteCB'" size="sm" variant="outline-primary" class="mr-1">Delete</b-link>
-                  <b-link v-b-modal="'resetIcon'" size="sm" variant="outline-primary">Icon</b-link>
+                  <b-link v-b-modal="'deleteCB'+index" size="sm" variant="outline-primary" class="mr-3">Delete CB</b-link>
+                  <b-link v-b-modal="'cbIcon'+index" size="sm" variant="outline-primary">Icons</b-link>
+
+                  <b-modal v-bind:id="'deleteCB'+index" size="lg" centered title="Delete ControlBoard"
+                    v-on:ok="onUserUpdateOK(index)" v-on:cancel="onUserUpdateCancel(index)" 
+                    v-on:close="onUserUpdateCancel(index)"
+                  >
+                    Are you sure to delete ControlBoard <b><% project.text %></b>
+                  </b-modal>
+
+                  <b-modal v-bind:id="'cbIcon'+index" size="lg" centered title="User Management"
+                    v-on:ok="onUserUpdateOK(index)" v-on:cancel="onUserUpdateCancel(index)" 
+                    v-on:close="onUserUpdateCancel(index)"
+                  >
+                    <b-container fluid>
+                      <b-form-file
+                        v-model="newCBIcon"
+                        placeholder="Choose a file or drop it here"
+                      ></b-form-file>
+                    </b-container>
+                  </b-modal>
                 </b-col>
               </b-row>
-
             </div>
           </b-card-body>
         </b-card>
