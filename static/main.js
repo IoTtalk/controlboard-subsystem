@@ -279,19 +279,18 @@ var app = new Vue({
       console.log(event, userIndex);
       return;
     },
-    onNewCBCreate: function() {
-      console.log("create cb triggered");
+    onNewCBCreate: function(action) {
+      console.log(action);
       return;
     },
-    onNewCBCancel: function() {
-      console.log("cancel cb triggered");
-      return;
+    onUserUpdate: function(index, action) {
+      console.log(index, action);
     },
-    onUserUpdateOK: function(index) {
-      console.log(index);
+    onCBDelete: function(index, action) {
+      console.log(index, action);
     },
-    onUserUpdateCancel: function(index) {
-      console.log(index);
+    onIconUpload: function(index, action) {
+      console.log(index, action);
     }
   }
 
