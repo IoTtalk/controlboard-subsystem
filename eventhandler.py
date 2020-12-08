@@ -257,7 +257,7 @@ def create_sa():
 
     Args:
         account: The user's account who requests for this new SA.
-        cb_name: Name of this SA given by the user.
+        sa_name: Name of this SA given by the user.
 
     Returns:
         Status code: 200.
@@ -266,7 +266,7 @@ def create_sa():
     sa_spec = request.json
     with orm.db_session():
         mac_addr = str(uuid.uuid4())
-        sa = CB_SA(cb_name=sa_spec['cb_name'], ag_token='NotCreated', mac_addr=mac_addr, p_id=-1, do_id='-1')
+        sa = CB_SA(sa_name=sa_spec['sa_name'], ag_token='NotCreated', mac_addr=mac_addr, p_id=-1, do_id='-1')
         cb_db.commit()
         api_logger.info("Start Creating CB SA")
 
@@ -343,7 +343,7 @@ def delete_sa(sa_id):
 @apis.route('/subsystem/get_sa/<usr_account>', methods=['GET'])
 def get_sa(usr_account):
     '''
-    Get accessible sa_ids and cb_names of the specified user. Called when rendering SAs available to the user.
+    Get accessible sa_ids and sa_names of the specified user. Called when rendering SAs available to the user.
 
     Args:
         usr_account: the account of the user.
@@ -372,7 +372,7 @@ def get_sa(usr_account):
 #     new_cb = request.json
 #     with orm.db_session():
 #         cb = CB (
-#             cb_name=new_cb.text,
+#             sa_name=new_cb.text,
 #             shared=new_cb.shared
 #         )
 

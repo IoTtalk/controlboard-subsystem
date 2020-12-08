@@ -120,7 +120,7 @@ class AG_SA():
             sa_set = orm.Set("CB_SA")  # SAs this user can see.
 
         class CB(self.cb_db.Entity):
-            sa_id = orm.PrimaryKey(int, auto=True)
+            cb_id = orm.PrimaryKey(int, auto=True)
             cb_name = orm.Required(str)
             sa_set = set("CB_SA")
             account_set = orm.Set("CB_Account")  # accounts that can access this SA.
