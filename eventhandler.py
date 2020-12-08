@@ -8,7 +8,6 @@ from flask import render_template
 from flask import request
 from flask import session
 from flask import redirect
-import flask
 from pony import orm
 
 
@@ -25,27 +24,23 @@ from config import use_v1
 
 api_logger = make_logger('API', 'API')
 apis = Blueprint('api', __name__)
+logined_user = dict()
 
 
 @apis.route('/', methods=["GET"])
 def render_index():
-    return render_template("main.html")
-
-
-@apis.route('/sa/<sa_id>/')
-def render_SA(sa_id):
     '''
-    Render SA template of the SA with specified sa_id.
+    Render Function of main page.
 
-    Args:
-        sa_id: ID of the requester SA.
+    Args: None
 
     Returns:
         Rendered HTML template of the SA.
         Status code: 200.
     '''
-    raise NotImplementedError
-    return render_template("index.html"), 200
+    session["token"] = str(uuid.uuid4())
+    logined_user[session["token"]] = "test"
+    return render_template("main.html")
 
 
 @apis.route('/sa/<sa_id>/new_rules', methods=['POST'])
@@ -364,19 +359,37 @@ def get_sa(usr_account):
     return avail_sa, 200   # GET return cannot be list, must be dict or string or something... need to decide which type to use
 
 
-# @apis.route('/subsystem/create_cb', methods=['POST'])
-# def create_cb():
-#     '''
-#     Create a ControlBoard that contains no SA
-#     '''
-#     new_cb = request.json
-#     with orm.db_session():
-#         cb = CB (
-#             sa_name=new_cb.text,
-#             shared=new_cb.shared
-#         )
+@apis.route('/subsystem/create_cb', methods=['POST'])
+def create_cb():
+    '''
+    Create a Empty ControlBoard that contains no SA Field.
 
-#     return "Success", 200
+    Args:
+        "text": cb_name of this ControlBoard.
+        "shared": Whether to be seen by other users.
+    '''
+    api_logger.info("Create ControlBoard Triggered!")
+    new_cb = request.json
+    with orm.db_session():
+        cb = CB(
+            cb_name=new_cb["text"],
+            shared=new_cb["shared"]
+        )
+        try:
+            owner = CB_Account.get(account=logined_user[session["token"]])
+            if None is owner:
+                raise ValueError
+            cb.account_set.add(owner)
+        except KeyError:
+            api_logger.error("User not logined")
+            return "User not logined", 401
+        except ValueError:
+            api_logger.error("Non-existed User!")
+            return "Non-existed User!", 401
+        except Exception as err:
+            api_logger.error(err)
+            return "Unknown Error occurred, contact subsystem-admin to check error log!", 502
+    return "Success", 200
 
 
 @apis.route('/account/login', methods=['GET', 'POST'])
