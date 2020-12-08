@@ -280,7 +280,11 @@ var app = new Vue({
       return;
     },
     onNewCBCreate: function(action) {
-      console.log(action);
+      if (1 === action) {
+        
+      } else {
+
+      }
       return;
     },
     onUserUpdate: function(index, action) {

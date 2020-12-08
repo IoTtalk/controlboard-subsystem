@@ -14,7 +14,7 @@ import models
 from config import env_config
 from eventhandler import apis
 from models import cb_db
-from utils import connect_db, connect_zmq
+from utils import connect_db, connect_zmq, test_db
 from utils import make_logger, register_ag, get_iottalk_info
 from utils import running_sa, running_status
 
@@ -60,8 +60,8 @@ if __name__ == "__main__":
     system_logger.info('\tCreating EventHandler\t......done')
 
     connect_db(system_logger, models.cb_db)
-
     recover_sa(running_sa, env_config, system_logger)
+    test_db(system_logger)
 
     get_iottalk_info(system_logger)
 

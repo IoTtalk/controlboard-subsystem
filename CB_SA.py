@@ -111,7 +111,6 @@ class AG_SA():
             ag_token = orm.Required(orm.LongStr)  # AG-returned token
             mac_addr = orm.Required(orm.LongStr)  # Mac-addr of this SA
             rule_set = orm.Set(UserRule)
-            account_set = orm.Set("CB_Account")  # accounts that can access this SA.
             p_id = orm.Required(int)  # project id of this SA
             do_id = orm.Required(str)  # device object id for this SA.
 
@@ -120,10 +119,11 @@ class AG_SA():
             privilige = orm.Required(int)  # User level of this user.
             sa_set = orm.Set("CB_SA")  # SAs this user can see.
 
-        class CB_Field(self.cb_db.Entity):
+        class CB(self.cb_db.Entity):
             field_id = orm.PrimaryKey(int, auto=True)
             field_name = orm.Required(str)
             sa_set = set("CB_SA")
+            account_set = orm.Set("CB_Account")  # accounts that can access this SA.
 
     def connect_db(self):
         '''

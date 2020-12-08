@@ -15,7 +15,7 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 
 from config import env_config, reg_config, use_v1
-from models import UserRule, CB_Account, CB_SA
+from models import UserRule, CB_Account, CB_SA, CB
 
 
 # used to record AG SA. In format {sa_id: CB_SA entity}
@@ -138,7 +138,6 @@ def connect_db(logger, cb_db):
             cb_db.drop_all_tables(with_all_data=True)
             cb_db.disconnect()
             retry_times += 1
-
     return
 
 
@@ -153,28 +152,38 @@ def test_db(logger):
     Returns: None
     '''
     try:
-        test_account = CB_Account(
-            account='test',
-            privilige='1',
-        )
+        with orm.db_session():
+            test_account = CB_Account(
+                account='test',
+                privilige='1',
+            )
 
-        test_sa = CB_SA(
-            cb_name='test_sa',
-            account_set=test_account,
-            ag_token="testagtoken",
-            mac_addr=uuid.uuid4(),
-            p_id=-1
-        )
+            test_sa = CB_SA(
+                cb_name='test_sa',
+                ag_token="testagtoken",
+                mac_addr=str(uuid.uuid4()),
+                p_id=-1,
+                do_id="1234567"
+            )
 
-        test_rule = UserRule(
-            rule_type='Sensor',
-            actuator_alias='test_actuator',
-            sa=test_sa,
-            mode='auto'
-        )
+            test_cb = CB(
+                field_name="test_cb",
+                shared=0,
+                account_set=test_account
+            )
 
-        test_account.sa_set.add(test_sa)
-        test_sa.rule_set.add(test_rule)
+            test_rule = UserRule(
+                rule_type='Sensor',
+                actuator_alias='test_actuator',
+                sensor_alias="test_sensor",
+                period=0,
+                sa=test_sa,
+                mode='auto'
+            )
+
+            test_account.cb_set.add(test_cb)
+            test_cb.sa_set.add(test_sa)
+            test_sa.rule_set.add(test_rule)
 
         logger.info('\tTest database connection......done')
     except Exception as err:

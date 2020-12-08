@@ -358,6 +358,18 @@ def get_sa(usr_account):
     return avail_sa, 200   # GET return cannot be list, must be dict or string or something... need to decide which type to use
 
 
+@apis.route('/subsystem/create_cb', methods=['POST'])
+def create_cb():
+    '''
+    Create a ControlBoard that contains no SA
+    '''
+    new_cb = request.json
+    with orm.db_session():
+        print(new_cb)
+
+    return "Success", 200
+
+
 @apis.route('/account/login', methods=['GET', 'POST'])
 def login():
     # TODO: add redirect to AAA procedures.

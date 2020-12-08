@@ -29,10 +29,12 @@ class UserRule(cb_db.Entity):
     sa = Required("CB_SA")  # which SA it belongs to
 
 
-class CB_Field(cb_db.Entity):
+class CB(cb_db.Entity):
     field_id = PrimaryKey(int, auto=True)
     field_name = Required(str)
     sa_set = set("CB_SA")
+    shared = Required(int)
+    account_set = Set("CB_Account")  # accounts that can access this SA.
 
 
 class CB_SA(cb_db.Entity):
@@ -41,7 +43,6 @@ class CB_SA(cb_db.Entity):
     ag_token = Required(LongStr)  # AG-returned token
     mac_addr = Required(LongStr)  # Mac-addr of this SA
     rule_set = Set(UserRule)
-    account_set = Set("CB_Account")  # accounts that can access this SA.
     p_id = Required(int)  # project id of this SA
     do_id = Required(str)  # device object id for this SA.
 
@@ -49,4 +50,4 @@ class CB_SA(cb_db.Entity):
 class CB_Account(cb_db.Entity):
     account = Required(str)  # Account of this user.
     privilige = Required(int)  # User level of this user.
-    sa_set = Set(CB_SA)  # SAs this user can see.
+    cb_set = Set(CB)  # SAs this user can see.
