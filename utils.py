@@ -127,14 +127,14 @@ def connect_db(logger, cb_db):
             port=int(env_config['db']['port'])
         )
     cb_db.generate_mapping(check_tables=False)
-    cb_db.drop_all_tables(with_all_data=True)  # used to clean testcase
+    # cb_db.drop_all_tables(with_all_data=True)  # used to clean testcase
     while (retry_times < 3):
         try:
             cb_db.create_tables()
             logger.info('\tConnecting to Database\t......done')
             break
         except orm.dbapiprovider.InternalError:
-            logger.error('\t\tInternal Error Encountered, try remove tables and reconnect...')
+            logger.error('\t\tInternal Error Encountered, trying to remove tables and reconnect...')
             cb_db.drop_all_tables(with_all_data=True)
             cb_db.disconnect()
             retry_times += 1
@@ -159,7 +159,7 @@ def test_db(logger):
             )
 
             test_sa = CB_SA(
-                cb_name='test_sa',
+                sa_name='test_sa',
                 ag_token="testagtoken",
                 mac_addr=str(uuid.uuid4()),
                 p_id=-1,
@@ -207,10 +207,10 @@ def status_receiver(msg):
     status = json.loads(msg[0].decode('utf-8'))
     print("Server received", status)
     try:
-        cb_id = status["cb_id"]
-        status.pop("cb_id")
-        running_status[cb_id] = status
-        status_logger.info(f"Receive status from CB {cb_id}")
+        sa_id = status["sa_id"]
+        status.pop("sa_id")
+        running_status[sa_id] = status
+        status_logger.info(f"Receive status from CB {sa_id}")
         status_logger.info(status)
     except KeyError:
         status_logger.error("Receive status error")
@@ -285,7 +285,7 @@ def create_proj_ag(sa, logger):
     data = {
         "api_name": "project.create",
         "payload": json.dumps({
-            "p_name": sa.cb_name
+            "p_name": sa.sa_name
         })
     }
     try:
@@ -365,7 +365,7 @@ def register_ag(sa, logger):
         ag_token: Token retrived from AG.
     '''
     try:
-        new_sa = open('./CB_SA.py', 'r').read().format(cb_id=sa.cb_id, config=reg_config, mac_addr=sa.mac_addr)
+        new_sa = open('./CB_SA.py', 'r').read().format(sa_id=sa.sa_id, config=reg_config, mac_addr=sa.mac_addr)
         data = {
             'version': env_config["IoTtalk"]["version"],
             'code': new_sa
@@ -402,7 +402,7 @@ def deregister_ag(sa, logger):
         _post('delete_device', data)
 
         with orm.db_session():
-            CB_SA[sa.cb_id].delete()
+            CB_SA[sa.sa_id].delete()
         return True
     except Exception as err:
         logger.error(err)

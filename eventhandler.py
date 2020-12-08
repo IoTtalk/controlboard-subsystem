@@ -8,6 +8,7 @@ from flask import render_template
 from flask import request
 from flask import session
 from flask import redirect
+import flask
 from pony import orm
 
 
@@ -17,7 +18,7 @@ from utils import create_proj_ag, delete_proj_ag
 from utils import create_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag
 from models import cb_db
-from models import UserRule, CB_Account, CB_SA
+from models import UserRule, CB_Account, CB_SA, CB
 from config import default_rules
 from config import use_v1
 
@@ -26,13 +27,18 @@ api_logger = make_logger('API', 'API')
 apis = Blueprint('api', __name__)
 
 
-@apis.route('/sa/<cb_id>/')
-def render_SA(cb_id):
+@apis.route('/', methods=["GET"])
+def render_index():
+    return render_template("main.html")
+
+
+@apis.route('/sa/<sa_id>/')
+def render_SA(sa_id):
     '''
-    Render SA template of the SA with specified cb_id.
+    Render SA template of the SA with specified sa_id.
 
     Args:
-        cb_id: ID of the requester SA.
+        sa_id: ID of the requester SA.
 
     Returns:
         Rendered HTML template of the SA.
@@ -42,14 +48,14 @@ def render_SA(cb_id):
     return render_template("index.html"), 200
 
 
-@apis.route('/sa/<cb_id>/new_rules', methods=['POST'])
+@apis.route('/sa/<sa_id>/new_rules', methods=['POST'])
 @orm.db_session
-def set_rules(cb_id):
+def set_rules(sa_id):
     '''
     Set the rules contained in the request sent from the specified SA.
 
     Args:
-        cb_id: ID of the requester SA.
+        sa_id: ID of the requester SA.
         request: A list of rule settings in json format.
 
     Returns:
@@ -62,7 +68,7 @@ def set_rules(cb_id):
             400: a string containing invalid actuators.
             502: "Internal Server Error".
     '''
-    api_logger.info(f'Start setting new rules of SA NO. {cb_id}')
+    api_logger.info(f'Start setting new rules of SA NO. {sa_id}')
     invalid_list = list()
     for rule_settings in request.json:
         print(rule_settings)
@@ -86,11 +92,11 @@ def set_rules(cb_id):
         invalid_actuators = str()
         for actuator_alias in invalid_list:
             invalid_actuators += (actuator_alias + ' ')
-        api_logger.info(f'Invalid new rules of SA NO. {cb_id} detected, abort all.')
+        api_logger.info(f'Invalid new rules of SA NO. {sa_id} detected, abort all.')
         return f'Abnormal threshold setting of {invalid_actuators}detected, aborting all', 400
 
     api_logger.info('\tStart setting rules')
-    sa = CB_SA[cb_id]
+    sa = CB_SA[sa_id]
     for rule_settings in request.json:
         actuator_alias = rule_settings['actuator_alias']
         if rule_settings['rule_type'] == 'timer':
@@ -113,8 +119,8 @@ def set_rules(cb_id):
             api_logger.error('Multiple Rules for the same mapping found')
             return "Internal Server Error", 502
 
-    if cb_id in running_sa:
-        status = deregister_ag(running_sa[cb_id], api_logger)
+    if sa_id in running_sa:
+        status = deregister_ag(running_sa[sa_id], api_logger)
         if not status:
             api_logger.error("Change User configuraion failed, check API logs")
             return "Internal Server Error", 502
@@ -124,7 +130,7 @@ def set_rules(cb_id):
         api_logger.error("Change User configuraion failed, check API logs")
         return "Internal Server Error", 502
     sa.ag_token = ag_token
-    running_sa[sa.cb_id] = sa
+    running_sa[sa.sa_id] = sa
 
     do_id = [int(id) for id in sa.do_id.split(',')]
     status = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
@@ -136,14 +142,14 @@ def set_rules(cb_id):
     return 'Configuration Saved', 200
 
 
-@apis.route('/sa/<cb_id>/stop', methods=['GET'])
+@apis.route('/sa/<sa_id>/stop', methods=['GET'])
 @orm.db_session
-def stop_SA(cb_id):
+def stop_SA(sa_id):
     '''
-    Stop all actuator execution and pends the SA with specified cb_id.
+    Stop all actuator execution and pends the SA with specified sa_id.
 
     Args:
-        cb_id: ID of the requester SA.
+        sa_id: ID of the requester SA.
 
     Returns:
         Status code:
@@ -154,36 +160,36 @@ def stop_SA(cb_id):
             502: 'Internal Server Error'.
     '''
     try:
-        sa = running_sa[cb_id]
+        sa = running_sa[sa_id]
         rules = sa.rule_set
 
         for rule in rules:
             rule.set(**default_rules)
 
         if not deregister_ag(sa, api_logger):
-            return f"stop SA {cb_id} failed at deregistering, check API log files", 502
+            return f"stop SA {sa_id} failed at deregistering, check API log files", 502
 
         status, ag_token = register_ag(sa, api_logger)
         if not status:
-            return f"stop SA {cb_id} failed at registering, check API log files", 502
+            return f"stop SA {sa_id} failed at registering, check API log files", 502
         sa.ag_token = ag_token
 
         if not bind_device_ag(sa.mac_addr, sa.p_id, sa.do_id, api_logger):
-            return f"stop SA {cb_id} failed at re-binding, check API log files", 502
+            return f"stop SA {sa_id} failed at re-binding, check API log files", 502
 
         return 'Stop Done', 200
     except KeyError:
         return "Specified SA is not running", 400
 
 
-@apis.route('/sa/<cb_id>/rules', methods=['GET'])
+@apis.route('/sa/<sa_id>/rules', methods=['GET'])
 @orm.db_session
-def get_rules(cb_id):
+def get_rules(sa_id):
     '''
     Get the rules contained in the specified SA.
 
     Args:
-        cb_id: ID of the requester SA.
+        sa_id: ID of the requester SA.
 
     Returns:
         Status code: 200.
@@ -193,8 +199,8 @@ def get_rules(cb_id):
     '''
     res_list = list()
     try:
-        sa = running_sa[cb_id]
-        rules = UserRule.select(lambda r: r.sa.cb_id == sa.cb_id)[:]
+        sa = running_sa[sa_id]
+        rules = UserRule.select(lambda r: r.sa.sa_id == sa.sa_id)[:]
     except KeyError:
         api_logger.info("Specified SA not running")
         return "Specified SA not running", 400
@@ -210,20 +216,20 @@ def get_rules(cb_id):
     return jsonify(res_list), 200
 
 
-@apis.route('/sa/<cb_id>current_data', methods=['POST'])
+@apis.route('/sa/<sa_id>current_data', methods=['POST'])
 @orm.db_session
-def set_datum(cb_id):
+def set_datum(sa_id):
     pass
 
 
-@apis.route('/sa/<cb_id>/current_data', methods=['GET'])
+@apis.route('/sa/<sa_id>/current_data', methods=['GET'])
 @orm.db_session
-def get_datum(cb_id):
+def get_datum(sa_id):
     '''
     Get the datum of sensors manipulated by the specified SA.
 
     Args:
-        cb_id: ID of the requester SA.
+        sa_id: ID of the requester SA.
 
     Returns:
         Status code: 200.
@@ -231,13 +237,13 @@ def get_datum(cb_id):
     '''
     res_dict = dict()
     try:
-        rules = running_sa[cb_id].rule_set
+        rules = running_sa[sa_id].rule_set
     except KeyError:
         api_logger.error("Specified SA not running")
         return "Specified SA not running", 400
 
     for rule in rules:
-        stats = running_status[cb_id][rule.sensor_alias]
+        stats = running_status[sa_id][rule.sensor_alias]
         stats['time'] = datetime.datetime.now().strftime('%H:%M')
         res_dict[rule.sensor_alias] = stats
 
@@ -297,26 +303,26 @@ def create_sa():
             sa.delete()
             return "Create SA failed at auto binding, check api log files", 400
 
-    running_sa[sa.cb_id] = sa
-    api_logger.info(f'Create New SA, SA_ID: {sa.cb_id}')
+    running_sa[sa.sa_id] = sa
+    api_logger.info(f'Create New SA, SA_ID: {sa.sa_id}')
 
     return "Create SA succeeded", 200
 
 
-@apis.route('/subsystem/delete_sa/<cb_id>', methods=['POST'])
-def delete_sa(cb_id):
+@apis.route('/subsystem/delete_sa/<sa_id>', methods=['POST'])
+def delete_sa(sa_id):
     '''
-    Delete SA with specified cb_id.
+    Delete SA with specified sa_id.
 
     Args:
-        cb_id: ID of the requester SA.
+        sa_id: ID of the requester SA.
 
     Returns:
         Status code: 200.
         message: 'SA deleted successfully'.
     '''
     try:
-        sa = running_sa[int(cb_id)]
+        sa = running_sa[int(sa_id)]
         status = deregister_ag(sa, api_logger)
         if not status:
             api_logger.error("Deregister SA failed, check api log file")
@@ -327,7 +333,7 @@ def delete_sa(cb_id):
             api_logger.error("Delete project failed, check api log file")
             return "Delete SA failed, check api log files", 502
 
-        api_logger.info(f"Delete Running SA, SA_ID: {sa.cb_id}")
+        api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
         return "Delete SA succeed", 200
     except KeyError:
         api_logger.info('Specified ControlBoard not running')
@@ -337,14 +343,14 @@ def delete_sa(cb_id):
 @apis.route('/subsystem/get_sa/<usr_account>', methods=['GET'])
 def get_sa(usr_account):
     '''
-    Get accessible cb_ids and cb_names of the specified user. Called when rendering SAs available to the user.
+    Get accessible sa_ids and cb_names of the specified user. Called when rendering SAs available to the user.
 
     Args:
         usr_account: the account of the user.
 
     Returns:
         Status code: 200.
-        avail_sa: A list of CB SAs, each element is composed of cb_id and cb_name of the corresponging SA.
+        avail_sa: A list of CB SAs, each element is composed of sa_id and sa_name of the corresponging SA.
     '''
     avail_sa = list()
     with orm.db_session():
@@ -352,22 +358,25 @@ def get_sa(usr_account):
         for acc in accs:
             # acc_dict = acc.to_dict()
             for sa in acc.sa_set:
-                avail_sa.append((sa.cb_id, sa.cb_name))
+                avail_sa.append((sa.sa_id, sa.sa_name))
 
     print(avail_sa)
     return avail_sa, 200   # GET return cannot be list, must be dict or string or something... need to decide which type to use
 
 
-@apis.route('/subsystem/create_cb', methods=['POST'])
-def create_cb():
-    '''
-    Create a ControlBoard that contains no SA
-    '''
-    new_cb = request.json
-    with orm.db_session():
-        print(new_cb)
+# @apis.route('/subsystem/create_cb', methods=['POST'])
+# def create_cb():
+#     '''
+#     Create a ControlBoard that contains no SA
+#     '''
+#     new_cb = request.json
+#     with orm.db_session():
+#         cb = CB (
+#             cb_name=new_cb.text,
+#             shared=new_cb.shared
+#         )
 
-    return "Success", 200
+#     return "Success", 200
 
 
 @apis.route('/account/login', methods=['GET', 'POST'])

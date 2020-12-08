@@ -40,8 +40,8 @@ def recover_sa(running_sa, config, logger):
         status, ag_token = register_ag(sa, logger)
         if status:
             sa.ag_token = ag_token
-            running_sa[sa.cb_id] = sa
-            running_status[sa.cb_id] = dict()
+            running_sa[sa.sa_id] = sa
+            running_status[sa.sa_id] = dict()
     logger.info('Start Recovering SAs in Database......done')
     print(running_sa)
     return

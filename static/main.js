@@ -281,7 +281,14 @@ var app = new Vue({
     },
     onNewCBCreate: function(action) {
       if (1 === action) {
-        
+        axios
+          .post('./subsystem/create_cb', this.newCB)
+          .then(function (res) {
+            console.log(res);
+          })
+          .catch(function(error) {
+            console.log(error)
+          })
       } else {
 
       }

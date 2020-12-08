@@ -16,12 +16,12 @@ import DAN
 
 
 class AG_SA():
-    def __init__(self, cb_id, config, mac_addr):
+    def __init__(self, sa_id, config, mac_addr):
         '''
         Initialization of a CB_SA
 
         Args:
-            cb_id: ID of this CB_SA from Database.
+            sa_id: ID of this CB_SA from Database.
             mappings: Mapping of actuator to sensors.
             config: Infomation for connecting to Subsystem, should contain IP, port, username, password.
 
@@ -30,7 +30,7 @@ class AG_SA():
             {{
                 'actuator_alias': (sensor_alias, DF order on IoTTalk GUI)
             }}
-            cb_id: ID for this SA, used in Database querying.
+            sa_id: ID for this SA, used in Database querying.
             df_hist_val: History values of sensors manipulated by this SA.
             config: Database config containing the following information.
                 host: IP address of the database.
@@ -47,7 +47,7 @@ class AG_SA():
         '''
         self.mappings = dict()
         self.df_hist_val = dict()
-        self.cb_id = cb_id
+        self.sa_id = sa_id
         self.config = config
         self.cb_db = orm.Database()
         if mac_addr != 'None':
@@ -73,7 +73,7 @@ class AG_SA():
         }}
 
         ctlboard_profile = {{
-            'd_name': str(cb_id) + '.Controlboard',
+            'd_name': str(sa_id) + '.Controlboard',
             'dm_name': 'ControlBoard',
             'u_name': 'yb',
             'is_sim': False,
@@ -106,8 +106,8 @@ class AG_SA():
             sa = orm.Required("CB_SA")  # which SA it belongs to
 
         class CB_SA(self.cb_db.Entity):
-            cb_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
-            cb_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
+            sa_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
+            sa_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
             ag_token = orm.Required(orm.LongStr)  # AG-returned token
             mac_addr = orm.Required(orm.LongStr)  # Mac-addr of this SA
             rule_set = orm.Set(UserRule)
@@ -120,8 +120,8 @@ class AG_SA():
             sa_set = orm.Set("CB_SA")  # SAs this user can see.
 
         class CB(self.cb_db.Entity):
-            field_id = orm.PrimaryKey(int, auto=True)
-            field_name = orm.Required(str)
+            sa_id = orm.PrimaryKey(int, auto=True)
+            cb_name = orm.Required(str)
             sa_set = set("CB_SA")
             account_set = orm.Set("CB_Account")  # accounts that can access this SA.
 
@@ -195,7 +195,7 @@ class AG_SA():
                         alias_out = alias_out[0].replace('-I', '')
                         self.mappings[alias_out] = (alias_in, i)
                         self.status[alias_in] = {{
-                            'cb_id': self.cb_id,
+                            'sa_id': self.sa_id,
                             'status': 'GREEN',
                             'prev_trigger': -10000,
                             'value': 0
@@ -209,10 +209,10 @@ class AG_SA():
                     print('End of finding alias')
                     break
 
-        print(self.mappings, self.cb_id)
+        print(self.mappings, self.sa_id)
 
         # Recover Rules from database according to fetched alias.
-        sa = self.cb_db.CB_SA[self.cb_id]
+        sa = self.cb_db.CB_SA[self.sa_id]
         rules = sa.rule_set
         for actuator_alias, (sensor_alias, order) in self.mappings.items():
             new_rule = rules.filter(lambda rule: rule.actuator_alias == actuator_alias and rule.sensor_alias == sensor_alias)[:]
@@ -238,7 +238,7 @@ class AG_SA():
         Returns:
             None
         '''
-        sa = self.cb_db.CB_SA[self.cb_id]
+        sa = self.cb_db.CB_SA[self.sa_id]
         for rule in sa.rule_set:
             status = self.status[rule.sensor_alias]
             if rule.mode == 'on':
@@ -524,7 +524,7 @@ class AG_SA():
         return satisfied, status
 
 
-sa = AG_SA('{cb_id}', {config}, '{mac_addr}')
+sa = AG_SA('{sa_id}', {config}, '{mac_addr}')
 
 sa.connect_db()
 sa.recover()
