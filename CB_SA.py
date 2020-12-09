@@ -117,11 +117,12 @@ class AG_SA():
         class CB_Account(self.cb_db.Entity):
             account = orm.Required(str)  # Account of this user.
             privilige = orm.Required(int)  # User level of this user.
-            sa_set = orm.Set("CB_SA")  # SAs this user can see.
+            cb_set = orm.Set("CB")  # CBs this user can see.
 
         class CB(self.cb_db.Entity):
             cb_id = orm.PrimaryKey(int, auto=True)
             cb_name = orm.Required(str)
+            shared = orm.Required(bool)
             sa_set = set("CB_SA")
             account_set = orm.Set("CB_Account")  # accounts that can access this SA.
 

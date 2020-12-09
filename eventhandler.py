@@ -111,18 +111,18 @@ def set_rules(sa_id):
                 sa=sa
             )
         except orm.MultipleRowsFound:
-            api_logger.error('Multiple Rules for the same mapping found')
+            api_logger.error("Error creating new rule, Multiple Rules for the same mapping found")
             return "Internal Server Error", 502
 
     if sa_id in running_sa:
         status = deregister_ag(running_sa[sa_id], api_logger)
         if not status:
-            api_logger.error("Change User configuraion failed, check API logs")
+            api_logger.error("Error creating new rule, Change User configuraion failed, check API logs")
             return "Internal Server Error", 502
 
     status, ag_token = register_ag(sa, api_logger)
     if not status:
-        api_logger.error("Change User configuraion failed, check API logs")
+        api_logger.error("Error creating new rule, Change User configuraion failed, check API logs")
         return "Internal Server Error", 502
     sa.ag_token = ag_token
     running_sa[sa.sa_id] = sa
@@ -131,7 +131,7 @@ def set_rules(sa_id):
     status = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
 
     if not status:
-        api_logger.error("Change User configuraion failed, check API logs")
+        api_logger.error("Error creating new rule, Change User configuraion failed, check API logs")
         return "Internal Server Error", 502
 
     return 'Configuration Saved', 200
@@ -234,7 +234,7 @@ def get_datum(sa_id):
     try:
         rules = running_sa[sa_id].rule_set
     except KeyError:
-        api_logger.error("Specified SA not running")
+        api_logger.error("Error getting SA's current data, Specified SA not running")
         return "Specified SA not running", 400
 
     for rule in rules:
@@ -320,12 +320,12 @@ def delete_sa(sa_id):
         sa = running_sa[int(sa_id)]
         status = deregister_ag(sa, api_logger)
         if not status:
-            api_logger.error("Deregister SA failed, check api log file")
+            api_logger.error("Error delete SA, Deregister SA failed, check api log file")
             return "Delete SA failed, check api log files", 502
 
         status = delete_proj_ag(sa.p_id, api_logger)
         if not status:
-            api_logger.error("Delete project failed, check api log file")
+            api_logger.error("Error delete SA, Delete project failed, check api log file")
             return "Delete SA failed, check api log files", 502
 
         api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
@@ -367,6 +367,10 @@ def create_cb():
     Args:
         "text": cb_name of this ControlBoard.
         "shared": Whether to be seen by other users.
+
+    Returns:
+        Status Code: 200 / 401 / 500.
+        Message: Corresponding execution result.
     '''
     api_logger.info("Create ControlBoard Triggered!")
     new_cb = request.json
@@ -381,15 +385,53 @@ def create_cb():
                 raise ValueError
             cb.account_set.add(owner)
         except KeyError:
-            api_logger.error("User not logined")
+            api_logger.error("Error Create CB, User not logined")
             return "User not logined", 401
         except ValueError:
-            api_logger.error("Non-existed User!")
+            api_logger.error("Error Create CB, Non-existed User!")
             return "Non-existed User!", 401
         except Exception as err:
             api_logger.error(err)
             return "Unknown Error occurred, contact subsystem-admin to check error log!", 502
     return "Success", 200
+
+
+@apis.route('/subsystem/delete_cb', methods=['POST'])
+def delete_cb():
+    '''
+    Delete CB and corresponding SAs with specified cb_id.
+
+    Args:
+        cb_id: ID of the specified retrived from function `get_cb`
+
+    Returns:
+        Status Code: 200 / 401 / 500.
+        Message: Corresponding execution result.
+    '''
+
+
+
+@apis.route('/subsystem/get_cb', methods=['GET'])
+def get_cb():
+    '''
+    Returns Accessible CB list of current logined user
+
+    Args:
+        None
+    Returns:
+
+    '''
+    try:
+        account = CB_Account.get(logined_user[session["token"]])
+        if None is account:
+            raise ValueError
+    except KeyError:
+        api_logger.error("Error Getting ControlBoard, User not logined.")
+        # TODO: redirect to AAA login page.
+        return 
+    except ValueError:
+        api_logger.error("Error Getting ControlBoard, No such user.")
+    
 
 
 @apis.route('/account/login', methods=['GET', 'POST'])

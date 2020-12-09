@@ -88,7 +88,7 @@ def make_logger(log_name, log_file):
     fh = logging.FileHandler(log_file_path)
     fh.setLevel(logging.INFO)
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(module)s - \t%(lineno)s - \t%(message)s')
     sh.setFormatter(formatter)
     fh.setFormatter(formatter)
 

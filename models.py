@@ -50,4 +50,4 @@ class CB_SA(cb_db.Entity):
 class CB_Account(cb_db.Entity):
     account = Required(str)  # Account of this user.
     privilige = Required(int)  # User level of this user.
-    cb_set = Set(CB)  # SAs this user can see.
+    cb_set = Set(CB)  # CBs this user can see.
