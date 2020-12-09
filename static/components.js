@@ -81,9 +81,16 @@ Vue.component('actuator-row', {
 
 Vue.component('project', {
     props: ['field'],
+    methods: {
+        onSelectCB: function() {
+            this.$emit("selectCB");
+            return;
+        }
+    },
     template: `
-        <b-dropdown-item align-self="start">
-            <b-img v-bind:src="field.icon"></b-img>
+        <b-dropdown-item
+            v-on:click="onSelectCB"
+        >   <b-img v-bind:src="field.icon"></b-img>
             {{field.text}}
         </b-dropdown-item>
     `
@@ -91,17 +98,27 @@ Vue.component('project', {
 
 Vue.component('select-projects', {
     props: ['projects'],
+    methods: {
+        onSelectCB: function(projectIndex) {
+            var temp = this.projects[0];
+            this.$set(this.projects, 0, this.projects[projectIndex]);
+            this.$set(this.projects, projectIndex, temp);
+            console.log(this.projects);
+            return;
+        }
+    },
     template: `
         <div>
             <b-navbar-nav>
-                <b-nav-item-dropdown right>
+                <b-nav-item-dropdown>
                     <template v-slot:button-content>
                         <b-img v-bind:src="projects[0].icon"></b-img>
                         {{projects[0].text}}
                     </template>
                     <project 
-                        v-for="field in projects.slice(1)"
+                        v-for="(field, index) in projects.slice(1)"
                         v-bind:field="field"
+                        v-on:selectCB="onSelectCB(index)"
                     ></project>
                 </b-nav-item-dropdown>
             </b-navbar-nav>

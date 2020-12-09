@@ -35,6 +35,7 @@ class CB(cb_db.Entity):
     sa_set = set("CB_SA")
     shared = Required(bool)
     account_set = Set("CB_Account")  # accounts that can access this SA.
+    icon = Required(str)
 
 
 class CB_SA(cb_db.Entity):
@@ -49,5 +50,5 @@ class CB_SA(cb_db.Entity):
 
 class CB_Account(cb_db.Entity):
     account = Required(str)  # Account of this user.
-    privilige = Required(int)  # User level of this user.
+    privilege = Required(int)  # User level of this user.
     cb_set = Set(CB)  # CBs this user can see.

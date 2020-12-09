@@ -116,7 +116,7 @@ class AG_SA():
 
         class CB_Account(self.cb_db.Entity):
             account = orm.Required(str)  # Account of this user.
-            privilige = orm.Required(int)  # User level of this user.
+            privilege = orm.Required(int)  # User level of this user.
             cb_set = orm.Set("CB")  # CBs this user can see.
 
         class CB(self.cb_db.Entity):

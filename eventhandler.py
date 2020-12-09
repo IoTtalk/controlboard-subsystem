@@ -1,4 +1,5 @@
 import datetime
+import os
 import uuid
 
 
@@ -410,7 +411,6 @@ def delete_cb():
     '''
 
 
-
 @apis.route('/subsystem/get_cb', methods=['GET'])
 def get_cb():
     '''
@@ -419,19 +419,52 @@ def get_cb():
     Args:
         None
     Returns:
+        Status code: 200, 401
+        accessible_cb: A Dict containing 2 lists
+            accessibleProjects: A list containing all CB_ids owned/shared to this user.
+            optionProjects: A list of CBs including all CBs shared to this user.
 
+            If user is not a superuser, that `accessibleProjects` will be exactly the same as `optionProjects`.
+            Otherwise `optionProjects` would contains all CBs.
     '''
     try:
-        account = CB_Account.get(logined_user[session["token"]])
-        if None is account:
-            raise ValueError
+        with orm.db_session():
+            account = CB_Account.get(account=logined_user[session["token"]])
+            if None is account:
+                raise ValueError
+            accessible_cb = list()
+            for cb in account.cb_set:
+                accessible_cb.append(cb.cb_id)
+
+            option_cb = list()
+            if account.privilege:
+                all_cbs = CB.select()
+                for cb in all_cbs:
+                    icon_path = os.path.join("..", "static", "imgs", cb.icon)
+                    option_cb.append({
+                        "icon": icon_path,
+                        "text": cb.cb_name,
+                        "value": cb.cb_id
+                    })
+            else:
+                for cb in account.cb_set():
+                    icon_path = os.path.join("../static/imgs", cb.icon)
+                    option_cb.append({
+                        "icon": icon_path,
+                        "text": cb.cb_name,
+                        "value": cb.cb_id
+                    })
+        return jsonify({
+            "accessibleProjects": accessible_cb,
+            "optionProjects": option_cb
+        }), 200
     except KeyError:
         api_logger.error("Error Getting ControlBoard, User not logined.")
         # TODO: redirect to AAA login page.
-        return 
+        return "Not done", 401
     except ValueError:
         api_logger.error("Error Getting ControlBoard, No such user.")
-    
+        return "No such User", 401
 
 
 @apis.route('/account/login', methods=['GET', 'POST'])

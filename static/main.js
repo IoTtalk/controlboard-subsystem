@@ -59,27 +59,24 @@ var app = new Vue({
         {"superuser": 0, "username": "awscloud666@gmail.com"},
       ]
     },
-    accessibleProjects: [ // Accessible projects of current logined user
-      {icon: "../static/imgs/landscape.svg", text: "Hello World"},
-      {icon: "../static/imgs/landscape.svg", text: "test_1"},
-      {icon: "../static/imgs/landscape.svg", text: "test_2"},
-      {icon: "../static/imgs/landscape.svg", text: "test_3"},
-      {icon: "../static/imgs/landscape.svg", text: "test_4"},
-      {icon: "../static/imgs/landscape.svg", text: "test_5"},
-      {icon: "../static/imgs/landscape.svg", text: "test_6"},
-      {icon: "../static/imgs/landscape.svg", text: "test_7"}
-    ],
     projects: { // All Shared projects of CB Subsystem + User's projects
-      accessibleProjects: [5, 7, 8, 10], // Accessible CBs' IDs 
-      optionProjects: [
-        {text: "test_7", value: 10},
-        {text: "test_8", value: 7},
-        {text: "test_9", value: 8},
-        {text: "test_10", value: 5},
-        {text: "test_11", value: 0},
-        {text: "test_12", value: 1},
-        {text: "test_13", value: 2}
-      ]
+      // accessibleProjects: [5, 7, 8, 10], // Accessible CBs' IDs 
+      // optionProjects: [
+      //   {text: "test_7", value: 10, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_8", value: 7, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_9", value: 8, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_10", value: 5, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_11", value: 0, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_12", value: 1, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_13", value: 2, icon: "../static/imgs/landscape.svg"},
+      //   {text: "Hello World", value: 3, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_1", value: 4, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_2", value: 6, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_3", value: 9, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_4", value: 11, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_5", value: 12, icon: "../static/imgs/landscape.svg"},
+      //   {text: "test_6", value: 13, icon: "../static/imgs/landscape.svg"}
+      // ]
     },
     pinnedFields: [
       "Field111111111111111111111111111", "Field2", "Field3", "Field4", "Field5"  
@@ -161,6 +158,29 @@ var app = new Vue({
         }
       }
     ]
+  },
+  created: function() {
+    var self = this;
+    axios
+      .get('/subsystem/get_cb')
+      .then(function(res) {
+        console.log(res);
+        self.projects = res.data;
+      })
+      .catch(function(err) {
+        console.log(err);
+      })
+      return;
+  },
+  computed: {
+    accessibleProjects: function() {
+      toAccess = [];
+      for (projectIdx in this.projects.accessibleProjects) {
+        toAccess.push(this.projects.optionProjects[projectIdx])
+      }
+      console.log(toAccess);
+      return toAccess;
+    }
   },
   methods: {
     getDefaultSensorSettings: function() {
@@ -290,7 +310,7 @@ var app = new Vue({
             console.log(error)
           })
       } else {
-        
+
       }
       return;
     },
@@ -302,6 +322,9 @@ var app = new Vue({
     },
     onIconUpload: function(index, action) {
       console.log(index, action);
+    },
+    onGetAllCB: function() {
+
     }
   }
 

@@ -155,7 +155,7 @@ def test_db(logger):
         with orm.db_session():
             test_account = CB_Account(
                 account='test',
-                privilige='1',
+                privilege='1',
             )
 
             test_sa = CB_SA(
@@ -169,7 +169,8 @@ def test_db(logger):
             test_cb = CB(
                 cb_name="test_cb",
                 shared=0,
-                account_set=test_account
+                account_set=test_account,
+                icon="landscape.svg"
             )
 
             test_rule = UserRule(
