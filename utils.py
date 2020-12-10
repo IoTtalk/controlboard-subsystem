@@ -158,19 +158,20 @@ def test_db(logger):
                 privilege='1',
             )
 
-            test_sa = CB_SA(
-                sa_name='test_sa',
-                ag_token="testagtoken",
-                mac_addr=str(uuid.uuid4()),
-                p_id=-1,
-                do_id="1234567"
-            )
-
             test_cb = CB(
                 cb_name="test_cb",
                 shared=0,
                 account_set=test_account,
                 icon="landscape.svg"
+            )
+
+            test_sa = CB_SA(
+                sa_name='test_sa',
+                ag_token="testagtoken",
+                mac_addr=str(uuid.uuid4()),
+                p_id=-1,
+                do_id="1234567",
+                cb=test_cb
             )
 
             test_rule = UserRule(

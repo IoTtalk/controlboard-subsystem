@@ -108,6 +108,7 @@ class AG_SA():
         class CB_SA(self.cb_db.Entity):
             sa_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
             sa_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
+            cb = orm.Required("CB")  # which CB this SA belongs to.
             ag_token = orm.Required(orm.LongStr)  # AG-returned token
             mac_addr = orm.Required(orm.LongStr)  # Mac-addr of this SA
             rule_set = orm.Set(UserRule)

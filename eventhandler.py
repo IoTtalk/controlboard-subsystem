@@ -378,7 +378,8 @@ def create_cb():
     with orm.db_session():
         cb = CB(
             cb_name=new_cb["text"],
-            shared=new_cb["shared"]
+            shared=new_cb["shared"],
+            icon="landscape.svg"
         )
         try:
             owner = CB_Account.get(account=logined_user[session["token"]])
@@ -400,7 +401,7 @@ def create_cb():
 @apis.route('/subsystem/delete_cb', methods=['POST'])
 def delete_cb():
     '''
-    Delete CB and corresponding SAs with specified cb_id.
+    Delete CB and corresponding SAs / UserRules with specified cb_id.
 
     Args:
         cb_id: ID of the specified retrived from function `get_cb`
@@ -409,6 +410,25 @@ def delete_cb():
         Status Code: 200 / 401 / 500.
         Message: Corresponding execution result.
     '''
+    try:
+        cb_id = request.get_data().decode("utf-8")
+        with orm.db_session():
+            account = CB_Account.get(account=logined_user[session["token"]])
+            if not account.privilege:
+                raise ValueError
+            CB[cb_id].delete()  # By applying cascade deleting.
+        return "Specified ControlBoard deleted."
+    except KeyError:
+        api_logger.error("Error Deleting ControlBoard, User not logined.")
+        # TODO: redirect to AAA login page.
+        return "Please login first", 401
+    except ValueError:
+        api_logger.error("Error Deleting ControlBoard, User is not a superuser.")
+        return "Not a superuser!", 401
+    except Exception as err:
+        api_logger.error("Unknown error occurred, error message as belows")
+        api_logger.error(err)
+        return "Internal error occurred", 502
 
 
 @apis.route('/subsystem/get_cb', methods=['GET'])
@@ -416,10 +436,10 @@ def get_cb():
     '''
     Returns Accessible CB list of current logined user
 
-    Args:
-        None
+    Args: None
+
     Returns:
-        Status code: 200, 401
+        Status code: 200 / 401
         accessible_cb: A Dict containing 2 lists
             accessibleProjects: A list containing all CB_ids owned/shared to this user.
             optionProjects: A list of CBs including all CBs shared to this user.
@@ -438,22 +458,16 @@ def get_cb():
 
             option_cb = list()
             if account.privilege:
-                all_cbs = CB.select()
-                for cb in all_cbs:
-                    icon_path = os.path.join("..", "static", "imgs", cb.icon)
-                    option_cb.append({
-                        "icon": icon_path,
-                        "text": cb.cb_name,
-                        "value": cb.cb_id
-                    })
+                candidates = CB.select()
             else:
-                for cb in account.cb_set():
-                    icon_path = os.path.join("../static/imgs", cb.icon)
-                    option_cb.append({
-                        "icon": icon_path,
-                        "text": cb.cb_name,
-                        "value": cb.cb_id
-                    })
+                candidates = account.cb_set()
+            for cb in candidates:
+                icon_path = os.path.join("..", "static", "imgs", cb.icon)
+                option_cb.append({
+                    "icon": icon_path,
+                    "text": cb.cb_name,
+                    "value": cb.cb_id
+                })
         return jsonify({
             "accessibleProjects": accessible_cb,
             "optionProjects": option_cb
@@ -461,9 +475,10 @@ def get_cb():
     except KeyError:
         api_logger.error("Error Getting ControlBoard, User not logined.")
         # TODO: redirect to AAA login page.
-        return "Not done", 401
+        return "Please Login first", 401
     except ValueError:
         api_logger.error("Error Getting ControlBoard, No such user.")
+        # TODO: redirect to AAA login page.
         return "No such User", 401
 
 

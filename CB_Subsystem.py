@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     app = Flask(__name__)
     app.secret_key = 'asdaldkjalskdjllkd'
-    app.permanent_session_lifetime = timedelta(days=1)
+    app.permanent_session_lifetime = timedelta(minutes=30)
     system_logger.info('\tCreating Server\t\t......done')
 
     app.register_blueprint(apis)

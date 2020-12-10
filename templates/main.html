@@ -30,7 +30,7 @@
           <select-projects
             v-bind:projects="accessibleProjects"  
           ></select-projects>
-        
+          
           <div class="ml-auto">
             <b-navbar-nav>
               <b-nav-item class="system-button" v-if="user.current.superuser" v-on:click="onSwitchManage"><b>System</b></b-nav-item>
@@ -38,7 +38,6 @@
             </b-navbar-nav>
           </div>
         </b-navbar>
-        
         <!-- Add/delete field button -->
         <div v-if="!manageMode">
           <div class="field-manage" v-if="user.current.superuser">
@@ -222,8 +221,7 @@
             <div v-if="manageMode && user.current.superuser">
               <b-row class="text-left">
                 <b-col v-if="managePage"><b>UserName</b></b-col>
-                <b-col v-if="managePage"><b>Privilege</b></b-col>
-                <b-col v-if="!managePage">
+                <b-col v-else>
                   <b>ControlBoard</b>
                   <b-button size="sm" variant="light" v-b-modal="'CreateCB'">
                     <b-icon icon="plus" aria-hidden="true"></b-icon>
@@ -242,7 +240,8 @@
                     </b-container>
                   </b-modal>
                 </b-col>
-                <b-col v-if="!managePage"><b>Actions</b></b-col>
+                <b-col v-if="managePage"><b>Privilege</b></b-col>
+                <b-col v-else><b>Actions</b></b-col>
               </b-row>
               <b-row class="text-left divide-top divide-bottom"
                 v-for="(user, index) in user.users" v-if="managePage"
@@ -285,15 +284,15 @@
                   <b-link v-b-modal="'cbIcon'+index" size="sm" variant="outline-primary">Icons</b-link>
 
                   <b-modal v-bind:id="'deleteCB'+index" size="lg" centered title="Delete ControlBoard"
-                    v-on:ok="onCBDelete(index, 1)" v-on:cancel="onCBDelete(index, 0)" 
-                    v-on:close="onCBDelete(index, 0)"
+                    v-on:ok="onCBDelete(project.value, 1)" v-on:cancel="onCBDelete(project.value, 0)" 
+                    v-on:close="onCBDelete(project.value, 0)"
                   >
                     Are you sure to delete ControlBoard <b><% project.text %></b>
                   </b-modal>
 
                   <b-modal v-bind:id="'cbIcon'+index" size="lg" centered title="User Management"
-                    v-on:ok="onIconUpload(index, 1)" v-on:cancel="onIconUpload(index, 0)" 
-                    v-on:close="onIconUpload(index, 0)"
+                    v-on:ok="onIconUpload(project.value, 1)" v-on:cancel="onIconUpload(project.value, 0)" 
+                    v-on:close="onIconUpload(project.value, 0)"
                   >
                     <b-container fluid>
                       <b-form-file

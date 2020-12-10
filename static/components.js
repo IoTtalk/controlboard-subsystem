@@ -111,14 +111,18 @@ Vue.component('select-projects', {
         <div>
             <b-navbar-nav>
                 <b-nav-item-dropdown>
-                    <template v-slot:button-content>
+                    <template v-slot:button-content v-if="projects.length!==0">
                         <b-img v-bind:src="projects[0].icon"></b-img>
                         {{projects[0].text}}
+                    </template>
+                    <template v-slot:button-content v-else>
+                        New Project
                     </template>
                     <project 
                         v-for="(field, index) in projects.slice(1)"
                         v-bind:field="field"
                         v-on:selectCB="onSelectCB(index)"
+                        v-if="projects.length > 1"
                     ></project>
                 </b-nav-item-dropdown>
             </b-navbar-nav>

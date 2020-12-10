@@ -32,7 +32,7 @@ class UserRule(cb_db.Entity):
 class CB(cb_db.Entity):
     cb_id = PrimaryKey(int, auto=True)
     cb_name = Required(str)
-    sa_set = set("CB_SA")
+    sa_set = Set("CB_SA", cascade_delete=True)
     shared = Required(bool)
     account_set = Set("CB_Account")  # accounts that can access this SA.
     icon = Required(str)
@@ -41,9 +41,10 @@ class CB(cb_db.Entity):
 class CB_SA(cb_db.Entity):
     sa_id = PrimaryKey(int, auto=True)  # id of this SA.
     sa_name = Required(str)  # User-defined cb_name. Can be repeated.
+    cb = Required(CB)  # which CB this SA belongs to.
     ag_token = Required(LongStr)  # AG-returned token
     mac_addr = Required(LongStr)  # Mac-addr of this SA
-    rule_set = Set(UserRule)
+    rule_set = Set(UserRule, cascade_delete=True)
     p_id = Required(int)  # project id of this SA
     do_id = Required(str)  # device object id for this SA.
 

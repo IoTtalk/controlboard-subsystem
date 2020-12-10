@@ -160,17 +160,7 @@ var app = new Vue({
     ]
   },
   created: function() {
-    var self = this;
-    axios
-      .get('/subsystem/get_cb')
-      .then(function(res) {
-        console.log(res);
-        self.projects = res.data;
-      })
-      .catch(function(err) {
-        console.log(err);
-      })
-      return;
+    this.getAvailableCBs();
   },
   computed: {
     accessibleProjects: function() {
@@ -183,6 +173,19 @@ var app = new Vue({
     }
   },
   methods: {
+    getAvailableCBs: function() {
+      var self = this;
+      axios
+        .get('/subsystem/get_cb')
+        .then(function(res) {
+          console.log(res);
+          self.projects = res.data;
+        })
+        .catch(function(err) {
+          console.log(err);
+        })
+        return;
+    },
     getDefaultSensorSettings: function() {
       return {
         mode: "OFF",
@@ -301,10 +304,12 @@ var app = new Vue({
     },
     onNewCBCreate: function(action) {
       if (1 === action) {
+        var self = this;
         axios
-          .post('./subsystem/create_cb', this.newCB)
+          .post("./subsystem/create_cb", this.newCB)
           .then(function (res) {
-            console.log(res);
+            console.log("Respond of creating CB", res);
+            self.getAvailableCBs();
           })
           .catch(function(error) {
             console.log(error)
@@ -317,10 +322,21 @@ var app = new Vue({
     onUserUpdate: function(index, action) {
       console.log(index, action);
     },
-    onCBDelete: function(index, action) {
-      console.log(index, action);
+    onCBDelete: function(cbID, action) {
+      self = this;
+      if (1 === action) {
+        axios
+          .post("./subsystem/delete_cb", cbID)
+          .then(function(res) {
+            console.log(res);
+            self.getAvailableCBs();
+          })
+          .catch(function(error) {
+            console.log(error);
+          })
+      }
     },
-    onIconUpload: function(index, action) {
+    onIconUpload: function(cbID, action) {
       console.log(index, action);
     },
     onGetAllCB: function() {
