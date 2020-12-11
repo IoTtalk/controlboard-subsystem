@@ -314,9 +314,11 @@ var app = new Vue({
           .catch(function(error) {
             console.log(error)
           })
-      } else {
-
       }
+      this.newCB = {
+        text: "",
+        shared: false
+      };
       return;
     },
     onUserUpdate: function(index, action) {
@@ -337,7 +339,27 @@ var app = new Vue({
       }
     },
     onIconUpload: function(cbID, action) {
-      console.log(index, action);
+      console.log(cbID, action);
+      if (1 === action) {
+        let formData = new FormData();
+        formData.append("file", this.newCBIcon);
+        formData.append("cb_id", cbID);
+        var self = this;
+        axios
+          .put('./subsystem/cb_icon/' + cbID.toString(), formData, {
+            headers: {
+              "Content-Type": "multipart/form-data"
+            }
+          })
+          .then(function(res) {
+            console.log(res);
+            self.getAvailableCBs();
+          })
+          .catch(function(error) {
+            console.log(error);
+          })
+      }
+      this.newCBIcon = null;
     },
     onGetAllCB: function() {
 

@@ -162,7 +162,7 @@ def test_db(logger):
                 cb_name="test_cb",
                 shared=0,
                 account_set=test_account,
-                icon="landscape.svg"
+                icon="0_landscape.svg"
             )
 
             test_sa = CB_SA(

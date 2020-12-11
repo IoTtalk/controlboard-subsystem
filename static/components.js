@@ -116,7 +116,7 @@ Vue.component('select-projects', {
                         {{projects[0].text}}
                     </template>
                     <template v-slot:button-content v-else>
-                        New Project
+                        New CB
                     </template>
                     <project 
                         v-for="(field, index) in projects.slice(1)"

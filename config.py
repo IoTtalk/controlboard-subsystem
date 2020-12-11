@@ -16,6 +16,7 @@ config_path = str(sys.argv[1])
 env_config = configparser.ConfigParser()
 env_config.read(config_path)
 use_v1 = env_config['IoTtalk']['version'] == '1'
+icon_extensions = env_config["env"]["icon_extensions"].split(",")
 
 reg_config = {
     'database': env_config['db']['database'],

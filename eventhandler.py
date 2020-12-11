@@ -9,6 +9,7 @@ from flask import render_template
 from flask import request
 from flask import session
 from flask import redirect
+from werkzeug.utils import secure_filename
 from pony import orm
 
 
@@ -20,6 +21,8 @@ from utils import register_ag, deregister_ag, bind_device_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB
 from config import default_rules
+from config import env_config
+from config import icon_extensions
 from config import use_v1
 
 
@@ -360,38 +363,86 @@ def get_sa(usr_account):
     return avail_sa, 200   # GET return cannot be list, must be dict or string or something... need to decide which type to use
 
 
+@apis.route('/subsystem/cb_icon/<cb_id>', methods=["PUT"])
+def manage_icon(cb_id):
+    '''
+    Change specified CB's icon client given `cb_id` and `file` from request.
+
+    Args:
+        cb_id: Specified CB's unique id.
+        file: Image body to change.
+
+    Returns:
+        Status code: 200 / 400 / 401 / 403 / 502
+        Message: Corresponding execution result.
+    '''
+    print(icon_extensions)
+    try:
+        with orm.db_session():
+            account = CB_Account.get(account=logined_user[session["token"]])
+            if not account.privilege:
+                raise ValueError
+            icon = request.files["file"]
+            icon_name = secure_filename(icon.filename).rsplit(".", 1)
+            if "." in icon.filename and icon_name[1] in icon_extensions:
+                print(icon_name)
+                icon_path = str(cb_id) + "_" + icon_name[0] + "." + icon_name[1]
+                old_path = CB[cb_id].icon
+                if old_path != env_config["env"]["default_icon"]:
+                    os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), old_path))
+                CB[cb_id].icon = icon_path
+                icon_path = os.path.join(env_config["env"]["icon_path"], icon_path)
+                icon.save(icon_path)
+            else:
+                raise TypeError
+            return "Icon change finished", 200
+    except KeyError:
+        api_logger.error("Error Changing Icon, Non-existed User!")
+        return "Non-existed User!", 401
+    except ValueError:
+        api_logger.error("Error Changing Icon, User is not a superuser.")
+        return "Not a superuser!", 403
+    except TypeError:
+        api_logger.error("Error Changing Icon, Unsupported Icon extensions.")
+        return "Non-supported icon format", 400
+    except Exception as err:
+        api_logger.error("Unknown Error in Changing Icon.")
+        api_logger.error(err)
+        return "Internal Server Error", 502
+
+
 @apis.route('/subsystem/create_cb', methods=['POST'])
 def create_cb():
     '''
     Create a Empty ControlBoard that contains no SA Field.
 
     Args:
-        "text": cb_name of this ControlBoard.
-        "shared": Whether to be seen by other users.
+        text: cb_name of this ControlBoard.
+        shared: Whether to be seen by other users.
 
     Returns:
-        Status Code: 200 / 401 / 500.
+        Status Code: 200 / 400 / 401 / 500.
         Message: Corresponding execution result.
     '''
-    api_logger.info("Create ControlBoard Triggered!")
     new_cb = request.json
     with orm.db_session():
-        cb = CB(
-            cb_name=new_cb["text"],
-            shared=new_cb["shared"],
-            icon="landscape.svg"
-        )
         try:
             owner = CB_Account.get(account=logined_user[session["token"]])
+            cb = CB(
+                cb_name=new_cb["text"],
+                shared=new_cb["shared"],
+                icon=env_config["env"]["default_icon"]
+            )
             if None is owner:
                 raise ValueError
+            api_logger.info(f"Create ControlBoard {cb.cb_id} by User {owner.account}")
             cb.account_set.add(owner)
         except KeyError:
             api_logger.error("Error Create CB, User not logined")
             return "User not logined", 401
         except ValueError:
             api_logger.error("Error Create CB, Non-existed User!")
-            return "Non-existed User!", 401
+            return "Non-existed User!", 400
         except Exception as err:
             api_logger.error(err)
             return "Unknown Error occurred, contact subsystem-admin to check error log!", 502
@@ -407,24 +458,28 @@ def delete_cb():
         cb_id: ID of the specified retrived from function `get_cb`
 
     Returns:
-        Status Code: 200 / 401 / 500.
+        Status Code: 200 / 403 / 500.
         Message: Corresponding execution result.
     '''
+    api_logger.info("Delete ControlBoard Triggered!")
     try:
         cb_id = request.get_data().decode("utf-8")
         with orm.db_session():
             account = CB_Account.get(account=logined_user[session["token"]])
+            api_logger.info(f"Delete ControlBoard {cb_id} Triggered from User {account.account}")
             if not account.privilege:
                 raise ValueError
+            if CB[cb_id].icon != env_config["env"]["default_icon"]:
+                os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), CB[cb_id].icon))
             CB[cb_id].delete()  # By applying cascade deleting.
         return "Specified ControlBoard deleted."
     except KeyError:
         api_logger.error("Error Deleting ControlBoard, User not logined.")
         # TODO: redirect to AAA login page.
-        return "Please login first", 401
+        return "Please login first", 403
     except ValueError:
         api_logger.error("Error Deleting ControlBoard, User is not a superuser.")
-        return "Not a superuser!", 401
+        return "Not a superuser!", 403
     except Exception as err:
         api_logger.error("Unknown error occurred, error message as belows")
         api_logger.error(err)
@@ -439,7 +494,7 @@ def get_cb():
     Args: None
 
     Returns:
-        Status code: 200 / 401
+        Status code: 200 / 401 / 403
         accessible_cb: A Dict containing 2 lists
             accessibleProjects: A list containing all CB_ids owned/shared to this user.
             optionProjects: A list of CBs including all CBs shared to this user.
@@ -462,7 +517,7 @@ def get_cb():
             else:
                 candidates = account.cb_set()
             for cb in candidates:
-                icon_path = os.path.join("..", "static", "imgs", cb.icon)
+                icon_path = os.path.join(os.path.normpath(env_config["env"]["icon_path"]), cb.icon)
                 option_cb.append({
                     "icon": icon_path,
                     "text": cb.cb_name,
@@ -475,7 +530,7 @@ def get_cb():
     except KeyError:
         api_logger.error("Error Getting ControlBoard, User not logined.")
         # TODO: redirect to AAA login page.
-        return "Please Login first", 401
+        return "Please Login first", 403
     except ValueError:
         api_logger.error("Error Getting ControlBoard, No such user.")
         # TODO: redirect to AAA login page.
