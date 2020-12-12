@@ -160,7 +160,14 @@ var app = new Vue({
     ]
   },
   created: function() {
-    this.getAvailableCBs();
+    this.getAvailableCBs()
+      .then( (projects) => {
+        this.projects = projects;
+        console.log("created then");
+      })
+      .catch( () => {
+        console.log("created catch");
+      });
   },
   computed: {
     accessibleProjects: function() {
@@ -174,17 +181,17 @@ var app = new Vue({
   },
   methods: {
     getAvailableCBs: function() {
-      var self = this;
-      axios
-        .get('/subsystem/get_cb')
-        .then(function(res) {
-          console.log(res);
-          self.projects = res.data;
-        })
-        .catch(function(err) {
-          console.log(err);
-        })
-        return;
+      return new Promise(function (resolve, reject) {
+        axios
+          .get('/subsystem/get_cb')
+          .then(function(res) {
+            resolve(res.data);
+          })
+          .catch(function(err) {
+            console.log(err);
+            reject();
+          })
+      });
     },
     getDefaultSensorSettings: function() {
       return {
@@ -304,16 +311,21 @@ var app = new Vue({
     },
     onNewCBCreate: function(action) {
       if (1 === action) {
-        var self = this;
         axios
           .post("./subsystem/create_cb", this.newCB)
-          .then(function (res) {
+          .then( (res) => {
             console.log("Respond of creating CB", res);
-            self.getAvailableCBs();
+            this.getAvailableCBs()
+              .then( (projects) => {
+                this.projects = projects;
+              })
+              .catch( (error) => {
+                console.log(error);
+              });
           })
           .catch(function(error) {
             console.log(error)
-          })
+          });
       }
       this.newCB = {
         text: "",
@@ -325,17 +337,22 @@ var app = new Vue({
       console.log(index, action);
     },
     onCBDelete: function(cbID, action) {
-      self = this;
       if (1 === action) {
         axios
           .post("./subsystem/delete_cb", cbID)
-          .then(function(res) {
+          .then( (res) => {
             console.log(res);
-            self.getAvailableCBs();
+            this.getAvailableCBs()
+              .then( (projects) => {
+                this.projects = projects;
+              })
+              .catch( () => {
+                console.log("re-fetch CB failed");
+              });
           })
           .catch(function(error) {
             console.log(error);
-          })
+          });
       }
     },
     onIconUpload: function(cbID, action) {
@@ -344,20 +361,25 @@ var app = new Vue({
         let formData = new FormData();
         formData.append("file", this.newCBIcon);
         formData.append("cb_id", cbID);
-        var self = this;
         axios
           .put('./subsystem/cb_icon/' + cbID.toString(), formData, {
             headers: {
               "Content-Type": "multipart/form-data"
             }
           })
-          .then(function(res) {
+          .then( (res) => {
             console.log(res);
-            self.getAvailableCBs();
+            this.getAvailableCBs()
+              .then( (projects) => {
+                this.projects = projects;
+              })
+              .catch( () => {
+                console.log("re-fetch CB failed");
+              });
           })
           .catch(function(error) {
             console.log(error);
-          })
+          });
       }
       this.newCBIcon = null;
     },

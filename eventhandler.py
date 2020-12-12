@@ -339,28 +339,37 @@ def delete_sa(sa_id):
         return "Specified SA not found", 400
 
 
-@apis.route('/subsystem/get_sa/<usr_account>', methods=['GET'])
-def get_sa(usr_account):
+@apis.route('/subsystem/get_sa/', methods=['GET'])
+def get_sa():
     '''
     Get accessible sa_ids and sa_names of the specified user. Called when rendering SAs available to the user.
 
     Args:
-        usr_account: the account of the user.
+        cb_id: The ID of the requested CB.
 
     Returns:
-        Status code: 200.
-        avail_sa: A list of CB SAs, each element is composed of sa_id and sa_name of the corresponging SA.
+        Status code: 200 / 401 / 403
+        available_sa: A list of CB SAs, each element is composed of sa_id and sa_name of the corresponging SA.
     '''
-    avail_sa = list()
-    with orm.db_session():
-        accs = CB_Account.select(lambda a: a.account == usr_account)[:]
-        for acc in accs:
-            # acc_dict = acc.to_dict()
-            for sa in acc.sa_set:
-                avail_sa.append((sa.sa_id, sa.sa_name))
-
-    print(avail_sa)
-    return avail_sa, 200   # GET return cannot be list, must be dict or string or something... need to decide which type to use
+    available_sa = list()
+    cb_id = request.get_data().decode("utf-8")
+    try:
+        with orm.db_session():
+            account = CB_Account.get(account=logined_user[session["token"]])
+            if cb_id not in account.cb_set:
+                raise ValueError
+            for sa in CB[cb_id].sa_set:
+                available_sa.append({
+                    "text": sa.sa_name,
+                    "value": sa.sa_id
+                })
+        return jsonify(available_sa), 200
+    except KeyError:
+        api_logger.error("Error getting SA, User not logined!")
+        return "Non-existed User!", 401
+    except ValueError:
+        api_logger.error("Error getting SA, Requested CB is not shared with this user.")
+        return "Not a superuser!", 403
 
 
 @apis.route('/subsystem/cb_icon/<cb_id>', methods=["PUT"])
@@ -397,7 +406,7 @@ def manage_icon(cb_id):
                 raise TypeError
             return "Icon change finished", 200
     except KeyError:
-        api_logger.error("Error Changing Icon, Non-existed User!")
+        api_logger.error("Error Changing Icon, User not logined!")
         return "Non-existed User!", 401
     except ValueError:
         api_logger.error("Error Changing Icon, User is not a superuser.")
@@ -425,8 +434,8 @@ def create_cb():
         Message: Corresponding execution result.
     '''
     new_cb = request.json
-    with orm.db_session():
-        try:
+    try:
+        with orm.db_session():
             owner = CB_Account.get(account=logined_user[session["token"]])
             cb = CB(
                 cb_name=new_cb["text"],
@@ -435,17 +444,17 @@ def create_cb():
             )
             if None is owner:
                 raise ValueError
-            api_logger.info(f"Create ControlBoard {cb.cb_id} by User {owner.account}")
             cb.account_set.add(owner)
-        except KeyError:
-            api_logger.error("Error Create CB, User not logined")
-            return "User not logined", 401
-        except ValueError:
-            api_logger.error("Error Create CB, Non-existed User!")
-            return "Non-existed User!", 400
-        except Exception as err:
-            api_logger.error(err)
-            return "Unknown Error occurred, contact subsystem-admin to check error log!", 502
+        api_logger.info(f"Create ControlBoard by User {owner.account}, CB ID:  {cb.cb_id}")
+    except KeyError:
+        api_logger.error("Error Create CB, User not logined")
+        return "User not logined", 401
+    except ValueError:
+        api_logger.error("Error Create CB, Non-existed User!")
+        return "Non-existed User!", 400
+    except Exception as err:
+        api_logger.error(err)
+        return "Unknown Error occurred, contact subsystem-admin to check error log!", 502
     return "Success", 200
 
 
