@@ -46,7 +46,7 @@ html, body {
 .custom-input {
   padding-top: 0px;
   padding-bottom: 0px;
-  max-width: 100px;
+  /* max-width: 100px; */
   margin: 0 8px;
 }
 
@@ -95,6 +95,7 @@ html, body {
 }
 
 .setting-card {
+  min-width: 435px;
   padding-left: 14.5px;
   padding-right: 14.5px;
   border-left: 1.5px solid gainsboro;
