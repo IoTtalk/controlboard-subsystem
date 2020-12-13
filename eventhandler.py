@@ -339,8 +339,8 @@ def delete_sa(sa_id):
         return "Specified SA not found", 400
 
 
-@apis.route('/subsystem/get_sa/', methods=['GET'])
-def get_sa():
+@apis.route('/subsystem/get_sa/<cb_id>', methods=['GET'])
+def get_sa(cb_id):
     '''
     Get accessible sa_ids and sa_names of the specified user. Called when rendering SAs available to the user.
 
@@ -352,11 +352,10 @@ def get_sa():
         available_sa: A list of CB SAs, each element is composed of sa_id and sa_name of the corresponging SA.
     '''
     available_sa = list()
-    cb_id = request.get_data().decode("utf-8")
     try:
         with orm.db_session():
             account = CB_Account.get(account=logined_user[session["token"]])
-            if cb_id not in account.cb_set:
+            if CB[cb_id] not in account.cb_set:
                 raise ValueError
             for sa in CB[cb_id].sa_set:
                 available_sa.append({
@@ -470,12 +469,11 @@ def delete_cb():
         Status Code: 200 / 403 / 500.
         Message: Corresponding execution result.
     '''
-    api_logger.info("Delete ControlBoard Triggered!")
     try:
         cb_id = request.get_data().decode("utf-8")
         with orm.db_session():
             account = CB_Account.get(account=logined_user[session["token"]])
-            api_logger.info(f"Delete ControlBoard {cb_id} Triggered from User {account.account}")
+            api_logger.info(f"Delete ControlBoard {cb_id} by User {account.account}")
             if not account.privilege:
                 raise ValueError
             if CB[cb_id].icon != env_config["env"]["default_icon"]:

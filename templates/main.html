@@ -56,23 +56,22 @@
         <b-card title="Card Title" no-body class="card">
           <b-card-header header-tag="nav">
             <b-nav card-header tabs>
-              <b-nav-item-dropdown text="More" lazy v-if="fields.length > 7 && !manageMode">
+              <b-nav-item-dropdown text="More" lazy v-if="fields.optionFields.length > 7 && !manageMode">
                 <b-dropdown-item
-                  v-for="(field, index) in fields.slice(7)"
+                  v-for="(field, index) in fields.optionFields.slice(7)"
                   v-bind:active="index + 7===currentField"
                   v-on:click="switchField(index + 7)"
                   align-self="start"
                 > <% field %>
                 </b-dropdown-item>
                 <b-dropdown-item align-self="start">
-                  <b-icon icon="tags-fill" aria-hidden="true"></b-icon>
                   Pin Field
-                  <!-- <b-img src="../static/imgs/pin.svg"></b-img> -->
+                  <b-icon icon="tags-fill" aria-hidden="true"></b-icon>
                 </b-dropdown-item>
               </b-nav-item-dropdown>
               <b-nav-item
                 v-if="!manageMode"
-                v-for="(field, index) in pinnedFields"
+                v-for="(field, index) in fields.pinnedFields"
                 v-bind:active="index===currentField"
                 v-on:click="switchField(index)"
                 class="fieldName"

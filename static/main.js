@@ -78,14 +78,15 @@ var app = new Vue({
       //   {text: "test_6", value: 13, icon: "../static/imgs/landscape.svg"}
       // ]
     },
-    pinnedFields: [
-      "Field111111111111111111111111111", "Field2", "Field3", "Field4", "Field5"  
-    ],
-    fields: [
-      "Field111111111111111111111111111", "Field2", "Field3", "Field4", "Field5", "Field6",
-      "Field7", "Field8", "Field9", "Field10", "Field11", "Field12", 
-    ],
-    currentField: 0,
+    fields: {
+      pinnedFields: ["Field111111111111111111111111111", "Field2", "Field3", "Field4", "Field5"],
+      optionFields: [
+        "Field111111111111111111111111111", "Field2", "Field3", "Field4", "Field5", "Field6",
+        "Field7", "Field8", "Field9", "Field10", "Field11", "Field12", 
+      ]
+    },
+    currentField: 0,  // Field refers to SA in a specific CB.
+    currentProject: 0,  // Project refers to CB.
     settings: [
       {
         actuator: "Bulb",
@@ -163,7 +164,14 @@ var app = new Vue({
     this.getAvailableCBs()
       .then( (projects) => {
         this.projects = projects;
-        console.log("created then");
+        this.currentProject = projects["accessibleProjects"][0];
+        this.getAvailableSAs(projects["accessibleProjects"][0])
+          .then( (fields) => {
+            
+          })
+          .catch( () => {
+            console.log("fetch SAs failed");
+          });
       })
       .catch( () => {
         console.log("created catch");
@@ -175,7 +183,6 @@ var app = new Vue({
       for (projectIdx in this.projects.accessibleProjects) {
         toAccess.push(this.projects.optionProjects[projectIdx])
       }
-      console.log(toAccess);
       return toAccess;
     }
   },
@@ -183,14 +190,28 @@ var app = new Vue({
     getAvailableCBs: function() {
       return new Promise(function (resolve, reject) {
         axios
-          .get('/subsystem/get_cb')
+          .get("/subsystem/get_cb")
           .then(function(res) {
             resolve(res.data);
           })
           .catch(function(err) {
             console.log(err);
             reject();
+          });
+      });
+    },
+    getAvailableSAs: function(projectID) {
+      return new Promise(function (resolve, reject) {
+        axios
+          .get("/subsystem/get_sa/" + projectID.toString())
+          .then(function(res) {
+            console.log(res);
+            resolve(res.data);
           })
+          .catch(function(err) {
+            console.log(err);
+            reject();
+          });
       });
     },
     getDefaultSensorSettings: function() {
@@ -312,7 +333,7 @@ var app = new Vue({
     onNewCBCreate: function(action) {
       if (1 === action) {
         axios
-          .post("./subsystem/create_cb", this.newCB)
+          .post("/subsystem/create_cb", this.newCB)
           .then( (res) => {
             console.log("Respond of creating CB", res);
             this.getAvailableCBs()
@@ -339,7 +360,7 @@ var app = new Vue({
     onCBDelete: function(cbID, action) {
       if (1 === action) {
         axios
-          .post("./subsystem/delete_cb", cbID)
+          .post("/subsystem/delete_cb", cbID)
           .then( (res) => {
             console.log(res);
             this.getAvailableCBs()
@@ -362,7 +383,7 @@ var app = new Vue({
         formData.append("file", this.newCBIcon);
         formData.append("cb_id", cbID);
         axios
-          .put('./subsystem/cb_icon/' + cbID.toString(), formData, {
+          .put("/subsystem/cb_icon/" + cbID.toString(), formData, {
             headers: {
               "Content-Type": "multipart/form-data"
             }
