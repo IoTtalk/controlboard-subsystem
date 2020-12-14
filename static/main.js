@@ -177,6 +177,11 @@ var app = new Vue({
               "pinnedFields": pinnedFields,
               "optionFields": fields
             };
+            if (pinnedFields.length) {
+              this.currentField = pinnedFields[0].value;
+            } else {
+              
+            }
             console.log(this.fields);
           })
           .catch( () => {

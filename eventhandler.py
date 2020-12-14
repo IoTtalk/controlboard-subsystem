@@ -255,7 +255,7 @@ def create_sa():
     Creates an empty SA.
 
     Args:
-        account: The user's account who requests for this new SA.
+        cb_id: The ControlBoard this new SA belongs to.
         sa_name: Name of this SA given by the user.
 
     Returns:
@@ -265,7 +265,7 @@ def create_sa():
     sa_spec = request.json
     with orm.db_session():
         mac_addr = str(uuid.uuid4())
-        sa = CB_SA(sa_name=sa_spec['sa_name'], ag_token='NotCreated', mac_addr=mac_addr, p_id=-1, do_id='-1')
+        sa = CB_SA(sa_name=sa_spec['sa_name'], ag_token='NotCreated', mac_addr=mac_addr, p_id=-1, do_id='-1', pinned=False)
         cb_db.commit()
         api_logger.info("Start Creating CB SA")
 

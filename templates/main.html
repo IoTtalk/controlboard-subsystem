@@ -42,8 +42,22 @@
         <div v-if="!manageMode">
           <div class="field-manage" v-if="user.current.superuser">
             <div class="d-flex justify-content-between">
-              <b-button size="sm" variant="success" @click="createField" class="create-field">+ New Field</b-button>
+              <b-button size="sm" variant="success" v-b-modal="'CreateSA'" class="create-field">+ New Field</b-button>
               <b-button size="sm" variant="danger">Delete Field</b-button>
+              <b-modal id="CreateSA" size="lg" centered title="Create ControlBoard SA"
+                    v-on:ok="onNewSACreate(1)" v-on:cancel="onNewSACreate(0)" v-on:close="onNewSACreate(0)"
+                  >
+                    <b-container fluid>
+                      ControlBoard 
+                      <b-form-input placeholder="Enter Your ControlBoard's Name Here"
+                        size="sm" v-model="newCB.text"
+                      ></b-form-input>
+                      <b-form-checkbox plain size="sm" class="mt-1"
+                        v-model="newCB.shared"
+                      >Visible to other users.</b-form-checkbox>
+                    </b-container>
+                  </b-modal>
+
             </div>
           </div>
         </div>
