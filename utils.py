@@ -171,7 +171,8 @@ def test_db(logger):
                 mac_addr=str(uuid.uuid4()),
                 p_id=-1,
                 do_id="1234567",
-                cb=test_cb
+                cb=test_cb,
+                pinned=True
             )
 
             test_rule = UserRule(

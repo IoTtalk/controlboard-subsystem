@@ -167,7 +167,17 @@ var app = new Vue({
         this.currentProject = projects["accessibleProjects"][0];
         this.getAvailableSAs(projects["accessibleProjects"][0])
           .then( (fields) => {
-            
+            pinnedFields = [];
+            fields.forEach(element => {
+              if (element.pin) {
+                pinnedFields.push(element);
+              }
+            });
+            this.fields = {
+              "pinnedFields": pinnedFields,
+              "optionFields": fields
+            };
+            console.log(this.fields);
           })
           .catch( () => {
             console.log("fetch SAs failed");
@@ -184,6 +194,10 @@ var app = new Vue({
         toAccess.push(this.projects.optionProjects[projectIdx])
       }
       return toAccess;
+    },
+    maxPinnedFields: function() {
+      console.log(window.outerWidth);
+      return Math.floor(window.outerWidth / 80);
     }
   },
   methods: {

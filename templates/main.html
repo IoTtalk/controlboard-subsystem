@@ -56,11 +56,11 @@
         <b-card title="Card Title" no-body class="card">
           <b-card-header header-tag="nav">
             <b-nav card-header tabs>
-              <b-nav-item-dropdown text="More" lazy v-if="fields.optionFields.length > 7 && !manageMode">
+              <b-nav-item-dropdown text="More" lazy v-if="fields.optionFields.length > maxPinnedFields && !manageMode">
                 <b-dropdown-item
-                  v-for="(field, index) in fields.optionFields.slice(7)"
-                  v-bind:active="index + 7===currentField"
-                  v-on:click="switchField(index + 7)"
+                  v-for="(field, index) in fields.optionFields.slice(maxPinnedFields)"
+                  v-bind:active="index + maxPinnedFields===currentField"
+                  v-on:click="switchField(index + maxPinnedFields)"
                   align-self="start"
                 > <% field %>
                 </b-dropdown-item>
@@ -71,11 +71,11 @@
               </b-nav-item-dropdown>
               <b-nav-item
                 v-if="!manageMode"
-                v-for="(field, index) in fields.pinnedFields"
-                v-bind:active="index===currentField"
-                v-on:click="switchField(index)"
+                v-for="field in fields.pinnedFields"
+                v-bind:active="field.value===currentField"
+                v-on:click="switchField(field.value)"
                 class="fieldName"
-              ><% field %></b-nav-item>
+              ><% field.text %></b-nav-item>
 
               <b-nav-item v-if="manageMode" v-bind:active="managePage" v-on:click="onSwitchManagePage">
                 User

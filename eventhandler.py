@@ -360,7 +360,8 @@ def get_sa(cb_id):
             for sa in CB[cb_id].sa_set:
                 available_sa.append({
                     "text": sa.sa_name,
-                    "value": sa.sa_id
+                    "value": sa.sa_id,
+                    "pin": sa.pinned
                 })
         return jsonify(available_sa), 200
     except KeyError:
