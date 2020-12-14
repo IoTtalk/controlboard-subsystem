@@ -10,6 +10,7 @@ var app = new Vue({
       text: "",
       shared: false
     },
+    newSA: "",
     comparisons: [
       {value: null, text: ""},
       {value: "smaller", html: "&lt;"},
@@ -202,7 +203,18 @@ var app = new Vue({
     },
     maxPinnedFields: function() {
       console.log(window.outerWidth);
-      return Math.floor(window.outerWidth / 80);
+      // return Math.floor(window.outerWidth / 80);
+      return 5;
+    },
+    currentFieldName: function() {
+      var name = "";
+      this.fields.optionFields.forEach(field => {
+        if (field.value === this.currentField) {
+          console.log(field);
+          name = field.text;
+        }
+      });
+      return name;
     }
   },
   methods: {
@@ -248,8 +260,11 @@ var app = new Vue({
     onSwitchManagePage: function() {
       this.managePage = !this.managePage;
     },
-    createField: function() {
+    onSACreate: function(action) {
       console.log("create field triggered");
+    },
+    onSADelete: function(action) {
+
     },
     switchField: function(index) {
       this.currentField = index;
@@ -349,7 +364,7 @@ var app = new Vue({
       console.log(event, userIndex);
       return;
     },
-    onNewCBCreate: function(action) {
+    onCBCreate: function(action) {
       if (1 === action) {
         axios
           .post("/subsystem/create_cb", this.newCB)
@@ -373,27 +388,27 @@ var app = new Vue({
       };
       return;
     },
-    onUserUpdate: function(index, action) {
-      console.log(index, action);
-    },
     onCBDelete: function(cbID, action) {
       if (1 === action) {
         axios
-          .post("/subsystem/delete_cb", cbID)
-          .then( (res) => {
-            console.log(res);
-            this.getAvailableCBs()
-              .then( (projects) => {
-                this.projects = projects;
-              })
-              .catch( () => {
-                console.log("re-fetch CB failed");
-              });
+        .post("/subsystem/delete_cb", cbID)
+        .then( (res) => {
+          console.log(res);
+          this.getAvailableCBs()
+          .then( (projects) => {
+            this.projects = projects;
           })
-          .catch(function(error) {
-            console.log(error);
+          .catch( () => {
+            console.log("re-fetch CB failed");
           });
+        })
+        .catch(function(error) {
+          console.log(error);
+        });
       }
+    },
+    onUserUpdate: function(index, action) {
+      console.log(index, action);
     },
     onIconUpload: function(cbID, action) {
       console.log(cbID, action);

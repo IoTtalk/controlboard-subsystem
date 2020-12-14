@@ -43,20 +43,24 @@
           <div class="field-manage" v-if="user.current.superuser">
             <div class="d-flex justify-content-between">
               <b-button size="sm" variant="success" v-b-modal="'CreateSA'" class="create-field">+ New Field</b-button>
-              <b-button size="sm" variant="danger">Delete Field</b-button>
-              <b-modal id="CreateSA" size="lg" centered title="Create ControlBoard SA"
-                    v-on:ok="onNewSACreate(1)" v-on:cancel="onNewSACreate(0)" v-on:close="onNewSACreate(0)"
-                  >
-                    <b-container fluid>
-                      ControlBoard 
-                      <b-form-input placeholder="Enter Your ControlBoard's Name Here"
-                        size="sm" v-model="newCB.text"
-                      ></b-form-input>
-                      <b-form-checkbox plain size="sm" class="mt-1"
-                        v-model="newCB.shared"
-                      >Visible to other users.</b-form-checkbox>
-                    </b-container>
-                  </b-modal>
+              <b-button size="sm" variant="danger" v-b-modal="'CancelSA'">Delete Field</b-button>
+              <b-modal id="CreateSA" size="lg" centered title="Create New ControlBoard Field"
+                v-on:ok="onSACreate(1)" v-on:cancel="onSACreate(0)" v-on:close="onSACreate(0)"
+              >
+                <b-container fluid>
+                  Field Name
+                  <b-form-input placeholder="Enter Your Field's Name Here"
+                    size="sm" v-model="newSA" id="input-fieldName"
+                  ></b-form-input>
+                  <b-form-text id="input-fieldName">This name will be 
+                    used to create project on IoTtalk Server.</b-form-text>
+                </b-container>
+              </b-modal>
+              <b-modal id="CancelSA" size="lg" centered title="Delete ControlBoard Field"
+                v-on:ok="onSADelete(1)" v-on:cancel="onSADelete(0)" v-on:close="onSADelete(0)"
+              >
+                Are you sure to delete Field <b><% currentFieldName %></b>?
+              </b-modal>
 
             </div>
           </div>
@@ -240,7 +244,7 @@
                     <b-icon icon="plus" aria-hidden="true"></b-icon>
                   </b-button>
                   <b-modal id="CreateCB" size="lg" centered title="Create ControlBoard"
-                    v-on:ok="onNewCBCreate(1)" v-on:cancel="onNewCBCreate(0)" v-on:close="onNewCBCreate(0)"
+                    v-on:ok="onCBCreate(1)" v-on:cancel="onCBCreate(0)" v-on:close="onCBCreate(0)"
                   >
                     <b-container fluid>
                       ControlBoard 
