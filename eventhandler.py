@@ -263,49 +263,54 @@ def create_sa():
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
     sa_spec = request.json
-    with orm.db_session():
-        mac_addr = str(uuid.uuid4())
-        sa = CB_SA(sa_name=sa_spec['sa_name'], ag_token='NotCreated', mac_addr=mac_addr, p_id=-1, do_id='-1', pinned=False)
-        cb_db.commit()
-        api_logger.info("Start Creating CB SA")
+    try:
+        with orm.db_session():
+            mac_addr = str(uuid.uuid4())
+            sa = CB_SA(sa_name=sa_spec["sa_name"], ag_token="NotCreated", mac_addr=mac_addr, 
+                p_id=-1, do_id="-1", pinned=False, )
+            cb_db.commit()
+            api_logger.info("Start Creating CB SA")
 
-        # Register device
-        status, ag_token = register_ag(sa, api_logger)
-        if not status:
-            sa.delete()
-            return "Create SA failed at registering device, check api log files", 400
-        sa.ag_token = ag_token
+            # Register device
+            status, ag_token = register_ag(sa, api_logger)
+            if not status:
+                sa.delete()
+                return "Create SA failed at registering device, check api log files", 400
+            sa.ag_token = ag_token
 
-        # Create Project
-        status, p_id = create_proj_ag(sa, api_logger)
-        if not status:
-            deregister_ag(sa, api_logger)
-            sa.delete()
-            return "Create SA failed at creating project, check api log files", 400
-        sa.p_id = p_id
+            # Create Project
+            status, p_id = create_proj_ag(sa, api_logger)
+            if not status:
+                deregister_ag(sa, api_logger)
+                sa.delete()
+                return "Create SA failed at creating project, check api log files", 400
+            sa.p_id = p_id
 
-        # Create Device Object
-        status, do_id = create_do_ag(p_id, api_logger)
-        if not status:
-            deregister_ag(sa, api_logger)
-            sa.delete()
-            return "Create SA failed at creating DO, check api log files", 400
-        if use_v1:
-            sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
-        else:
-            sa.do_id = str(do_id)
+            # Create Device Object
+            status, do_id = create_do_ag(p_id, api_logger)
+            if not status:
+                deregister_ag(sa, api_logger)
+                sa.delete()
+                return "Create SA failed at creating DO, check api log files", 400
+            if use_v1:
+                sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
+            else:
+                sa.do_id = str(do_id)
 
-        # Bind device to DO
-        status = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)
-        if not status:
-            deregister_ag(sa, api_logger)
-            sa.delete()
-            return "Create SA failed at auto binding, check api log files", 400
+            # Bind device to DO
+            status = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)
+            if not status:
+                deregister_ag(sa, api_logger)
+                sa.delete()
+                return "Create SA failed at auto binding, check api log files", 400
 
-    running_sa[sa.sa_id] = sa
-    api_logger.info(f'Create New SA, SA_ID: {sa.sa_id}')
+        running_sa[sa.sa_id] = sa
+        api_logger.info(f'Create New SA, SA_ID: {sa.sa_id}')
 
-    return "Create SA succeeded", 200
+        return "Create SA succeeded", 200
+    except Exception as err:
+        print(err)
+        return "test", 502
 
 
 @apis.route('/subsystem/delete_sa/<sa_id>', methods=['POST'])

@@ -3,7 +3,7 @@ var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
   data: {
-    manageMode: true,  // Switch bwtween CB page & manage page
+    manageMode: false,  // Switch bwtween CB page & manage page
     managePage: false, // Used to switch active state between User/CB management
     newCBIcon: null,
     newCB: {
@@ -261,7 +261,22 @@ var app = new Vue({
       this.managePage = !this.managePage;
     },
     onSACreate: function(action) {
-      console.log("create field triggered");
+      if (1 === action) {
+        data = {
+          "sa_name": this.newSA,
+          "cb_id": this.currentProject
+        }
+        axios
+          .post("/subsystem/create_sa", data)
+          .then( (res) => {
+            console.log(res);
+          })
+          .catch( (err) => {
+            console.log(err);
+          })
+      }
+      this.newSA = "";
+      return;
     },
     onSADelete: function(action) {
 
