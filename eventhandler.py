@@ -1,6 +1,5 @@
 import datetime
 import os
-import time
 import uuid
 
 
@@ -269,8 +268,8 @@ def create_sa():
         if not CB.exists(cb_id=sa_spec["cb_id"]):
             abort(400, "Specified ControlBoard not existed")
         mac_addr = str(uuid.uuid4())
-        sa = CB_SA(sa_name=sa_spec["sa_name"], ag_token="NotCreated", mac_addr=mac_addr, 
-            p_id=-1, do_id="-1", pinned=False, cb=CB[sa_spec["cb_id"]])
+        sa = CB_SA(sa_name=sa_spec["sa_name"], ag_token="NotCreated", mac_addr=mac_addr,
+                   p_id=-1, do_id="-1", pinned=False, cb=CB[sa_spec["cb_id"]])
         cb_db.commit()
         api_logger.info("Start Creating CB SA")
 

@@ -1,5 +1,4 @@
 import logging
-from types import resolve_bases
 import requests
 import os
 import uuid
