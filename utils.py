@@ -1,4 +1,5 @@
 import logging
+from types import resolve_bases
 import requests
 import os
 import uuid
@@ -64,7 +65,18 @@ def _post(url, data):
     Returns:
         res: response from AG.
     '''
-    return requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/{url}', data=data)
+    response = json.loads(
+        requests.post(
+            f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/{url}/',
+            json=data
+        ).text
+    )
+    if url == "ccm_api":
+        print(data, response)
+    else:
+        print(url, response)
+    state = (response["state"] == "ok")
+    return state, response
 
 
 def make_logger(log_name, log_file):
@@ -255,21 +267,23 @@ def get_iottalk_info(logger):
     try:
         data = {
             'api_name': 'devicemodel.get',
-            'payload': json.dumps({
+            'payload': {
                 'dm': 'ControlBoard'
-            })
+            }
         }
-        response = _post('ccm_api', data).text
-        response = json.loads(response)
+        state, response = _post('ccm_api', data)
+        if not state:
+            raise ValueError
+        response = response["result"]
         iottalk_info['dm_id'] = response['dm_id']
         iottalk_info['df_id'] = list()
         for df in response["df_list"]:
             iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
-
+    except ValueError:
+        logger.error("Getting Device Model info failed.")
     except Exception as err:
         logger.error(err)
-
     return
 
 
@@ -287,15 +301,14 @@ def create_proj_ag(sa, logger):
     '''
     data = {
         "api_name": "project.create",
-        "payload": json.dumps({
+        "payload": {
             "p_name": sa.sa_name
-        })
+        }
     }
     try:
-        response = _post('ccm_api', data)
+        state, response = _post('ccm_api', data)
         logger.info('\tCreate Project\t......done')
-
-        return True, int(response.text)
+        return state, int(response["result"])
     except Exception as err:
         logger.error(err)
         return False, -1
@@ -314,13 +327,13 @@ def delete_proj_ag(p_id, logger):
     '''
     data = {
         "api_name": "project.delete",
-        "payload": json.dumps({
+        "payload": {
             "p_id": p_id,
-        })
+        }
     }
     try:
-        _post('ccm_api', data)
-        return True
+        status, response = _post('ccm_api', data)
+        return status, response
     except Exception as err:
         logger.error(err)
         return False
@@ -336,20 +349,20 @@ def create_do_ag(p_id, logger):
 
     Returns:
         status: Boolean value indicating create DO success or fail.
-        do_id: Creatd integer DO ID retrived from AG.
+        do_id: Created integer DO ID retrived from AG.
     '''
     data = {
         "api_name": "deviceobject.create",
-        "payload": json.dumps({
+        "payload": {
             "p_id": p_id,
             "dm_name": "ControlBoard",
             "dfs": iottalk_info["df_id"]
-        })
+        }
     }
     try:
-        response = _post('ccm_api', data)
+        status, response = _post('ccm_api', data)
         logger.info('\tCreate DO\t......done')
-        return True, json.loads(response.text)
+        return status, response["result"]
     except Exception as err:
         logger.error(err)
         return False, -1
@@ -368,19 +381,18 @@ def register_ag(sa, logger):
         ag_token: Token retrived from AG.
     '''
     try:
-        new_sa = open('./CB_SA.py', 'r').read().format(sa_id=sa.sa_id, config=reg_config, mac_addr=sa.mac_addr)
+        new_sa = open('./CB_SA.py', 'r').read().format(
+            sa_id=sa.sa_id, config=reg_config, mac_addr=sa.mac_addr, sa_name=sa.sa_name)
         data = {
-            'version': env_config["IoTtalk"]["version"],
-            'code': new_sa
+            "version": int(env_config["IoTtalk"]["version"]),
+            "code": new_sa
         }
 
-        response = _post('create_device', data).text
-        return True, response
-
+        state, response = _post('create_device', data)
+        return state, response["token"]
     except KeyError:
         logger.error('CB_SA.py Key Error, check parameter passed in or brackets in the code')
         return False, "Error"
-
     except Exception as err:
         logger.error(err)
         return False, "Error"
@@ -429,13 +441,15 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
         if use_v1:
             data = {
                 "api_name": "device.get",
-                "payload": json.dumps({
+                "payload": {
                     "p_id": p_id,
                     "do_id": do_id[0]
-                })
+                }
             }
-            response = _post('ccm_api', data)
-            response = json.loads(response.text)
+            status, response = _post('ccm_api', data)
+            if not status:
+                raise ValueError
+            response = response["result"]
             logger.info('\tGet Device\t......done')
             device = None
             for candidate in response:
@@ -448,17 +462,17 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                 print(id)
                 data = {
                     "api_name": "device.bind",
-                    "payload": json.dumps({
+                    "payload": {
                         "p_id": p_id,
                         "do_id": id,
                         "d_id": device['d_id']
-                    })
+                    }
                 }
-                _post('ccm_api', data)
+                status, response = _post('ccm_api', data)
             logger.info('\tBind device\t......done')
-            return True
+            return status, response["result"]
     except ValueError:
-        logger.error("Device to bind not found")
+        logger.error("Device to bind not found, either SA code error causing regrister failed or Server latency")
         return False
     except Exception as err:
         logger.error(err)

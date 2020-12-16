@@ -80,11 +80,8 @@ var app = new Vue({
       // ]
     },
     fields: {
-      pinnedFields: ["Field111111111111111111111111111", "Field2", "Field3", "Field4", "Field5"],
-      optionFields: [
-        "Field111111111111111111111111111", "Field2", "Field3", "Field4", "Field5", "Field6",
-        "Field7", "Field8", "Field9", "Field10", "Field11", "Field12", 
-      ]
+      pinnedFields: [],
+      optionFields: []
     },
     currentField: 0,  // Field refers to SA in a specific CB.
     currentProject: 0,  // Project refers to CB.
@@ -203,8 +200,7 @@ var app = new Vue({
     },
     maxPinnedFields: function() {
       console.log(window.outerWidth);
-      // return Math.floor(window.outerWidth / 80);
-      return 5;
+      return Math.floor(window.outerWidth / 80) - 1;
     },
     currentFieldName: function() {
       var name = "";
@@ -270,9 +266,11 @@ var app = new Vue({
           .post("/subsystem/create_sa", data)
           .then( (res) => {
             console.log(res);
+            this.getAvailableSAs(this.currentProject)
+              .then()
           })
           .catch( (err) => {
-            console.log(err);
+            alert(err);
           })
       }
       this.newSA = "";

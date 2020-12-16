@@ -16,12 +16,13 @@ import DAN
 
 
 class AG_SA():
-    def __init__(self, sa_id, config, mac_addr):
+    def __init__(self, sa_id, config, mac_addr, sa_name):
         '''
         Initialization of a CB_SA
 
         Args:
             sa_id: ID of this CB_SA from Database.
+            sa_name: Name of this CB_SA.
             mappings: Mapping of actuator to sensors.
             config: Infomation for connecting to Subsystem, should contain IP, port, username, password.
 
@@ -73,7 +74,7 @@ class AG_SA():
         }}
 
         ctlboard_profile = {{
-            'd_name': str(sa_id) + '.Controlboard',
+            'd_name': str(sa_id) + '-' + sa_name + '.Controlboard',
             'dm_name': 'ControlBoard',
             'u_name': 'yb',
             'is_sim': False,
@@ -166,7 +167,6 @@ class AG_SA():
             except orm.dbapiprovider.InternalError:
                 self.cb_db.disconnect()
                 retry_times += 1
-
         return
 
     @orm.db_session
@@ -526,7 +526,7 @@ class AG_SA():
         return satisfied, status
 
 
-sa = AG_SA('{sa_id}', {config}, '{mac_addr}')
+sa = AG_SA('{sa_id}', {config}, '{mac_addr}', '{sa_name}')
 
 sa.connect_db()
 sa.recover()

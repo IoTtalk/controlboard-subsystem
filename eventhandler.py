@@ -1,8 +1,10 @@
 import datetime
 import os
+import time
 import uuid
 
 
+from flask import abort
 from flask import Blueprint
 from flask import jsonify
 from flask import render_template
@@ -44,7 +46,7 @@ def render_index():
     '''
     session["token"] = str(uuid.uuid4())
     logined_user[session["token"]] = "test"
-    return render_template("main.html")
+    return render_template("main.html"), 200
 
 
 @apis.route('/sa/<sa_id>/new_rules', methods=['POST'])
@@ -259,58 +261,56 @@ def create_sa():
         sa_name: Name of this SA given by the user.
 
     Returns:
-        Status code: 200.
+        Status code: 200 / 400.
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
     sa_spec = request.json
-    try:
-        with orm.db_session():
-            mac_addr = str(uuid.uuid4())
-            sa = CB_SA(sa_name=sa_spec["sa_name"], ag_token="NotCreated", mac_addr=mac_addr, 
-                p_id=-1, do_id="-1", pinned=False, )
-            cb_db.commit()
-            api_logger.info("Start Creating CB SA")
+    with orm.db_session():
+        if not CB.exists(cb_id=sa_spec["cb_id"]):
+            abort(400, "Specified ControlBoard not existed")
+        mac_addr = str(uuid.uuid4())
+        sa = CB_SA(sa_name=sa_spec["sa_name"], ag_token="NotCreated", mac_addr=mac_addr, 
+            p_id=-1, do_id="-1", pinned=False, cb=CB[sa_spec["cb_id"]])
+        cb_db.commit()
+        api_logger.info("Start Creating CB SA")
 
-            # Register device
-            status, ag_token = register_ag(sa, api_logger)
-            if not status:
-                sa.delete()
-                return "Create SA failed at registering device, check api log files", 400
-            sa.ag_token = ag_token
+        # Register device
+        status, ag_token = register_ag(sa, api_logger)
+        if not status:
+            sa.delete()
+            abort(400, "Create SA failed at registering device, check api log files")
+        sa.ag_token = ag_token
 
-            # Create Project
-            status, p_id = create_proj_ag(sa, api_logger)
-            if not status:
-                deregister_ag(sa, api_logger)
-                sa.delete()
-                return "Create SA failed at creating project, check api log files", 400
-            sa.p_id = p_id
+        # Create Project
+        status, p_id = create_proj_ag(sa, api_logger)
+        if not status:
+            deregister_ag(sa, api_logger)
+            sa.delete()
+            abort(400, "Create SA failed at creating project, check api log files")
+        sa.p_id = p_id
 
-            # Create Device Object
-            status, do_id = create_do_ag(p_id, api_logger)
-            if not status:
-                deregister_ag(sa, api_logger)
-                sa.delete()
-                return "Create SA failed at creating DO, check api log files", 400
-            if use_v1:
-                sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
-            else:
-                sa.do_id = str(do_id)
+        # Create Device Object
+        status, do_id = create_do_ag(p_id, api_logger)
+        if not status:
+            deregister_ag(sa, api_logger)
+            sa.delete()
+            abort(400, "Create SA failed at creating DO, check api log files")
+        if use_v1:
+            sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
+        else:
+            sa.do_id = str(do_id)
 
-            # Bind device to DO
-            status = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)
-            if not status:
-                deregister_ag(sa, api_logger)
-                sa.delete()
-                return "Create SA failed at auto binding, check api log files", 400
+        # Bind device to DO
+        status, dm_name = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)
+        if not status:
+            deregister_ag(sa, api_logger)
+            sa.delete()
+            abort(400, "Create SA failed at auto binding, check api log files")
 
-        running_sa[sa.sa_id] = sa
-        api_logger.info(f'Create New SA, SA_ID: {sa.sa_id}')
+    running_sa[sa.sa_id] = sa
+    api_logger.info(f'Create New SA, DM Name: {dm_name}')
 
-        return "Create SA succeeded", 200
-    except Exception as err:
-        print(err)
-        return "test", 502
+    return "Create SA succeeded", 200
 
 
 @apis.route('/subsystem/delete_sa/<sa_id>', methods=['POST'])
@@ -332,9 +332,10 @@ def delete_sa(sa_id):
             api_logger.error("Error delete SA, Deregister SA failed, check api log file")
             return "Delete SA failed, check api log files", 502
 
-        status = delete_proj_ag(sa.p_id, api_logger)
+        status, message = delete_proj_ag(sa.p_id, api_logger)
         if not status:
             api_logger.error("Error delete SA, Delete project failed, check api log file")
+            api_logger.error(f"Error msg from AG: {message}")
             return "Delete SA failed, check api log files", 502
 
         api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
@@ -371,10 +372,10 @@ def get_sa(cb_id):
         return jsonify(available_sa), 200
     except KeyError:
         api_logger.error("Error getting SA, User not logined!")
-        return "Non-existed User!", 401
+        abort(401, "Non-existed User!")
     except ValueError:
         api_logger.error("Error getting SA, Requested CB is not shared with this user.")
-        return "Not a superuser!", 403
+        abort(403, "Not a superuser!")
 
 
 @apis.route('/subsystem/cb_icon/<cb_id>', methods=["PUT"])
@@ -412,17 +413,17 @@ def manage_icon(cb_id):
             return "Icon change finished", 200
     except KeyError:
         api_logger.error("Error Changing Icon, User not logined!")
-        return "Non-existed User!", 401
+        abort(401, "Non-existed User!")
     except ValueError:
         api_logger.error("Error Changing Icon, User is not a superuser.")
-        return "Not a superuser!", 403
+        abort(403, "Not a superuser!")
     except TypeError:
         api_logger.error("Error Changing Icon, Unsupported Icon extensions.")
-        return "Non-supported icon format", 400
+        abort(400, "Non-supported icon format")
     except Exception as err:
         api_logger.error("Unknown Error in Changing Icon.")
         api_logger.error(err)
-        return "Internal Server Error", 502
+        abort(502, "Internal Server Error")
 
 
 @apis.route('/subsystem/create_cb', methods=['POST'])
@@ -453,13 +454,13 @@ def create_cb():
         api_logger.info(f"Create ControlBoard by User {owner.account}, CB ID:  {cb.cb_id}")
     except KeyError:
         api_logger.error("Error Create CB, User not logined")
-        return "User not logined", 401
+        abort(401, "User not logined")
     except ValueError:
         api_logger.error("Error Create CB, Non-existed User!")
-        return "Non-existed User!", 400
+        abort(400, "Non-existed User!")
     except Exception as err:
         api_logger.error(err)
-        return "Unknown Error occurred, contact subsystem-admin to check error log!", 502
+        abort(502, "Unknown Error occurred, contact subsystem-admin to check error log!")
     return "Success", 200
 
 
@@ -489,14 +490,14 @@ def delete_cb():
     except KeyError:
         api_logger.error("Error Deleting ControlBoard, User not logined.")
         # TODO: redirect to AAA login page.
-        return "Please login first", 403
+        abort(403, "Please login first")
     except ValueError:
         api_logger.error("Error Deleting ControlBoard, User is not a superuser.")
-        return "Not a superuser!", 403
+        abort(403, "Not a superuser!")
     except Exception as err:
         api_logger.error("Unknown error occurred, error message as belows")
         api_logger.error(err)
-        return "Internal error occurred", 502
+        abort(502, "Internal error occurred")
 
 
 @apis.route('/subsystem/get_cb', methods=['GET'])
@@ -543,11 +544,11 @@ def get_cb():
     except KeyError:
         api_logger.error("Error Getting ControlBoard, User not logined.")
         # TODO: redirect to AAA login page.
-        return "Please Login first", 403
+        abort(403, "Please Login first")
     except ValueError:
         api_logger.error("Error Getting ControlBoard, No such user.")
         # TODO: redirect to AAA login page.
-        return "No such User", 401
+        abort(401, "No such User")
 
 
 @apis.route('/account/login', methods=['GET', 'POST'])
