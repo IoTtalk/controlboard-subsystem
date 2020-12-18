@@ -42,7 +42,10 @@
         <div v-if="!manageMode">
           <div class="field-manage" v-if="user.current.superuser">
             <div class="d-flex justify-content-between">
-              <b-button size="sm" variant="success" v-b-modal="'CreateSA'" class="create-field">+ New Field</b-button>
+              <div>
+                <b-button size="sm" variant="success" v-b-modal="'CreateSA'" class="create-field">+ New Field</b-button>
+                <b-button size="sm" variant="secondary" class="ml-sm-1">Refresh</b-button>
+              </div>
               <b-button size="sm" variant="danger" v-b-modal="'CancelSA'">Delete Field</b-button>
               <b-modal id="CreateSA" size="lg" centered title="Create New ControlBoard Field"
                 v-on:ok="onSACreate(1)" v-on:cancel="onSACreate(0)" v-on:close="onSACreate(0)"
@@ -71,7 +74,7 @@
         </div>
 
         <!-- Field tabs -->
-        <b-card title="Card Title" no-body class="card">
+        <b-card title="Card Title" no-body class="card mb-3">
           <b-card-header header-tag="nav">
             <b-nav card-header tabs>
               <b-nav-item-dropdown text="More" lazy v-if="fields.optionFields.length > maxPinnedFields && !manageMode">
@@ -327,7 +330,7 @@
         </b-card>
 
         <!-- Confirm/Reset all buttons -->
-        <b-container fluid class="bottom-button" v-if="!manageMode">
+        <b-container fluid class="fixed-bottom" v-if="!manageMode">
           <b-row class="text-center">
             <b-col><b-button size="lg" variant="primary">Confirm</b-button></b-col>
             <b-col><b-button size="lg" variant="secondary">Reset All</b-button></b-col>

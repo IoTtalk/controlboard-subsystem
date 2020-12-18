@@ -472,7 +472,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
             return status, response["result"]
     except ValueError:
         logger.error("Device to bind not found, either SA code error causing regrister failed or Server latency")
-        return False
+        return False, "DM not found"
     except Exception as err:
         logger.error(err)
-        return False
+        return False, "DM not found"

@@ -106,9 +106,17 @@ class AG_SA():
             mode = orm.Required(str)
             sa = orm.Required("CB_SA")  # which SA it belongs to
 
+        class CB(self.cb_db.Entity):
+            cb_id = orm.PrimaryKey(int, auto=True)
+            cb_name = orm.Required(str)
+            sa_set = set("CB_SA")
+            shared = orm.Required(bool)
+            account_set = orm.Set("CB_Account")  # accounts that can access this SA.
+            icon = orm.Required(str)
         class CB_SA(self.cb_db.Entity):
             sa_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
             sa_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
+            pinned = orm.Required(bool)  # if this SA is pinned.
             cb = orm.Required("CB")  # which CB this SA belongs to.
             ag_token = orm.Required(orm.LongStr)  # AG-returned token
             mac_addr = orm.Required(orm.LongStr)  # Mac-addr of this SA
@@ -120,13 +128,6 @@ class AG_SA():
             account = orm.Required(str)  # Account of this user.
             privilege = orm.Required(int)  # User level of this user.
             cb_set = orm.Set("CB")  # CBs this user can see.
-
-        class CB(self.cb_db.Entity):
-            cb_id = orm.PrimaryKey(int, auto=True)
-            cb_name = orm.Required(str)
-            shared = orm.Required(bool)
-            sa_set = set("CB_SA")
-            account_set = orm.Set("CB_Account")  # accounts that can access this SA.
 
     def connect_db(self):
         '''

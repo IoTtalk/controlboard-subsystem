@@ -1,4 +1,5 @@
 import datetime
+import time
 import os
 import uuid
 
@@ -300,6 +301,7 @@ def create_sa():
             sa.do_id = str(do_id)
 
         # Bind device to DO
+        time.sleep(5)  # Enable this if the IoTtalk Server cannot create DO in time.
         status, dm_name = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)
         if not status:
             deregister_ag(sa, api_logger)
