@@ -109,18 +109,19 @@ class AG_SA():
         class CB(self.cb_db.Entity):
             cb_id = orm.PrimaryKey(int, auto=True)
             cb_name = orm.Required(str)
-            sa_set = set("CB_SA")
+            sa_set = orm.Set("CB_SA", cascade_delete=True)
             shared = orm.Required(bool)
             account_set = orm.Set("CB_Account")  # accounts that can access this SA.
             icon = orm.Required(str)
+
         class CB_SA(self.cb_db.Entity):
             sa_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
             sa_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
             pinned = orm.Required(bool)  # if this SA is pinned.
-            cb = orm.Required("CB")  # which CB this SA belongs to.
+            cb = orm.Required(CB)  # which CB this SA belongs to.
             ag_token = orm.Required(orm.LongStr)  # AG-returned token
             mac_addr = orm.Required(orm.LongStr)  # Mac-addr of this SA
-            rule_set = orm.Set(UserRule)
+            rule_set = orm.Set(UserRule, cascade_delete=True)
             p_id = orm.Required(int)  # project id of this SA
             do_id = orm.Required(str)  # device object id for this SA.
 
@@ -188,8 +189,6 @@ class AG_SA():
         while len(self.mappings) == 0:
             alias_in = DAN.get_alias('Threshold-O' + str(1))
             alias_out = DAN.get_alias('Trigger-I' + str(1))
-            print('Please bind first')
-
             i = 1
             while len(alias_in):
                 try:
@@ -297,9 +296,7 @@ class AG_SA():
                 if exetime == 0:  # timer set to not set
                     if status['status'] == 'RED':
                         DAN.push(actuator_df, 0)
-                        status['status'] = 'GREEN'
-                    elif status['status'] == 'YELLOW':
-                        status['status'] = 'GREEN'
+                    status['status'] = 'GREEN'
                 else:
                     if status['status'] == 'RED':
                         if satisfied:

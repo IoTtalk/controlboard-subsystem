@@ -10,7 +10,10 @@ var app = new Vue({
       text: "",
       shared: false
     },
-    newSA: "",
+    newSA: {
+      text: "",
+      pinned: false
+    },
     comparisons: [
       {value: null, text: ""},
       {value: "smaller", html: "&lt;"},
@@ -175,10 +178,8 @@ var app = new Vue({
               "pinnedFields": pinnedFields,
               "optionFields": fields
             };
-            if (pinnedFields.length) {
-              this.currentField = pinnedFields[0].value;
-            } else {
-              
+            if (fields.length) {
+              this.currentField = fields[0]["value"];
             }
             console.log(this.fields);
           })
@@ -249,6 +250,17 @@ var app = new Vue({
         status: false,
       };
     },
+    onRefreshSA: function() {
+      axios
+        .get("/subsystem/refresh_sa/" + this.currentField.toString())
+        .then( (res)=> {
+          console.log(res);
+        })
+        .catch( (err) => {
+          console.log(err);
+        })
+        return;
+    },
     onSwitchManage: function() {
       this.manageMode = !this.manageMode;
       return;
@@ -259,7 +271,7 @@ var app = new Vue({
     onSACreate: function(action) {
       if (1 === action) {
         data = {
-          "sa_name": this.newSA,
+          "sa": this.newSA,
           "cb_id": this.currentProject
         }
         axios
@@ -267,13 +279,31 @@ var app = new Vue({
           .then( (res) => {
             console.log(res);
             this.getAvailableSAs(this.currentProject)
-              .then()
+              .then( (fields) => {
+                pinnedFields = [];
+                fields.forEach(element => {
+                  if (element.pin) {
+                    pinnedFields.push(element);
+                  }
+                });
+                console.log(pinnedFields);
+                this.fields = {
+                  "pinnedFields": pinnedFields,
+                  "optionFields": fields
+                };
+              })
+              .catch( (err) => {
+                console.log(err);
+              })
           })
           .catch( (err) => {
             alert(err);
           })
       }
-      this.newSA = "";
+      this.newSA = {
+        text: "",
+        pinned: false
+      };
       return;
     },
     onSADelete: function(action) {

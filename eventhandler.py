@@ -251,6 +251,42 @@ def get_datum(sa_id):
     return jsonify(res_dict), 200
 
 
+@apis.route('/subsystem/refresh_sa/<sa_id>', methods=['GET'])
+def refresh_sa(sa_id):
+    '''
+    Fetch NetworkApplications to read IDF/ODF name.
+
+    Args:
+        sa_id: ID of the SA to get p_id.
+
+    Returns:
+        
+    '''
+    try:
+        with orm.db_session():
+            sa = CB_SA[sa_id]
+            # Register device
+            status, ag_token = register_ag(sa, api_logger)
+            if not status:
+                sa.delete()
+                abort(400, "Create SA failed at registering device, check api log files")
+            sa.ag_token = ag_token
+
+            # Bind device to DO
+            time.sleep(5)  # Uncomment this if the IoTtalk Server cannot create DO in time.
+            status, dm_name = bind_device_ag(sa.mac_addr, sa.p_id, sa.do_id, api_logger)
+            if not status:
+                deregister_ag(sa, api_logger)
+                sa.delete()
+                abort(400, "Create SA failed at auto binding, check api log files")
+
+            running_sa[sa.sa_id] = sa
+            api_logger.info(f'Create New SA, DM Name: {dm_name}')
+    except Exception as err:
+        api_logger.error(err)
+        return abort(502, "Internal Server Error")
+
+
 @apis.route('/subsystem/create_sa', methods=['POST'])
 def create_sa():
     '''
@@ -269,17 +305,10 @@ def create_sa():
         if not CB.exists(cb_id=sa_spec["cb_id"]):
             abort(400, "Specified ControlBoard not existed")
         mac_addr = str(uuid.uuid4())
-        sa = CB_SA(sa_name=sa_spec["sa_name"], ag_token="NotCreated", mac_addr=mac_addr,
-                   p_id=-1, do_id="-1", pinned=False, cb=CB[sa_spec["cb_id"]])
+        sa = CB_SA(sa_name=sa_spec["sa"]["text"], ag_token="NotCreated", mac_addr=mac_addr,
+                   p_id=-1, do_id="-1", pinned=sa_spec["sa"]["pinned"], cb=CB[sa_spec["cb_id"]])
         cb_db.commit()
         api_logger.info("Start Creating CB SA")
-
-        # Register device
-        status, ag_token = register_ag(sa, api_logger)
-        if not status:
-            sa.delete()
-            abort(400, "Create SA failed at registering device, check api log files")
-        sa.ag_token = ag_token
 
         # Create Project
         status, p_id = create_proj_ag(sa, api_logger)
@@ -299,18 +328,6 @@ def create_sa():
             sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
         else:
             sa.do_id = str(do_id)
-
-        # Bind device to DO
-        time.sleep(5)  # Enable this if the IoTtalk Server cannot create DO in time.
-        status, dm_name = bind_device_ag(sa.mac_addr, p_id, do_id, api_logger)
-        if not status:
-            deregister_ag(sa, api_logger)
-            sa.delete()
-            abort(400, "Create SA failed at auto binding, check api log files")
-
-    running_sa[sa.sa_id] = sa
-    api_logger.info(f'Create New SA, DM Name: {dm_name}')
-
     return "Create SA succeeded", 200
 
 
