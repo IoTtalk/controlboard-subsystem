@@ -260,7 +260,7 @@ def refresh_sa(sa_id):
         sa_id: ID of the SA to get p_id.
 
     Returns:
-        
+
     '''
     try:
         with orm.db_session():

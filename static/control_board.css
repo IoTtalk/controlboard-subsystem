@@ -59,6 +59,11 @@ html, body {
   background: url(./imgs/expand_more-24px.svg) no-repeat right .25rem center/15px 15px;
 }
 
+/* bootstrap-vue class of Dropdown Header*/
+.dropdown-header {
+  padding: 0px 5px;
+}
+
 /* bootstrap-vue class of form-checkbox item */
 .form-check {
   font-size: 0.8rem;

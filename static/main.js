@@ -207,11 +207,20 @@ var app = new Vue({
       var name = "";
       this.fields.optionFields.forEach(field => {
         if (field.value === this.currentField) {
-          console.log(field);
           name = field.text;
         }
       });
       return name;
+    },
+    unPinnedFields: function() {
+      var fields = [];
+      this.fields.optionFields.forEach(field => {
+        if (!this.fields.pinnedFields.includes(field)) {
+          fields.append(field);
+        }
+      })
+      console.log(fields);
+      return fields;
     }
   },
   methods: {

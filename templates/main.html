@@ -81,17 +81,32 @@
           <b-card-header header-tag="nav">
             <b-nav card-header tabs>
               <b-nav-item-dropdown text="More" lazy v-if="!manageMode">
-                <b-dropdown-item
-                  v-for="field in fields.optionFields"
-                  v-bind:active="field.value===currentField"
-                  v-on:click="switchField(field.value)"
-                  align-self="start"
-                > <% field.text %>
-                </b-dropdown-item>
-                <b-dropdown-item align-self="start">
-                  Pin Field
-                  <b-icon icon="tags-fill" aria-hidden="true"></b-icon>
-                </b-dropdown-item>
+                <b-dropdown-group id="dropdown-group-1">
+                  <template v-slot:header>
+                    <div class="d-flex justify-content-between">
+                      <span>Pinned Fields</span>
+                      <b-button size="sm" variant="light">
+                        <b-icon icon="plus" aria-hidden="true"></b-icon>
+                      </b-button>
+                    </div>
+                  </template>
+                  <b-dropdown-item
+                    v-for="field in fields.pinnedFields"
+                    v-bind:active="field.value===currentField"
+                    v-on:click="switchField(field.value)"
+                    align-self="start"
+                  > <%field.text%> </b-dropdown-item>
+                </b-dropdown-group>
+                <b-dropdown-divider v-if="unPinnedFields.length"></b-dropdown-divider>
+                <b-dropdown-group id="dropdown-group-2" header="All Fields" 
+                  v-if="unPinnedFields.length">
+                  <b-dropdown-item
+                    v-for="field in unPinnedFields"
+                    v-bind:active="field.value===currentField"
+                    v-on:click="switchField(field.value)"
+                    align-self="start"
+                  > <%field.text%> </b-dropdown-item>
+                </b-dropdown-group>
               </b-nav-item-dropdown>
               <b-nav-item
                 v-for="(field, index) in fields.pinnedFields"
