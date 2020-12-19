@@ -281,7 +281,8 @@ def refresh_sa(sa_id):
                 abort(400, "Create SA failed at auto binding, check api log files")
 
             running_sa[sa.sa_id] = sa
-            api_logger.info(f'Create New SA, DM Name: {dm_name}')
+            api_logger.info(f"Create New SA, DM Name: {dm_name}")
+            return 200, f"Create New SA, DM Name: {dm_name}"
     except Exception as err:
         api_logger.error(err)
         return abort(502, "Internal Server Error")

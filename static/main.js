@@ -216,7 +216,7 @@ var app = new Vue({
       var fields = [];
       this.fields.optionFields.forEach(field => {
         if (!this.fields.pinnedFields.includes(field)) {
-          fields.append(field);
+          fields.push(field);
         }
       })
       console.log(fields);

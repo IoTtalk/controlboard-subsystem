@@ -98,7 +98,7 @@
                   > <%field.text%> </b-dropdown-item>
                 </b-dropdown-group>
                 <b-dropdown-divider v-if="unPinnedFields.length"></b-dropdown-divider>
-                <b-dropdown-group id="dropdown-group-2" header="All Fields" 
+                <b-dropdown-group id="dropdown-group-2" header="Other Fields" 
                   v-if="unPinnedFields.length">
                   <b-dropdown-item
                     v-for="field in unPinnedFields"
@@ -348,7 +348,7 @@
         </b-card>
 
         <!-- Confirm/Reset all buttons -->
-        <b-container fluid class="fixed-bottom" v-if="!manageMode">
+        <b-container fluid class="fixed-bottom mb-1" v-if="!manageMode">
           <b-row class="text-center">
             <b-col><b-button size="lg" variant="primary">Confirm</b-button></b-col>
             <b-col><b-button size="lg" variant="secondary">Reset All</b-button></b-col>
