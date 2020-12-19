@@ -158,7 +158,7 @@
                     v-on:update-option="onSelectCompare"
                   ></custom-sel>
                   <b-form-input placeholder="Seconds" size="sm" class="custom-input"
-                    v-model="setting.content.open_sensorVal"
+                    v-model="setting.content.openSensorVal"
                     v-bind:disabled="setting.content.open_sensor===null"
                   ></b-form-input>
                   <span class="setting-text-mid">ON.</span>
@@ -170,7 +170,7 @@
                     v-on:update-option="onSelectCompare"
                   ></custom-sel> 
                   <b-form-input placeholder="Seconds" size="sm" class="custom-input"
-                    v-model="setting.content.close_sensorVal"
+                    v-model="setting.content.closeSensorVal"
                     v-bind:disabled="setting.content.close_sensor===null"
                   ></b-form-input>
                   <span class="setting-text">OFF.</span>
@@ -182,7 +182,7 @@
                     v-bind:options="hours"
                     v-bind:index="index"
                     v-bind:content="0"
-                    v-bind:select="setting.content.open_timer[0]"
+                    v-bind:select="setting.content.openTimer[0]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
                   <span>:</span>
@@ -190,7 +190,7 @@
                     v-bind:options="minutes"
                     v-bind:index="index"
                     v-bind:content="1"
-                    v-bind:select="setting.content.open_timer[1]"
+                    v-bind:select="setting.content.openTimer[1]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
                   <span>:</span>
@@ -198,7 +198,7 @@
                     v-bind:options="seconds"
                     v-bind:index="index"
                     v-bind:content="2"
-                    v-bind:select="setting.content.open_timer[2]"
+                    v-bind:select="setting.content.openTimer[2]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
                   <span style="padding-right: 10px;">on</span>
@@ -206,7 +206,7 @@
                     v-bind:options="hours"
                     v-bind:index="index"
                     v-bind:content="3"
-                    v-bind:select="setting.content.close_timer[0]"
+                    v-bind:select="setting.content.closeTimer[0]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
                   <span>:</span>
@@ -214,7 +214,7 @@
                     v-bind:options="minutes"
                     v-bind:index="index"
                     v-bind:content="4"
-                    v-bind:select="setting.content.close_timer[1]"
+                    v-bind:select="setting.content.closeTimer[1]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
                   <span>:</span>
@@ -222,7 +222,7 @@
                     v-bind:options="seconds"
                     v-bind:index="index"
                     v-bind:content="5"
-                    v-bind:select="setting.content.close_timer[2]"
+                    v-bind:select="setting.content.closeTimer[2]"
                     v-on:update-option="onSelectTime"
                   ></custom-sel>
                   <span>off</span>

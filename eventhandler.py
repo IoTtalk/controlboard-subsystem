@@ -260,11 +260,14 @@ def refresh_sa(sa_id):
         sa_id: ID of the SA to get p_id.
 
     Returns:
-
+        Status code: 200 / 400 / 502
+        Msg: Corresponding execution result.
     '''
     try:
         with orm.db_session():
             sa = CB_SA[sa_id]
+            # TODO: Read NAs after V1 CCMAPI is fixed to create Userrules.
+
             # Register device
             status, ag_token = register_ag(sa, api_logger)
             if not status:
@@ -274,15 +277,15 @@ def refresh_sa(sa_id):
 
             # Bind device to DO
             time.sleep(5)  # Uncomment this if the IoTtalk Server cannot create DO in time.
-            status, dm_name = bind_device_ag(sa.mac_addr, sa.p_id, sa.do_id, api_logger)
+            do_id = sa.do_id.split(",")
+            status, dm_name = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
             if not status:
                 deregister_ag(sa, api_logger)
                 sa.delete()
                 abort(400, "Create SA failed at auto binding, check api log files")
-
             running_sa[sa.sa_id] = sa
             api_logger.info(f"Create New SA, DM Name: {dm_name}")
-            return 200, f"Create New SA, DM Name: {dm_name}"
+            return f"Create New SA, DM Name: {dm_name}", 200
     except Exception as err:
         api_logger.error(err)
         return abort(502, "Internal Server Error")

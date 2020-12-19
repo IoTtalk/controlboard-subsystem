@@ -64,23 +64,8 @@ var app = new Vue({
       ]
     },
     projects: { // All Shared projects of CB Subsystem + User's projects
-      // accessibleProjects: [5, 7, 8, 10], // Accessible CBs' IDs 
-      // optionProjects: [
-      //   {text: "test_7", value: 10, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_8", value: 7, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_9", value: 8, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_10", value: 5, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_11", value: 0, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_12", value: 1, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_13", value: 2, icon: "../static/imgs/landscape.svg"},
-      //   {text: "Hello World", value: 3, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_1", value: 4, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_2", value: 6, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_3", value: 9, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_4", value: 11, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_5", value: 12, icon: "../static/imgs/landscape.svg"},
-      //   {text: "test_6", value: 13, icon: "../static/imgs/landscape.svg"}
-      // ]
+      accessibleProjects: [], // Accessible CBs' IDs 
+      optionProjects: []
     },
     fields: {
       pinnedFields: [],
@@ -99,10 +84,10 @@ var app = new Vue({
         content: {
           "open_sensor": "bigger",
           "close_sensor": null,
-          "open_timer": [0, 0, 0],
-          "close_timer": [0, 0, 0],
-          "open_sensorVal": 0,
-          "close_sensorVal": 0,
+          "openTimer": [0, 0, 0],
+          "closeTimer": [0, 0, 0],
+          "openSensorVal": 0,
+          "closeSensorVal": 0,
           "weekdays": [3],
         }
       },
@@ -116,10 +101,10 @@ var app = new Vue({
         content: {
           "open_sensor": "bigger",
           "close_sensor": null,
-          "open_timer": [0, 0, 0],
-          "close_timer": [0, 0, 0],
-          "open_sensorVal": 0,
-          "close_sensorVal": 0,
+          "openTimer": [0, 0, 0],
+          "closeTimer": [0, 0, 0],
+          "openSensorVal": 0,
+          "closeSensorVal": 0,
           "duty_pos": 0,
           "duty_neg": 0,
           "weekdays": [4],
@@ -135,10 +120,10 @@ var app = new Vue({
         content: {
           "open_sensor": null,
           "close_sensor": null,
-          "open_timer": [0, 0, 0],
-          "close_timer": [0, 0, 0],
-          "open_sensorVal": 0,
-          "close_sensorVal": 0,
+          "openTimer": [0, 0, 0],
+          "closeTimer": [0, 0, 0],
+          "openSensorVal": 0,
+          "closeSensorVal": 0,
           "weekdays": [5],
         }
       },
@@ -152,10 +137,10 @@ var app = new Vue({
         content: {
           "open_sensor": null,
           "close_sensor": null,
-          "open_timer": [0, 0, 0],
-          "close_timer": [0, 0, 0],
-          "open_sensorVal": 0,
-          "close_sensorVal": 0,
+          "openTimer": [0, 0, 0],
+          "closeTimer": [0, 0, 0],
+          "openSensorVal": 0,
+          "closeSensorVal": 0,
           "weekdays": [6],
         }
       }
@@ -251,19 +236,30 @@ var app = new Vue({
           });
       });
     },
-    getDefaultSensorSettings: function() {
-      return {
-        mode: "OFF",
-        value: 0,
-        dirty: false,
-        status: false,
-      };
+    getSARules: function(fieldID) {
+      return new Promise(function (resolve, reject) {
+        axios
+          .get("/sa/" + fieldID.toString() + "rules/")
+          .then( (rules) => {
+            resolve(rules);
+          })
+          .catch( (err) => {
+            reject(err);
+          });
+      });
     },
     onRefreshSA: function() {
       axios
         .get("/subsystem/refresh_sa/" + this.currentField.toString())
         .then( (res)=> {
-          console.log(res);
+          this.getSARules(this.currentField)
+          .then( (rules) => {
+            console.log(rules);
+            this.settings = rules;
+          })
+          .catch( (err) => {
+            console.log(err);
+          })
         })
         .catch( (err) => {
           console.log(err);
@@ -371,9 +367,9 @@ var app = new Vue({
       console.log(val, settingIndex, content);
       this.settings[settingIndex].dirty = true;
       if (content < 3) {
-        this.settings[settingIndex].content.open_timer[content] = val;
+        this.settings[settingIndex].content.openTimer[content] = val;
       } else {
-        this.settings[settingIndex].content.close_timer[content - 3] = val;
+        this.settings[settingIndex].content.closeTimer[content - 3] = val;
       }
     },
     onSelectWeekdays: function(event, settingIndex) {

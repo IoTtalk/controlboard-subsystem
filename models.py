@@ -14,9 +14,8 @@ cb_db = Database()
 
 class UserRule(cb_db.Entity):
     rule_id = PrimaryKey(int, auto=True)  # For AG_SA to write status.
-    rule_type = Required(str)  # Sensor / Timer.
     actuator_alias = Required(str)  # Alias of the actuator in this rule.
-    sensor_alias = Required(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
+    sensor_alias = Required(str)  # Alias of the actuator in this rule.
     threshold_open = Optional(float)  # Sensor value to decide trigger actuator or not.
     threshold_close = Optional(float)  # Sensor value to decide close actuator or not.
     comparison_open = Optional(str)  # Comparison method to decide trigger actuator or not.
@@ -24,9 +23,12 @@ class UserRule(cb_db.Entity):
     time_open = Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
     time_close = Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
     period = Required(int)  # Period functionality.
-    exetime = Optional(int)  # execution time for periodically execution
-    mode = Required(str)  # Auto/On/Off
-    sa = Required("CB_SA")  # which SA it belongs to
+    exetime = Optional(int)  # execution time for periodically execution.
+    mode = Required(str)  # Sensor/Timer/On/Off.
+    weekday = Optional(str)  # Weekdays this rule should be executed.
+    duty_pos = Optional(int)  # Positive edge of Duty Cycle.
+    duty_neg = Optional(int)  # Negative edge of Duty Cycle.
+    sa = Required("CB_SA")  # which SA this rule belongs to.
 
 
 class CB(cb_db.Entity):
