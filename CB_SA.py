@@ -3,6 +3,7 @@ import uuid
 import datetime
 import os
 import math
+import requests
 
 from collections import deque
 
@@ -290,6 +291,10 @@ class AG_SA():
             self.calibration_checker(
                 rule.sensor_alias, rule.mode, status['status'], self.mappings[rule.actuator_alias], rule.rule_type, sa
             )
+            if self.calibrate is True:
+                print('Calibrating ', rule.sensor_alias)
+            else:
+                print('Not Calibrating ', rule.sensor_alias)
         return
     
     @orm.db_session
@@ -316,20 +321,19 @@ class AG_SA():
         if sensor in self.checking:
             if self.checking[sensor] != 0:
                 time = datetime.datetime.now() - self.checking[sensor] 
-                if time.total_seconds() > 10:
+                if time.total_seconds() > 15:
                     # print('SAVE DATA TO DATABASE')
                     sensor_df = 'Threshold-O' + str(mapping[1])
                     data = DAN.pull(sensor_df)
                     if data is not None:
                         data = data[0]
                         ascent = data-self.initial[sensor]
-                        self.cb_db.Outlier(
-                            sensor = sensor, initial_data = self.initial[sensor], 
-                            ascent = ascent, said = sa.cb_id
-                        )
-                        self.cb_db.commit()
-                        
                         if self.calibrate == False:
+                            self.cb_db.Outlier(
+                                sensor = sensor, initial_data = self.initial[sensor], 
+                                ascent = ascent, said = sa.cb_id
+                            )
+                            self.cb_db.commit()
                             self.outlier_test(sensor, self.initial[sensor], ascent)
                         self.checking[sensor] = 0
                     else:
@@ -355,15 +359,17 @@ class AG_SA():
                     time_diff = datetime.datetime.now() - self.prev_time[sensor]
                     time_diff = time_diff.total_seconds()
                     self.prev_status[sensor] = 0
-                    self.cb_db.Time_Threshold(
-                        sensor = sensor, time_on = time_diff, said = sa.cb_id
-                    )
-                    self.cb_db.commit()
-                    if self.calibrate == False: 
+                    
+                    if self.calibrate == False:
+                        self.cb_db.Time_Threshold(
+                            sensor = sensor, time_on = time_diff, said = sa.cb_id
+                        )
+                        self.cb_db.commit() 
                         self.threshold_test(sensor, time_diff)
         else:
             self.prev_status[sensor] = 0
-        self.calib_complete_check(sensor)
+        if self.calibrate is True:
+            self.calib_complete_check(sensor)
         return
     
     def threshold_test(self, sensor, time_diff):
@@ -378,6 +384,8 @@ class AG_SA():
                 data_order.append(data['data_prio'])
             if(len(actime) < 50): pass
             else:  # delete the oldest time data 
+                self.cb_db.Time_Threshold[min(data_order)].delete()
+                self.cb_db.commit()
                 pass
             histogram_bins = dict()
             find_medium = 0
@@ -423,7 +431,6 @@ class AG_SA():
                     threshold_time[sensor] = t
                     break
             if sensor not in threshold_time: threshold_time[sensor] = 60
-
         if sensor in threshold_time:
             if time_diff > threshold_time[sensor]: 
                 self.calib_request(sensor)
@@ -476,14 +483,22 @@ class AG_SA():
                 print('sensor in need of calibration')
                 self.calibrate = True
             else:
+                print('sensor normal')
                 pass
-                # print('sensor normal')
         return
     
     def calib_request(self, sensor):
         # call this when the tests are not passed
         try:
-            DAN.push('Message-I', 'start calibration ' + sensor)
+            # DAN.calibrate(self.cb_db.CB_SA[self.cb_id].p_id)
+            # temporary method
+            cb = requests.Session()
+            r = cb.post(
+                f'http://{{config["iottalk_server"]}}:9999' + '/calibrate_sensor',
+                json=('p_id': p_id,'sensor': sensor, 'state': None), 
+                timeout=TIMEOUT
+            )
+            if r.status_code != 200: raise CSMError(r.text)
         except Exception as e:
             print("calibration request error: ")
             print(e)
@@ -492,33 +507,25 @@ class AG_SA():
     def calib_complete_check(self, sensor):
         # under calibration mode, keep checking for DA's return message
         try:
-            msg = DAN.pull('Message-O')
+            msg = DAN.pull('__Ctl_O__')
             if msg is not None:
-                msg = msg[0]
-            if msg is 'complete' or msg is 'failed':
-                self.checking[sensor] = 0
-                self.calibrate = False
-            else:
-                pass
+                msg = msg[0][1]
+                if len(msg) == 3:
+                    if msg[2] is 'done':
+                        # report to user calibration done
+                        self.checking[sensor] = 0
+                        self.calibrate = False
+                        pass
+                    elif msg[2] is 'failed':
+                        # report to user calibration failed
+                        self.checking[sensor] = 0
+                        self.calibrate = False
+                        pass
+                    else:
+                        pass
         except Exception as e:
             print("Pull control message error: ")
             print(e)
-
-        try:
-            if msg is 'complete':
-                DAN.push('Message-I', 'not calibrating')
-                print("not calibrating")
-                pass
-            elif msg is 'failed': # also need to add notification for changing sensors, using line bot or something
-                DAN.push('Message-I', 'change sensor')
-                print("calibration failed")
-                pass
-            else:  # msg is 'processing'
-                pass
-        except Exception as e:
-            print("Push message to control channel error: ")
-            print(e)
-
         return
     
 
