@@ -15,7 +15,11 @@ cb_db = Database()
 class UserRule(cb_db.Entity):
     rule_id = PrimaryKey(int, auto=True)  # For AG_SA to write status.
     actuator_alias = Required(str)  # Alias of the actuator in this rule.
-    sensor_alias = Required(str)  # Alias of the actuator in this rule.
+    actuator_df = Required(str)  # Device Feature Name of the actuator in this rule.
+    sensor_alias = Optional(str)  # Alias of the actuator in this rule.
+    sensor_df = Optional(str)  # Device Feature Name of sensors in this rule.
+    sensor_index = Optional(int)  # Which Sensor this rule is using currently.
+    df_order = Required(int)  # Which IDF/ODF pair to pull/push data.
     threshold_open = Optional(float)  # Sensor value to decide trigger actuator or not.
     threshold_close = Optional(float)  # Sensor value to decide close actuator or not.
     comparison_open = Optional(str)  # Comparison method to decide trigger actuator or not.

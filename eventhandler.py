@@ -1,4 +1,6 @@
 import datetime
+import json
+import requests
 import time
 import os
 import uuid
@@ -19,7 +21,7 @@ from utils import running_sa, running_status
 from utils import make_logger
 from utils import create_proj_ag, delete_proj_ag
 from utils import create_do_ag
-from utils import register_ag, deregister_ag, bind_device_ag
+from utils import register_ag, deregister_ag, bind_device_ag, get_na_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB
 from config import default_rules
@@ -117,18 +119,18 @@ def set_rules(sa_id):
                 sa=sa
             )
         except orm.MultipleRowsFound:
-            api_logger.error("Error creating new rule, Multiple Rules for the same mapping found")
+            api_logger.exception("Error creating new rule, Multiple Rules for the same mapping found")
             return "Internal Server Error", 502
 
     if sa_id in running_sa:
         status = deregister_ag(running_sa[sa_id], api_logger)
         if not status:
-            api_logger.error("Error creating new rule, Change User configuraion failed, check API logs")
+            api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
             return "Internal Server Error", 502
 
     status, ag_token = register_ag(sa, api_logger)
     if not status:
-        api_logger.error("Error creating new rule, Change User configuraion failed, check API logs")
+        api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
         return "Internal Server Error", 502
     sa.ag_token = ag_token
     running_sa[sa.sa_id] = sa
@@ -137,7 +139,7 @@ def set_rules(sa_id):
     status = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
 
     if not status:
-        api_logger.error("Error creating new rule, Change User configuraion failed, check API logs")
+        api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
         return "Internal Server Error", 502
 
     return 'Configuration Saved', 200
@@ -240,7 +242,7 @@ def get_datum(sa_id):
     try:
         rules = running_sa[sa_id].rule_set
     except KeyError:
-        api_logger.error("Error getting SA's current data, Specified SA not running")
+        api_logger.exception("Error getting SA's current data, Specified SA not running")
         return "Specified SA not running", 400
 
     for rule in rules:
@@ -266,8 +268,73 @@ def refresh_sa(sa_id):
     try:
         with orm.db_session():
             sa = CB_SA[sa_id]
-            # TODO: Read NAs after V1 CCMAPI is fixed to create Userrules.
+            if use_v1:
+                NAs = requests.post(  # Work Around for V1 CCM API project.get lacking NA info.
+                    f"http://{env_config['IoTtalk']['ServerIP']}:7788/reload_data",
+                    data={"p_id": sa.p_id}
+                )
+                NAs = json.loads(NAs.text)["join"]
+            else:
+                NAs = ["testV2"]
+            print(NAs)
+            if not len(NAs):
+                raise ValueError
 
+            # Create UserRules for each NA
+            src, dst = dict(), dict()
+            for na in NAs:
+                na_info = get_na_ag(sa.p_id, na[0], api_logger)[1]
+                print("na_info: ", na_info)
+                order, idfs, odfs = 0, list(), list()
+                direction = 0  # 0 for src, 1 for dst
+                for idf in na_info["input"]:
+                    if idf["df_name"].startswith("Trigger-I"):
+                        order = int(idf["df_name"][-1])
+                        direction = 1
+                    idfs.append([idf["df_name"], idf["alias_name"].replace("-I", "")])
+
+                for odf in na_info["output"]:
+                    if odf["df_name"].startswith("Threshold-O"):
+                        order = int(odf["df_name"][-1])
+                        direction = 0
+                    odfs.append([odf["df_name"], odf["alias_name"].replace("-O", "")])
+
+                # Not a CB related NA.
+                if 0 == order:
+                    continue
+                if direction:
+                    dst[order] = odfs
+                else:
+                    src[order] = idfs
+            print("test")
+            for order, actuator in dst.items():
+                if order not in src:
+                    sa.rule_set.add(
+                        UserRule(
+                            **default_rules,
+                            actuator_alias=actuator[0][1],
+                            actuator_df=actuator[0][0],
+                            time_open=datetime.time(0, 0, 0),
+                            time_close=datetime.time(0, 0, 0),
+                            mode="Timer",
+                            df_order=order,
+                            sa=sa
+                        )
+                    )
+                else:
+                    print(src[order])
+                    sa.rule_set.add(
+                        UserRule(
+                            **default_rules,
+                            actuator_alias=actuator[0][1],
+                            actuator_df=actuator[0][0],
+                            sensor_alias=",".join([row[1] for row in src[order]]),
+                            sensor_df=",".join([row[1] for row in src[order]]),
+                            sensor_index=0,
+                            df_order=order,
+                            sa=sa
+                        )
+                    )
             # Register device
             status, ag_token = register_ag(sa, api_logger)
             if not status:
@@ -284,10 +351,14 @@ def refresh_sa(sa_id):
                 sa.delete()
                 abort(400, "Create SA failed at auto binding, check api log files")
             running_sa[sa.sa_id] = sa
+
             api_logger.info(f"Create New SA, DM Name: {dm_name}")
             return f"Create New SA, DM Name: {dm_name}", 200
+    except ValueError:
+        api_logger.exception("No NAs found, remind user to create NAs")
+        return abort(400, f"No NAs detected, please create Join point in Project {str(sa_id) + '-' + sa.sa_name}")
     except Exception as err:
-        api_logger.error(err)
+        api_logger.exception(err)
         return abort(502, "Internal Server Error")
 
 
@@ -351,13 +422,13 @@ def delete_sa(sa_id):
         sa = running_sa[int(sa_id)]
         status = deregister_ag(sa, api_logger)
         if not status:
-            api_logger.error("Error delete SA, Deregister SA failed, check api log file")
+            api_logger.exception("Error delete SA, Deregister SA failed, check api log file")
             return "Delete SA failed, check api log files", 502
 
         status, message = delete_proj_ag(sa.p_id, api_logger)
         if not status:
-            api_logger.error("Error delete SA, Delete project failed, check api log file")
-            api_logger.error(f"Error msg from AG: {message}")
+            api_logger.exception("Error delete SA, Delete project failed, check api log file")
+            api_logger.exception(f"Error msg from AG: {message}")
             return "Delete SA failed, check api log files", 502
 
         api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
@@ -393,10 +464,10 @@ def get_sa(cb_id):
                 })
         return jsonify(available_sa), 200
     except KeyError:
-        api_logger.error("Error getting SA, User not logined!")
+        api_logger.exception("Error getting SA, User not logined!")
         abort(401, "Non-existed User!")
     except ValueError:
-        api_logger.error("Error getting SA, Requested CB is not shared with this user.")
+        api_logger.exception("Error getting SA, Requested CB is not shared with this user.")
         abort(403, "Not a superuser!")
 
 
@@ -434,17 +505,17 @@ def manage_icon(cb_id):
                 raise TypeError
             return "Icon change finished", 200
     except KeyError:
-        api_logger.error("Error Changing Icon, User not logined!")
+        api_logger.exception("Error Changing Icon, User not logined!")
         abort(401, "Non-existed User!")
     except ValueError:
-        api_logger.error("Error Changing Icon, User is not a superuser.")
+        api_logger.exception("Error Changing Icon, User is not a superuser.")
         abort(403, "Not a superuser!")
     except TypeError:
-        api_logger.error("Error Changing Icon, Unsupported Icon extensions.")
+        api_logger.exception("Error Changing Icon, Unsupported Icon extensions.")
         abort(400, "Non-supported icon format")
     except Exception as err:
-        api_logger.error("Unknown Error in Changing Icon.")
-        api_logger.error(err)
+        api_logger.exception("Unknown Error in Changing Icon.")
+        api_logger.exception(err)
         abort(502, "Internal Server Error")
 
 
@@ -475,13 +546,13 @@ def create_cb():
             cb.account_set.add(owner)
         api_logger.info(f"Create ControlBoard by User {owner.account}, CB ID:  {cb.cb_id}")
     except KeyError:
-        api_logger.error("Error Create CB, User not logined")
+        api_logger.exception("Error Create CB, User not logined")
         abort(401, "User not logined")
     except ValueError:
-        api_logger.error("Error Create CB, Non-existed User!")
+        api_logger.exception("Error Create CB, Non-existed User!")
         abort(400, "Non-existed User!")
     except Exception as err:
-        api_logger.error(err)
+        api_logger.exception(err)
         abort(502, "Unknown Error occurred, contact subsystem-admin to check error log!")
     return "Success", 200
 
@@ -510,15 +581,15 @@ def delete_cb():
             CB[cb_id].delete()  # By applying cascade deleting.
         return "Specified ControlBoard deleted."
     except KeyError:
-        api_logger.error("Error Deleting ControlBoard, User not logined.")
+        api_logger.exception("Error Deleting ControlBoard, User not logined.")
         # TODO: redirect to AAA login page.
         abort(403, "Please login first")
     except ValueError:
-        api_logger.error("Error Deleting ControlBoard, User is not a superuser.")
+        api_logger.exception("Error Deleting ControlBoard, User is not a superuser.")
         abort(403, "Not a superuser!")
     except Exception as err:
-        api_logger.error("Unknown error occurred, error message as belows")
-        api_logger.error(err)
+        api_logger.exception("Unknown error occurred, error message as belows")
+        api_logger.exception(err)
         abort(502, "Internal error occurred")
 
 
@@ -564,11 +635,11 @@ def get_cb():
             "optionProjects": option_cb
         }), 200
     except KeyError:
-        api_logger.error("Error Getting ControlBoard, User not logined.")
+        api_logger.exception("Error Getting ControlBoard, User not logined.")
         # TODO: redirect to AAA login page.
         abort(403, "Please Login first")
     except ValueError:
-        api_logger.error("Error Getting ControlBoard, No such user.")
+        api_logger.exception("Error Getting ControlBoard, No such user.")
         # TODO: redirect to AAA login page.
         abort(401, "No such User")
 
@@ -593,8 +664,8 @@ def login():
             usr = cb_db.CB_Account(account=account, privilege=0)
             print(usr)
         except Exception as err:
-            api_logger.error('An error encountered when handling login, check the follow logs')
-            api_logger.error(err)
+            api_logger.exception('An error encountered when handling login, check the follow logs')
+            api_logger.exception(err)
     else:
         return "AAA login failed", 400
 

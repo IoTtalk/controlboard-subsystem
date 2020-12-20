@@ -239,7 +239,7 @@ var app = new Vue({
     getSARules: function(fieldID) {
       return new Promise(function (resolve, reject) {
         axios
-          .get("/sa/" + fieldID.toString() + "rules/")
+          .get("/sa/" + fieldID.toString() + "/rules/")
           .then( (rules) => {
             resolve(rules);
           })

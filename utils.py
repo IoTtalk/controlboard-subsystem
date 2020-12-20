@@ -145,7 +145,7 @@ def connect_db(logger, cb_db):
             logger.info('\tConnecting to Database\t......done')
             break
         except orm.dbapiprovider.InternalError:
-            logger.error('\t\tInternal Error Encountered, trying to remove tables and reconnect...')
+            logger.exception('\t\tInternal Error Encountered, trying to remove tables and reconnect...')
             cb_db.drop_all_tables(with_all_data=True)
             cb_db.disconnect()
             retry_times += 1
@@ -165,8 +165,8 @@ def test_db(logger):
     try:
         with orm.db_session():
             test_account = CB_Account(
-                account='test',
-                privilege='1',
+                account="test",
+                privilege="1",
             )
 
             test_cb = CB(
@@ -177,7 +177,7 @@ def test_db(logger):
             )
 
             test_sa = CB_SA(
-                sa_name='test_sa',
+                sa_name="test_sa",
                 ag_token="testagtoken",
                 mac_addr=str(uuid.uuid4()),
                 p_id=-1,
@@ -187,12 +187,13 @@ def test_db(logger):
             )
 
             test_rule = UserRule(
-                rule_type='Sensor',
-                actuator_alias='test_actuator',
+                actuator_alias="test_actuator",
+                actuator_df="test_df",
+                df_order=0,
                 sensor_alias="test_sensor",
                 period=0,
                 sa=test_sa,
-                mode='auto'
+                mode='Sensor'
             )
 
             test_account.cb_set.add(test_cb)
@@ -201,7 +202,7 @@ def test_db(logger):
 
         logger.info('\tTest database connection......done')
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
 
     return
 
@@ -227,7 +228,7 @@ def status_receiver(msg):
         status_logger.info(f"Receive status from CB {sa_id}")
         status_logger.info(status)
     except KeyError:
-        status_logger.error("Receive status error")
+        status_logger.exception("Receive status error")
 
 
 def connect_zmq(logger):
@@ -280,9 +281,9 @@ def get_iottalk_info(logger):
             iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
     except ValueError:
-        logger.error("Getting Device Model info failed.")
+        logger.exception("Getting Device Model info failed.")
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
     return
 
 
@@ -309,7 +310,7 @@ def create_proj_ag(sa, logger):
         logger.info('\tCreate Project\t......done')
         return state, int(response["result"])
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False, -1
 
 
@@ -334,7 +335,7 @@ def delete_proj_ag(p_id, logger):
         status, response = _post('ccm_api', data)
         return status, response
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False
 
 
@@ -363,7 +364,7 @@ def create_do_ag(p_id, logger):
         logger.info('\tCreate DO\t......done')
         return status, response["result"]
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False, -1
 
 
@@ -390,10 +391,10 @@ def register_ag(sa, logger):
         state, response = _post('create_device', data)
         return state, response["token"]
     except KeyError:
-        logger.error('CB_SA.py Key Error, check parameter passed in or brackets in the code')
+        logger.exception('CB_SA.py Key Error, check parameter passed in or brackets in the code')
         return False, "Error"
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False, "Error"
 
 
@@ -419,7 +420,7 @@ def deregister_ag(sa, logger):
             CB_SA[sa.sa_id].delete()
         return True
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False
 
 
@@ -435,6 +436,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
 
     Returns:
         status: Boolean value indicating binding status.
+        msg: Corresponding DM's name or failure message.
     '''
     try:
         if use_v1:
@@ -464,15 +466,42 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                     "payload": {
                         "p_id": p_id,
                         "do_id": id,
-                        "d_id": device['d_id']
+                        "d_id": device["d_id"]
                     }
                 }
-                status, response = _post('ccm_api', data)
-            logger.info('\tBind device\t......done')
+                status, response = _post("ccm_api", data)
+            logger.info("\tBind device\t......done")
             return status, response["result"]
     except ValueError:
-        logger.error("Device to bind not found, either SA code error causing regrister failed or Server latency")
+        logger.exception("Device to bind not found, either SA code error causing registration failed or Server latency")
         return False, "DM not found"
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False, "DM not found"
+
+
+def get_na_ag(p_id, na_id, logger):
+    '''
+    Get a specific NetworkApplication given p_id and na_id.
+
+    Args:
+        p_id: Integer indicating which SA to query.
+        na_id: Integer indicating which NA to query.
+
+    Returns:
+        status: Boolean indicating ccm_api execution result.
+        msg: NA's info or CCM API failure message.
+    '''
+    data = {
+        "api_name": "networkapplication.get",
+        "payload": {
+            "p_id": p_id,
+            "na_id": na_id
+        }
+    }
+    try:
+        state, res = _post("ccm_api", data)
+        return state, res["result"]
+    except Exception as err:
+        logger.exception(err)
+        return False, "Send request to query NA failed, check API log."
