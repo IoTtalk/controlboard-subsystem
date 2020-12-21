@@ -3,7 +3,7 @@ import uuid
 import datetime
 
 
-from collections import deque
+# from collections import deque
 
 
 import zmq
@@ -23,7 +23,7 @@ class AG_SA():
         Args:
             sa_id: ID of this CB_SA from Database.
             sa_name: Name of this CB_SA.
-            mappings: Mapping of actuator to sensors.
+            mac_addr: Mac address of this SA.
             config: Infomation for connecting to Subsystem, should contain IP, port, username, password.
 
         Instance variables:
@@ -43,7 +43,7 @@ class AG_SA():
             None
         '''
         self.df_hist_val = dict()
-        self.sa_id = sa_id
+        self.sa_id = int(sa_id)
         self.config = config
         self.cb_db = orm.Database()
         if mac_addr != 'None':
@@ -56,7 +56,6 @@ class AG_SA():
             "threshold_close": 0,
             "comparison_open": "notset",
             "comparison_close": "notset",
-            "mode": "Sensor",
             "period": 0
         }}
 
@@ -184,55 +183,25 @@ class AG_SA():
             False: Recover failed.
         '''
         # Pulling Alias
-        DAN.state = "RESUME"
         self.status = dict()
-        while len(self.mappings) == 0:
-            alias_in = DAN.get_alias('Threshold-O' + str(1))
-            alias_out = DAN.get_alias('Trigger-I' + str(1))
-            i = 1
-            while len(alias_in):
-                try:
-                    if 'Threshold' not in alias_in[0] and 'Trigger' not in alias_out[0]:
-                        alias_in = alias_in[0].replace('-O', '')
-                        alias_out = alias_out[0].replace('-I', '')
-                        self.mappings[alias_out] = (alias_in, i)
-                        self.status[alias_in] = {{
-                            'sa_id': self.sa_id,
-                            'status': 'GREEN',
-                            'prev_trigger': -10000,
-                            'value': 0
-                        }}
-                        self.df_hist_val[alias_in] = deque(maxlen=200)
-                        self.socket.send_json(self.status[alias_in])
-                    i += 1
-                    alias_in = DAN.get_alias('Threshold-O' + str(i))
-                    alias_out = DAN.get_alias('Trigger-I' + str(i))
-                except IndexError:
-                    print('End of finding alias')
-                    break
-
-        print(self.mappings, self.sa_id)
-
-        # Recover Rules from database according to fetched alias.
-        sa = self.cb_db.CB_SA[self.sa_id]
-        rules = sa.rule_set
-        for actuator_alias, (sensor_alias, order) in self.mappings.items():
-            new_rule = rules.filter(lambda rule: rule.actuator_alias == actuator_alias and rule.sensor_alias == sensor_alias)[:]
-            if not len(new_rule):
-                new_rule = self.cb_db.UserRule(
-                    **self.default_rule,
-                    actuator_alias=actuator_alias,
-                    sensor_alias=sensor_alias,
-                    sa=sa
-                )
-                self.cb_db.commit()
+        self.rules = dict()
+        print("print sa's rules")
+        for rule in self.cb_db.CB_SA[self.sa_id].rule_set:
+            self.status[rule.rule_id] = {{
+                "prev_trigger": -10000,  # An apparently impossible number.
+                "status": "GREEN",  # RED / YELLOW / GREEN
+                "value": 0,  # Current value of the selected sensor.
+                "rule_id": rule.rule_id  # rule_id of this status recorder.
+            }}
+            self.rules[rule.df_order] = rule.to_dict()
+        print("recovered rules:", self.rules)
+        print("status recorder: ", self.status)
         return
 
-    @orm.db_session
     def check_rules(self):
         '''
-        Rule checker for all rules set for this SA.
-        Called by Subsystem every check period.
+        Rule checker for all rules of this SA.
+        Iteratively executed to generate status and open / close actuators.
 
         Args:
             None
@@ -240,38 +209,31 @@ class AG_SA():
         Returns:
             None
         '''
-        sa = self.cb_db.CB_SA[self.sa_id]
-        for rule in sa.rule_set:
-            status = self.status[rule.sensor_alias]
-            if rule.mode == 'on':
+        for df_order, rule in self.rules.items():
+            status = self.status[df_order]
+            actuator_df = 'Trigger-I' + str(df_order)
+            if rule.mode == 'ON':
                 if status.status != 'RED':
-                    actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias][1])
                     DAN.push(actuator_df, 1)
-            elif rule.mode == 'off':
+            elif rule.mode == 'OFF':
                 if status.status == 'RED':
-                    actuator_df = 'Trigger-I' + str(self.mappings[rule.actuator_alias][1])
                     DAN.push(actuator_df, 0)
             # auto mode
             else:
-                if rule.rule_type == 'sensor':
-                    self.sensor_checker(
-                        rule.rule_id, self.mappings[rule.actuator_alias]
-                    )
+                if rule.mode == 'Sensor':
+                    self.sensor_checker(df_order)
                 else:
-                    self.timer_checker(
-                        rule.rule_id, self.mappings[rule.actuator_alias]
-                    )
+                    self.timer_checker(df_order)
+            self.socket.send_json(status)
 
         return
 
-    @orm.db_session
-    def timer_checker(self, rule_id, mapping):
+    def timer_checker(self, df_order):
         """
         Timer-type rule checking handler. Push to IoTTalk server accordingly.
 
         Args:
-            rule_id: The id of the rule to be checked.
-            mapping: Tuple of format (sensor_alias, order of Device Feature).
+            df_order: The IDF/ODF pair of ControlBoard to pull/push data.
 
         Returns:
             None
@@ -330,32 +292,29 @@ class AG_SA():
                     status['status'] = 'GREEN'
         except Exception as err:
             print(err)
-        self.socket.send_json(status)
         return
 
-    @orm.db_session
-    def sensor_checker(self, rule_id, mapping):
+    def sensor_checker(self, df_order):
         """
         Sensor-type rule checking handler. Push to IoTTalk server accordingly.
 
         Args:
-            rule_id: The id of the rule to be checked.
-            mapping: Tuple of format (sensor_alias, order of Device Feature).
+            df_order: The IDF/ODF pair of ControlBoard to pull/push data.
 
         Returns:
             None
         """
-        sensor_df = 'Threshold-O' + str(mapping[1])
+        sensor_df = 'Threshold-O' + str(df_order)
         data = DAN.pull(sensor_df)
         if data is None:
             return
 
-        data = data[0]
-        rule = self.cb_db.UserRule[rule_id]
-        status = self.status[rule.sensor_alias]
+        data = data[self.rules[df_order]["sensor_index"]]
+        rule = self.rules[df_order]
+        status = self.status[df_order]
         status.value = data
         self.df_hist_val[rule.sensor_alias].append(data)
-        actuator_df = 'Trigger-I' + str(mapping[1])
+        actuator_df = 'Trigger-I' + str(df_order)
 
         try:
             avg = sum(self.df_hist_val[rule.sensor_alias]) / len(self.df_hist_val[rule.sensor_alias])

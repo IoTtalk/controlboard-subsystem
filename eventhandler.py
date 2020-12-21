@@ -336,6 +336,8 @@ def refresh_sa(sa_id):
                             sa=sa
                         )
                     )
+            cb_db.commit()
+
             # Register device
             status, ag_token = register_ag(sa, api_logger)
             if not status:
