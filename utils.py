@@ -3,20 +3,41 @@ import requests
 import os
 import uuid
 import json
+import asyncio
+
+
+import zmq
 
 
 from pony import orm
+from tornado import ioloop
+from zmq.eventloop.zmqstream import ZMQStream
 
 
 from config import env_config, reg_config, use_v1
-from models import UserRule, CB_Account, CB_SA
+from models import UserRule, CB_Account, CB_SA, CB
 
 
-'''
-used to record AG SA. in format {sa_id: CB_SA entity}
-'''
+# used to record AG SA. In format {sa_id: CB_SA entity}
 running_sa = dict()
+
+'''
+used to record AG SA's rule status. In format
+    {
+        sa_id1: {
+            sensor_alias1: {
+                value: sensor value,
+                prev_trigger: -10000 or an epoch time, -10000 means no need to use this field data.
+                status: 'GREEN'/'RED'/'YELLOW'
+            },
+        },
+    }
+'''
+running_status = dict()
+
+# DF/DM id from IoTtalk to automatically create Project and DMO.
 iottalk_info = dict()
+
 
 log_root = env_config['env']['logroot']
 if not os.path.isdir(log_root):
@@ -43,7 +64,18 @@ def _post(url, data):
     Returns:
         res: response from AG.
     '''
-    return requests.post(f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/autogen/{url}', data=data)
+    response = json.loads(
+        requests.post(
+            f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/{url}/',
+            json=data
+        ).text
+    )
+    if url == "ccm_api":
+        print(data, response)
+    else:
+        print(url, response)
+    state = (response["state"] == "ok")
+    return state, response
 
 
 def make_logger(log_name, log_file):
@@ -67,7 +99,7 @@ def make_logger(log_name, log_file):
     fh = logging.FileHandler(log_file_path)
     fh.setLevel(logging.INFO)
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(module)s - \t%(lineno)s - \t%(message)s')
     sh.setFormatter(formatter)
     fh.setFormatter(formatter)
 
@@ -90,27 +122,33 @@ def connect_db(logger, cb_db):
         cb_db: MySQL Database Connection
     '''
     retry_times = 0
-    cb_db.bind(
-        provider='mysql',
-        host=env_config['db']['host'],
-        user=env_config['db']['user'],
-        passwd=env_config['db']['pwd'],
-        db=env_config['db']['dbname'],
-        port=int(env_config['db']['port'])
-    )
+    if env_config['db']['database'] == 'sqlite':
+        cb_db.bind(
+            provider='sqlite',
+            filename='cb_db.sqlite',
+            create_db=True
+        )
+    else:
+        cb_db.bind(
+            provider='mysql',
+            host=env_config['db']['host'],
+            user=env_config['db']['user'],
+            passwd=env_config['db']['pwd'],
+            db=env_config['db']['dbname'],
+            port=int(env_config['db']['port'])
+        )
     cb_db.generate_mapping(check_tables=False)
-    # cb_db.drop_all_tables(with_all_data=True) # used to clean testcase
+    cb_db.drop_all_tables(with_all_data=True)  # used to clean testcase
     while (retry_times < 3):
         try:
             cb_db.create_tables()
             logger.info('\tConnecting to Database\t......done')
             break
         except orm.dbapiprovider.InternalError:
-            logger.error('\t\tInternal Error Encountered, try remove tables and reconnect...')
+            logger.exception('\t\tInternal Error Encountered, trying to remove tables and reconnect...')
             cb_db.drop_all_tables(with_all_data=True)
             cb_db.disconnect()
             retry_times += 1
-
     return
 
 
@@ -125,34 +163,95 @@ def test_db(logger):
     Returns: None
     '''
     try:
-        test_account = CB_Account(
-            account='test',
-            privilige='1',
-        )
+        with orm.db_session():
+            test_account = CB_Account(
+                account="test",
+                privilege="1",
+            )
 
-        test_sa = CB_SA(
-            cb_name='test_sa',
-            account_set=test_account,
-            ag_token="testagtoken",
-            mac_addr=uuid.uuid4(),
-            p_id=-1
-        )
+            test_cb = CB(
+                cb_name="test_cb",
+                shared=0,
+                account_set=test_account,
+                icon="0_landscape.svg"
+            )
 
-        test_rule = UserRule(
-            rule_type='Sensor',
-            actuator_alias='test_actuator',
-            sa=test_sa,
-            mode='auto'
-        )
+            test_sa = CB_SA(
+                sa_name="test_sa",
+                ag_token="testagtoken",
+                mac_addr=str(uuid.uuid4()),
+                p_id=-1,
+                do_id="1234567",
+                cb=test_cb,
+                pinned=True
+            )
 
-        test_account.sa_set.add(test_sa)
-        test_sa.rule_set.add(test_rule)
+            test_rule = UserRule(
+                actuator_alias="test_actuator",
+                actuator_df="test_df",
+                df_order=0,
+                sensor_alias="test_sensor",
+                period=0,
+                sa=test_sa,
+                mode='Sensor'
+            )
+
+            test_account.cb_set.add(test_cb)
+            test_cb.sa_set.add(test_sa)
+            test_sa.rule_set.add(test_rule)
 
         logger.info('\tTest database connection......done')
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
 
     return
+
+
+status_logger = make_logger('cb_status', 'status')
+
+
+def status_receiver(msg):
+    '''
+    Receive execution status from AG SAs.
+
+    Args:
+        msg: Message sent from AG SAs.
+
+    Returns: None
+    '''
+    status = json.loads(msg[0].decode('utf-8'))
+    print("Server received", status)
+    try:
+        sa_id = status["sa_id"]
+        status.pop("sa_id")
+        running_status[sa_id] = status
+        status_logger.info(f"Receive status from CB {sa_id}")
+        status_logger.info(status)
+    except KeyError:
+        status_logger.exception("Receive status error")
+
+
+def connect_zmq(logger):
+    '''
+    Create ZMQ Listener for AG SA to sync rule status
+
+    Args:
+        logger: Logger object to write log in.
+
+    Returns:
+        socket: Created socket object for receiving messages from AG SA.
+    '''
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    context = zmq.Context.instance()
+    socket = context.socket(zmq.SUB)
+    socket.bind(f"tcp://*:{env_config['env']['port_zmq']}")
+    socket.setsockopt(zmq.SUBSCRIBE, b"")
+
+    stream = ZMQStream(socket)
+    stream.on_recv(status_receiver)
+    ioloop.IOLoop.instance().start()
+
+    print('test end')
 
 
 def get_iottalk_info(logger):
@@ -168,21 +267,23 @@ def get_iottalk_info(logger):
     try:
         data = {
             'api_name': 'devicemodel.get',
-            'payload': json.dumps({
+            'payload': {
                 'dm': 'ControlBoard'
-            })
+            }
         }
-        response = _post('ccm_api', data).text
-        response = json.loads(response)
+        state, response = _post('ccm_api', data)
+        if not state:
+            raise ValueError
+        response = response["result"]
         iottalk_info['dm_id'] = response['dm_id']
         iottalk_info['df_id'] = list()
         for df in response["df_list"]:
             iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
-
+    except ValueError:
+        logger.exception("Getting Device Model info failed.")
     except Exception as err:
-        logger.error(err)
-
+        logger.exception(err)
     return
 
 
@@ -200,17 +301,16 @@ def create_proj_ag(sa, logger):
     '''
     data = {
         "api_name": "project.create",
-        "payload": json.dumps({
-            "p_name": sa.cb_name
-        })
+        "payload": {
+            "p_name": sa.sa_name
+        }
     }
     try:
-        response = _post('ccm_api', data)
+        state, response = _post('ccm_api', data)
         logger.info('\tCreate Project\t......done')
-
-        return True, int(response.text)
+        return state, int(response["result"])
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False, -1
 
 
@@ -227,15 +327,15 @@ def delete_proj_ag(p_id, logger):
     '''
     data = {
         "api_name": "project.delete",
-        "payload": json.dumps({
+        "payload": {
             "p_id": p_id,
-        })
+        }
     }
     try:
-        _post('ccm_api', data)
-        return True
+        status, response = _post('ccm_api', data)
+        return status, response
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False
 
 
@@ -249,22 +349,22 @@ def create_do_ag(p_id, logger):
 
     Returns:
         status: Boolean value indicating create DO success or fail.
-        do_id: Creatd integer DO ID retrived from AG.
+        do_id: Created integer DO ID retrived from AG.
     '''
     data = {
         "api_name": "deviceobject.create",
-        "payload": json.dumps({
+        "payload": {
             "p_id": p_id,
             "dm_name": "ControlBoard",
             "dfs": iottalk_info["df_id"]
-        })
+        }
     }
     try:
-        response = _post('ccm_api', data)
+        status, response = _post('ccm_api', data)
         logger.info('\tCreate DO\t......done')
-        return True, json.loads(response.text)
+        return status, response["result"]
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False, -1
 
 
@@ -281,21 +381,20 @@ def register_ag(sa, logger):
         ag_token: Token retrived from AG.
     '''
     try:
-        new_sa = open('./CB_SA.py', 'r').read().format(cb_id=sa.cb_id, config=reg_config, mac_addr=sa.mac_addr)
+        new_sa = open('./CB_SA.py', 'r').read().format(
+            sa_id=sa.sa_id, config=reg_config, mac_addr=sa.mac_addr, sa_name=sa.sa_name)
         data = {
-            'version': env_config["IoTtalk"]["version"],
-            'code': new_sa
+            "version": int(env_config["IoTtalk"]["version"]),
+            "code": new_sa
         }
 
-        response = _post('create_device', data).text
-        return True, response
-
+        state, response = _post('create_device', data)
+        return state, response["token"]
     except KeyError:
-        logger.error('CB_SA.py Key Error, check parameter passed in or brackets in the code')
+        logger.exception('CB_SA.py Key Error, check parameter passed in or brackets in the code')
         return False, "Error"
-
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False, "Error"
 
 
@@ -318,10 +417,10 @@ def deregister_ag(sa, logger):
         _post('delete_device', data)
 
         with orm.db_session():
-            CB_SA[sa.cb_id].delete()
+            CB_SA[sa.sa_id].delete()
         return True
     except Exception as err:
-        logger.error(err)
+        logger.exception(err)
         return False
 
 
@@ -337,18 +436,21 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
 
     Returns:
         status: Boolean value indicating binding status.
+        msg: Corresponding DM's name or failure message.
     '''
     try:
         if use_v1:
             data = {
                 "api_name": "device.get",
-                "payload": json.dumps({
+                "payload": {
                     "p_id": p_id,
                     "do_id": do_id[0]
-                })
+                }
             }
-            response = _post('ccm_api', data)
-            response = json.loads(response.text)
+            status, response = _post('ccm_api', data)
+            if not status:
+                raise ValueError
+            response = response["result"]
             logger.info('\tGet Device\t......done')
             device = None
             for candidate in response:
@@ -361,18 +463,45 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                 print(id)
                 data = {
                     "api_name": "device.bind",
-                    "payload": json.dumps({
+                    "payload": {
                         "p_id": p_id,
                         "do_id": id,
-                        "d_id": device['d_id']
-                    })
+                        "d_id": device["d_id"]
+                    }
                 }
-                _post('ccm_api', data)
-            logger.info('\tBind device\t......done')
-            return True
+                status, response = _post("ccm_api", data)
+            logger.info("\tBind device\t......done")
+            return status, response["result"]
     except ValueError:
-        logger.error("Device to bind not found")
-        return False
+        logger.exception("Device to bind not found, either SA code error causing registration failed or Server latency")
+        return False, "DM not found"
     except Exception as err:
-        logger.error(err)
-        return False
+        logger.exception(err)
+        return False, "DM not found"
+
+
+def get_na_ag(p_id, na_id, logger):
+    '''
+    Get a specific NetworkApplication given p_id and na_id.
+
+    Args:
+        p_id: Integer indicating which SA to query.
+        na_id: Integer indicating which NA to query.
+
+    Returns:
+        status: Boolean indicating ccm_api execution result.
+        msg: NA's info or CCM API failure message.
+    '''
+    data = {
+        "api_name": "networkapplication.get",
+        "payload": {
+            "p_id": p_id,
+            "na_id": na_id
+        }
+    }
+    try:
+        state, res = _post("ccm_api", data)
+        return state, res["result"]
+    except Exception as err:
+        logger.exception(err)
+        return False, "Send request to query NA failed, check API log."

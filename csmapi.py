@@ -65,4 +65,13 @@ def tree(UsingSession=IoTtalk):
     if r.status_code != 200: raise CSMError(r.text)
     return r.json()
 
+
+def calibrate(p_id, state=None, UsingSession=IoTtalk):
+    r = UsingSession.post(
+        ENDPOINT + '/calibrate',
+        json=('p_id': p_id), 
+        timeout=TIMEOUT
+    )
+    if r.status_code != 200: raise CSMError(r.text)
+    return True
 	

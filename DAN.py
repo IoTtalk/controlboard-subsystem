@@ -28,7 +28,7 @@ def ControlChannel():
                 if control_channel_timestamp == CH[0][0]: continue
                 control_channel_timestamp = CH[0][0]
                 cmd = CH[0][1][0]
-                if cmd == 'RESUME' or cmd == 'CALIBRATE':  
+                if cmd == 'RESUME':  
                     print('Device state: RESUME.') 
                     state = 'RESUME'
                 elif cmd == 'SUSPEND': 
@@ -154,3 +154,11 @@ def set_alias(FEATURE_NAME, alias):
 		
 def deregister():
     return csmapi.deregister(MAC)
+
+def calibrate(p_id):
+    try:
+        r = csmapi.calibrate(p_id)
+    except Exception as e:
+        return None
+    else: 
+        return r

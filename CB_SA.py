@@ -18,7 +18,7 @@ import DAN
 
 
 class AG_SA():
-    def __init__(self, cb_id, config, mac_addr):
+    def __init__(self, sa_id, config, mac_addr, sa_name):
         '''
         Initialization of a CB_SA
 
@@ -84,13 +84,13 @@ class AG_SA():
         }}
 
         ctlboard_profile = {{
-            'd_name': str(cb_id) + '.ControlboardC',
-            'dm_name': 'ControlBoard-C',
+            'd_name': str(cb_id) + '.Controlboard',
+            'dm_name': 'ControlBoard',
             'u_name': 'yb',
             'is_sim': False,
             'df_list': ['Threshold-O1', 'Trigger-I1', 'Threshold-O2', 'Trigger-I2',
                         'Threshold-O3', 'Trigger-I3', 'Threshold-O4', 'Trigger-I4',
-                        'Threshold-O5', 'Trigger-I5', 'Message-I', 'Message-O']
+                        'Threshold-O5', 'Trigger-I5']
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
@@ -116,25 +116,30 @@ class AG_SA():
             mode = orm.Required(str)
             sa = orm.Required("CB_SA")  # which SA it belongs to
 
+        class CB(self.cb_db.Entity):
+            cb_id = orm.PrimaryKey(int, auto=True)
+            cb_name = orm.Required(str)
+            sa_set = orm.Set("CB_SA", cascade_delete=True)
+            shared = orm.Required(bool)
+            account_set = orm.Set("CB_Account")  # accounts that can access this SA.
+            icon = orm.Required(str)
+
         class CB_SA(self.cb_db.Entity):
-            cb_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
-            cb_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
+            sa_id = orm.PrimaryKey(int, auto=True)  # id of this SA.
+            sa_name = orm.Required(str)  # User-defined cb_name. Can be repeated.
+            pinned = orm.Required(bool)  # if this SA is pinned.
+            cb = orm.Required(CB)  # which CB this SA belongs to.
             ag_token = orm.Required(orm.LongStr)  # AG-returned token
             mac_addr = orm.Required(orm.LongStr)  # Mac-addr of this SA
-            rule_set = orm.Set(UserRule)
-            account_set = orm.Set("CB_Account")  # accounts that can access this SA.
+            rule_set = orm.Set(UserRule, cascade_delete=True)
             p_id = orm.Required(int)  # project id of this SA
             do_id = orm.Required(str)  # device object id for this SA.
 
         class CB_Account(self.cb_db.Entity):
             account = orm.Required(str)  # Account of this user.
-            privilige = orm.Required(int)  # User level of this user.
-            sa_set = orm.Set("CB_SA")  # SAs this user can see.
+            privilege = orm.Required(int)  # User level of this user.
+            cb_set = orm.Set("CB")  # CBs this user can see.
 
-        class CB_Field(self.cb_db.Entity):
-            field_id = orm.PrimaryKey(int, auto=True)
-            field_name = orm.Required(str)
-            sa_set = set("CB_SA")
 
         class Outlier(self.cb_db.Entity):
             data_prio = orm.PrimaryKey(int, auto=True)
