@@ -7,7 +7,6 @@ default_rules = {
     "threshold_close": 0,
     "comparison_open": "notset",
     "comparison_close": "notset",
-    "mode": "Sensor",
     "period": 0
 }
 

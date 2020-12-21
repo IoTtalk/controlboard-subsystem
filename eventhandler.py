@@ -329,9 +329,10 @@ def refresh_sa(sa_id):
                             actuator_alias=actuator[0][1],
                             actuator_df=actuator[0][0],
                             sensor_alias=",".join([row[1] for row in src[order]]),
-                            sensor_df=",".join([row[1] for row in src[order]]),
+                            sensor_df=",".join([row[0] for row in src[order]]),
                             sensor_index=0,
                             df_order=order,
+                            mode="Sensor",
                             sa=sa
                         )
                     )

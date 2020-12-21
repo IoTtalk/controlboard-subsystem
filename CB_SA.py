@@ -27,10 +27,6 @@ class AG_SA():
             config: Infomation for connecting to Subsystem, should contain IP, port, username, password.
 
         Instance variables:
-            mappings: A dictionary of the following format.
-            {{
-                'actuator_alias': (sensor_alias, DF order on IoTTalk GUI)
-            }}
             sa_id: ID for this SA, used in Database querying.
             df_hist_val: History values of sensors manipulated by this SA.
             config: Database config containing the following information.
@@ -46,7 +42,6 @@ class AG_SA():
         Returns:
             None
         '''
-        self.mappings = dict()
         self.df_hist_val = dict()
         self.sa_id = sa_id
         self.config = config
@@ -56,14 +51,13 @@ class AG_SA():
         else:
             self.mac_addr = str(uuid.uuid4())
 
-        self.default_rule = {{
-            'rule_type': 'sensor',
-            'threshold_open': 0.,
-            'threshold_close': 0,
-            'comparison_open': 'notset',
-            'comparison_close': 'notset',
-            'mode': 'auto',
-            'period': 0
+        self.default_rules = {{
+            "threshold_open": 0.,
+            "threshold_close": 0,
+            "comparison_open": "notset",
+            "comparison_close": "notset",
+            "mode": "Sensor",
+            "period": 0
         }}
 
         self.condition_handler = {{
@@ -74,13 +68,13 @@ class AG_SA():
         }}
 
         ctlboard_profile = {{
-            'd_name': str(sa_id) + '-' + sa_name + '.Controlboard',
-            'dm_name': 'ControlBoard',
-            'u_name': 'yb',
-            'is_sim': False,
-            'df_list': ['Threshold-O1', 'Trigger-I1', 'Threshold-O2', 'Trigger-I2',
-                        'Threshold-O3', 'Trigger-I3', 'Threshold-O4', 'Trigger-I4',
-                        'Threshold-O5', 'Trigger-I5']
+            "d_name": str(sa_id) + "-" + sa_name + ".Controlboard",
+            "dm_name": "ControlBoard",
+            "u_name": "yb",
+            "is_sim": False,
+            "df_list": ["Threshold-O1", "Trigger-I1", "Threshold-O2", "Trigger-I2",
+                        "Threshold-O3", "Trigger-I3", "Threshold-O4", "Trigger-I4",
+                        "Threshold-O5", "Trigger-I5"]
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
@@ -92,9 +86,12 @@ class AG_SA():
 
         class UserRule(self.cb_db.Entity):
             rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
-            rule_type = orm.Required(str)  # Sensor / Timer.
-            actuator_alias = orm.Required(str)  # Alias of the actuator in this rule.
-            sensor_alias = orm.Required(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
+            actuator_alias = orm.Required(str)  # Alias of the actuator in this rule
+            actuator_df = orm.Required(str)  # Device Feature Name of the actuator in this rule.
+            sensor_alias = orm.Optional(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
+            sensor_df = orm.Optional(str)  # Device Feature Name of sensors in this rule.
+            sensor_index = orm.Optional(int)  # Which Sensor this rule is using currently.
+            df_order = orm.Required(int)  # Which IDF/ODF pair to pull/push data.
             threshold_open = orm.Optional(float)  # Sensor value to decide trigger actuator or not.
             threshold_close = orm.Optional(float)  # Sensor value to decide close actuator or not.
             comparison_open = orm.Optional(str)  # Comparison method to decide trigger actuator or not.
@@ -104,6 +101,9 @@ class AG_SA():
             exetime = orm.Optional(int)  # execution time for periodically execution
             period = orm.Required(int)  # Period functionality.
             mode = orm.Required(str)
+            weekday = orm.Optional(str)  # Weekdays this rule should be executed.
+            duty_pos = orm.Optional(int)  # Positive edge of Duty Cycle.
+            duty_neg = orm.Optional(int)  # Negative edge of Duty Cycle.
             sa = orm.Required("CB_SA")  # which SA it belongs to
 
         class CB(self.cb_db.Entity):
