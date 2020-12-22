@@ -156,24 +156,24 @@
                     v-bind:options="comparisons"
                     v-bind:index="index"
                     v-bind:content="'open'"
-                    v-bind:select="setting.content.open_sensor"
+                    v-bind:select="setting.content.openSensor"
                     v-on:update-option="onSelectCompare"
                   ></custom-sel>
-                  <b-form-input placeholder="Seconds" size="sm" class="custom-input"
+                  <b-form-input size="sm" class="custom-input"
                     v-model="setting.content.openSensorVal"
-                    v-bind:disabled="setting.content.open_sensor===null"
+                    v-bind:disabled="setting.content.openSensor===null"
                   ></b-form-input>
                   <span class="setting-text-mid">ON.</span>
                   <custom-sel
                     v-bind:options="comparisons"
                     v-bind:index="index"
                     v-bind:content="'close'"
-                    v-bind:select="setting.content.close_sensor"
+                    v-bind:select="setting.content.closeSensor"
                     v-on:update-option="onSelectCompare"
                   ></custom-sel> 
-                  <b-form-input placeholder="Seconds" size="sm" class="custom-input"
+                  <b-form-input size="sm" class="custom-input"
                     v-model="setting.content.closeSensorVal"
-                    v-bind:disabled="setting.content.close_sensor===null"
+                    v-bind:disabled="setting.content.closeSensor===null"
                   ></b-form-input>
                   <span class="setting-text">OFF.</span>
                 </div>
@@ -245,13 +245,13 @@
                   <div class="setting-sensor">
                     <span class="setting-text-start">ON</span>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"
-                      v-model="setting.content.duty_pos"
+                      v-model="setting.content.dutyPos"
                     ></b-form-input>
                     <span class="setting-text-mid">Seconds.</span>
                     <span class="setting-text-start">OFF</span>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"
-                      v-model="setting.content.duty_neg"
-                      v-bind:disabled="setting.content.duty_pos===0"
+                      v-model="setting.content.dutyNeg"
+                      v-bind:disabled="setting.content.dutyPos===0"
                     ></b-form-input>
                     <span class="setting-text-mid">Seconds.</span>
                   </div>               

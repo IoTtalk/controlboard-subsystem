@@ -74,7 +74,7 @@ Vue.component('actuator-row', {
                     </b-button>
                     <b-button variant="outline-success" 
                         v-bind:pressed="mode==='Sensor'"
-                        v-bind:disabled="sensors"
+                        v-bind:disabled="sensors===0"
                         v-on:click="onSelectMode(1)"
                     >Sensor</b-button>
                     <b-button variant="outline-success"

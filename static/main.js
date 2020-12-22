@@ -82,8 +82,8 @@ var app = new Vue({
         dirty: false,
         status: true,
         content: {
-          "open_sensor": "bigger",
-          "close_sensor": null,
+          "openSensor": "bigger",
+          "closeSensor": null,
           "openTimer": [0, 0, 0],
           "closeTimer": [0, 0, 0],
           "openSensorVal": 0,
@@ -99,14 +99,14 @@ var app = new Vue({
         dirty: false,
         status: false,
         content: {
-          "open_sensor": "bigger",
-          "close_sensor": null,
+          "openSensor": "bigger",
+          "closeSensor": null,
           "openTimer": [0, 0, 0],
           "closeTimer": [0, 0, 0],
           "openSensorVal": 0,
           "closeSensorVal": 0,
-          "duty_pos": 0,
-          "duty_neg": 0,
+          "dutyPos": 0,
+          "dutyNeg": 0,
           "weekdays": [4],
         }
       },
@@ -118,8 +118,8 @@ var app = new Vue({
         dirty: false,
         status: true,
         content: {
-          "open_sensor": null,
-          "close_sensor": null,
+          "openSensor": null,
+          "closeSensor": null,
           "openTimer": [0, 0, 0],
           "closeTimer": [0, 0, 0],
           "openSensorVal": 0,
@@ -135,8 +135,8 @@ var app = new Vue({
         dirty: false,
         status: true,
         content: {
-          "open_sensor": null,
-          "close_sensor": null,
+          "openSensor": null,
+          "closeSensor": null,
           "openTimer": [0, 0, 0],
           "closeTimer": [0, 0, 0],
           "openSensorVal": 0,
@@ -254,8 +254,8 @@ var app = new Vue({
         .then( (res)=> {
           this.getSARules(this.currentField)
           .then( (rules) => {
-            console.log(rules);
-            this.settings = rules;
+            console.log(rules.data);
+            this.settings = rules.data;
           })
           .catch( (err) => {
             console.log(err);
@@ -357,9 +357,9 @@ var app = new Vue({
       console.log(val, settingIndex, content);
       this.settings[settingIndex].dirty = true;
       if (content==="open") {
-        this.settings[settingIndex].content.open_sensor = val;
+        this.settings[settingIndex].content.openSensor = val;
       } else {
-        this.settings[settingIndex].content.close_sensor = val;
+        this.settings[settingIndex].content.closeSensor = val;
       }
     },
     // Time select handler

@@ -196,32 +196,59 @@ def get_rules(sa_id):
 
     Returns:
         Status code: 200 / 400.
-        rule_list: A list containing rules of the specific SA.
-            Each element of this list is a rule in dictionary format.
+        rule_list: A list containing rules of the specific SA. Each element of this list is a rule in dictionary format.
             Each rule will contain the following information
-                rule_id: int,
-                actuator_alias: string,
-                sensor_alias:
-
-
+                `ruleID`: integer, primary key of the rule in database table `UserRule`.
+                `actuator`: string, indicating user-defined df-alias on IoTtalk GUI.
+                `sensors`: list of strings, indicating user-defined df-alias on IoTtalk GUI.
+                `mode`: string, indicating manual on/off or sensor/timer.
+                `content`: dictionary, the rule's content. including the following fields.
+                    `openSensor`: string, should be one of bigger/smaller/null.
+                    `openSensorVal`: integer, the threshold value to trigger the actuator.
+                    `closeSensor`: string, should be one of bigger/smaller/null.
+                    `closeSensorVal`: integer, the threshold value to close the actuator.
+                    `openTimer`: datetime string, represent the timing allowed to trigger the actuator.
+                    `closeTimer`: datetime string, represent the timing allowed to close the actuator.
+                    `dutyPos`: integer, time in seconds representing the positive cycle length of one Duty cycle.
+                    `dutyNeg`: integer, time in seconds representing the negative cycle length of one Duty cycle.
+                    `weekdays`: list of integers representing weekdays. Mon <=> 0, Sun <=> 6, All <=> 7.
     '''
     res_list = list()
-    print(sa_id)
     try:
-        sa = running_sa[sa_id]
+        if sa_id not in running_sa:
+            raise KeyError
+        sa = CB_SA[sa_id]
+        for rule in sa.rule_set:
+            content = dict()
+            if rule.mode == "Timer":
+                content["openTimer"] = rule.time_open.strftime('%H:%M:%S').split(":")
+                content["closeTimer"] = rule.time_close.strftime('%H:%M:%S').split(":")
+            else:
+                content["openSensor"] = rule.comparison_open
+                content["closeSensor"] = rule.comparison_close
+            content["dutyPos"] = rule.duty_pos
+            content["dutyNeg"] = rule.duty_neg
+            if len(rule.weekday):
+                content["weekdays"] = rule.weekday.spilt(",")
+            else:
+                content["weekdays"] = list()
+
+            tmp = {
+                "ruleID": rule.rule_id,
+                "actuator": rule.actuator_alias,
+                "sensors": rule.sensor_alias.split(","),
+                "mode": rule.mode,
+                "content": content
+            }
+
+            res_list.append(tmp)
+        return jsonify(res_list), 200
     except KeyError:
-        api_logger.info("Specified SA not running")
-        return "Specified SA not running", 400
-
-    for rule in sa.rule_set:
-        tmp = rule.to_dict()
-        if tmp["mode"] == "Timer":
-            tmp["time_open"] = tmp["time_open"].strftime('%H:%M:%S')
-            tmp["time_close"] = tmp["time_close"].strftime('%H:%M:%S')
-
-        res_list.append(tmp)
-
-    return jsonify(res_list), 200
+        api_logger.exception("Specified SA not running")
+        return abort(400, "Specified SA not running")
+    except Exception as err:
+        api_logger.exception(err)
+        return abort(500, "Internal server error")
 
 
 @apis.route('/sa/<sa_id>current_data', methods=['POST'])
