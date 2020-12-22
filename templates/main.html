@@ -134,6 +134,7 @@
                 v-bind:value="setting.value"
                 v-bind:index="index"
                 v-bind:status="setting.status"
+                v-bind:mode="setting.mode"
               ></sensor-row>
               <!-- Mode select and actuator name, Undo And Save -->
               <actuator-row
@@ -141,6 +142,7 @@
                 v-bind:actuator="setting.actuator"
                 v-bind:dirty="setting.dirty"
                 v-bind:index="index"
+                v-bind:sensors="setting.sensors.length"
                 v-on:update-mode="onSelectMode"
               ></actuator-row>
 

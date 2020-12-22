@@ -210,20 +210,22 @@ class AG_SA():
             None
         '''
         for df_order, rule in self.rules.items():
-            status = self.status[df_order]
-            actuator_df = 'Trigger-I' + str(df_order)
-            if rule.mode == 'ON':
-                if status.status != 'RED':
+            status = self.status[rule["rule_id"]]
+            actuator_df = "Trigger-I" + str(df_order)
+            if rule["mode"] == "ON":
+                if status["status"] != "RED":
                     DAN.push(actuator_df, 1)
-            elif rule.mode == 'OFF':
-                if status.status == 'RED':
+            elif rule["mode"] == "OFF":
+                if status["status"] == "RED":
                     DAN.push(actuator_df, 0)
             # auto mode
             else:
-                if rule.mode == 'Sensor':
-                    self.sensor_checker(df_order)
-                else:
-                    self.timer_checker(df_order)
+                weekdays = rule["weekday"].split(",")
+                if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
+                    if rule["mode"] == "Sensor":
+                        self.sensor_checker(df_order)
+                    else:
+                        self.timer_checker(df_order)
             self.socket.send_json(status)
 
         return
@@ -304,76 +306,75 @@ class AG_SA():
         Returns:
             None
         """
-        sensor_df = 'Threshold-O' + str(df_order)
+        sensor_df = "Threshold-O" + str(df_order)
         data = DAN.pull(sensor_df)
         if data is None:
             return
-
+        print("Data received:", data)
         data = data[self.rules[df_order]["sensor_index"]]
         rule = self.rules[df_order]
         status = self.status[df_order]
         status.value = data
         self.df_hist_val[rule.sensor_alias].append(data)
-        actuator_df = 'Trigger-I' + str(df_order)
+        actuator_df = "Trigger-I" + str(df_order)
 
         try:
             avg = sum(self.df_hist_val[rule.sensor_alias]) / len(self.df_hist_val[rule.sensor_alias])
-            if 'notset' in rule.comparison_open and 'notset' in rule.comparison_close:
-                if status.status == 'RED':
+            if "notset" in rule.comparison_open and "notset" in rule.comparison_close:
+                if status.status == "RED":
                     DAN.push(actuator_df, 0)
-                status.status = 'GREEN'
+                status.status = "GREEN"
                 return
-            elif 'notset' in rule.comparison_open:
-                action = 'CLOSE'
+            elif "notset" in rule.comparison_open:
+                action = "CLOSE"
                 satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close, avg)
-            elif 'notset' in rule.comparison_close:
-                action = 'OPEN'
+            elif "notset" in rule.comparison_close:
+                action = "OPEN"
                 satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open, avg)
             else:
                 satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open, avg)
-                action = 'OPEN'
+                action = "OPEN"
                 if not satisfied:
-                    action = 'CLOSE'
+                    action = "CLOSE"
                     satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close, avg)
 
             expired = time.time() > (status.prev_trigger + rule.period)
             if not expired:
-                if status.status == 'RED':
-                    if action == 'CLOSE':
+                if status.status == "RED":
+                    if action == "CLOSE":
                         if satisfied:
                             DAN.push(actuator_df, 0)
-                            if next_action == 'YELLOW':
-                                status.status = 'YELLOW'
+                            if next_action == "YELLOW":
+                                status.status = "YELLOW"
                             else:
-                                status.status = 'GREEN'
-                elif status.status == 'GREEN':
-                    if action == 'OPEN':
+                                status.status = "GREEN"
+                elif status.status == "GREEN":
+                    if action == "OPEN":
                         if satisfied:
                             DAN.push(actuator_df, 1)
-                            status.status = 'RED'
+                            status.status = "RED"
                             status.prev_triiger = time.time() + rule.exetime
                         else:
-                            if next_action == 'YELLOW':
-                                status.status = 'YELLOW'
+                            if next_action == "YELLOW":
+                                status.status = "YELLOW"
                 else:
-                    if action == 'OPEN':
+                    if action == "OPEN":
                         if satisfied:
                             DAN.push(actuator_df, 1)
-                            status.status = 'RED'
+                            status.status = "RED"
                             status.prev_triiger = time.time() + rule.exetime
                         else:
-                            if next_action != 'YELLOW':
-                                status.status = 'GREEN'
+                            if next_action != "YELLOW":
+                                status.status = "GREEN"
                     else:
-                        if next_action != 'YELLOW':
-                            status.status = 'GREEN'
+                        if next_action != "YELLOW":
+                            status.status = "GREEN"
             else:
-                if status.status == 'RED':
+                if status.status == "RED":
                     DAN.push(actuator_df, 0)
-                    status.status = 'GREEN'
+                    status.status = "GREEN"
                 else:
-                    status.status = 'GREEN'
-
+                    status.status = "GREEN"
             return
         except Exception as err:
             print(err)

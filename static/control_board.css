@@ -12,6 +12,10 @@ html, body {
   white-space: nowrap;
 }
 
+.one-item-dropdown > button::after{
+  border: 0px;
+}
+
 .custom-nav-item {
   color: rgba(255, 255, 255, 1) !important;
 }

@@ -145,7 +145,7 @@ def set_rules(sa_id):
     return 'Configuration Saved', 200
 
 
-@apis.route('/sa/<sa_id>/stop', methods=['GET'])
+@apis.route('/sa/<int:sa_id>/stop', methods=['GET'])
 @orm.db_session
 def stop_SA(sa_id):
     '''
@@ -185,7 +185,7 @@ def stop_SA(sa_id):
         return "Specified SA is not running", 400
 
 
-@apis.route('/sa/<sa_id>/rules', methods=['GET'])
+@apis.route('/sa/<int:sa_id>/rules', methods=['GET'])
 @orm.db_session
 def get_rules(sa_id):
     '''
@@ -195,24 +195,29 @@ def get_rules(sa_id):
         sa_id: ID of the requester SA.
 
     Returns:
-        Status code: 200.
+        Status code: 200 / 400.
         rule_list: A list containing rules of the specific SA.
-                   Each element of this list is a rule in dictionary format.
+            Each element of this list is a rule in dictionary format.
+            Each rule will contain the following information
+                rule_id: int,
+                actuator_alias: string,
+                sensor_alias:
+
 
     '''
     res_list = list()
+    print(sa_id)
     try:
         sa = running_sa[sa_id]
-        rules = UserRule.select(lambda r: r.sa.sa_id == sa.sa_id)[:]
     except KeyError:
         api_logger.info("Specified SA not running")
         return "Specified SA not running", 400
 
-    for rule in rules:
+    for rule in sa.rule_set:
         tmp = rule.to_dict()
-        if tmp['rule_type'] == 'timer':
-            tmp['time_open'] = tmp['time_open'].strftime('%H:%M:%S')
-            tmp['time_close'] = tmp['time_close'].strftime('%H:%M:%S')
+        if tmp["mode"] == "Timer":
+            tmp["time_open"] = tmp["time_open"].strftime('%H:%M:%S')
+            tmp["time_close"] = tmp["time_close"].strftime('%H:%M:%S')
 
         res_list.append(tmp)
 
@@ -225,7 +230,7 @@ def set_datum(sa_id):
     pass
 
 
-@apis.route('/sa/<sa_id>/current_data', methods=['GET'])
+@apis.route('/sa/<int:sa_id>/current_data', methods=['GET'])
 @orm.db_session
 def get_datum(sa_id):
     '''
@@ -253,7 +258,7 @@ def get_datum(sa_id):
     return jsonify(res_dict), 200
 
 
-@apis.route('/subsystem/refresh_sa/<sa_id>', methods=['GET'])
+@apis.route('/subsystem/refresh_sa/<int:sa_id>', methods=['GET'])
 def refresh_sa(sa_id):
     '''
     Fetch NetworkApplications to read IDF/ODF name.
@@ -269,7 +274,7 @@ def refresh_sa(sa_id):
         with orm.db_session():
             sa = CB_SA[sa_id]
             if use_v1:
-                NAs = requests.post(  # Work Around for V1 CCM API project.get lacking NA info.
+                NAs = requests.post(  # Workaround for V1 CCM API project.get lacking NA info.
                     f"http://{env_config['IoTtalk']['ServerIP']}:7788/reload_data",
                     data={"p_id": sa.p_id}
                 )
@@ -306,7 +311,6 @@ def refresh_sa(sa_id):
                     dst[order] = odfs
                 else:
                     src[order] = idfs
-            print("test")
             for order, actuator in dst.items():
                 if order not in src:
                     sa.rule_set.add(
@@ -409,7 +413,7 @@ def create_sa():
     return "Create SA succeeded", 200
 
 
-@apis.route('/subsystem/delete_sa/<sa_id>', methods=['POST'])
+@apis.route('/subsystem/delete_sa/<int:sa_id>', methods=['POST'])
 def delete_sa(sa_id):
     '''
     Delete SA with specified sa_id.
@@ -422,7 +426,7 @@ def delete_sa(sa_id):
         message: 'SA deleted successfully'.
     '''
     try:
-        sa = running_sa[int(sa_id)]
+        sa = running_sa[sa_id]
         status = deregister_ag(sa, api_logger)
         if not status:
             api_logger.exception("Error delete SA, Deregister SA failed, check api log file")
@@ -441,7 +445,7 @@ def delete_sa(sa_id):
         return "Specified SA not found", 400
 
 
-@apis.route('/subsystem/get_sa/<cb_id>', methods=['GET'])
+@apis.route('/subsystem/get_sa/<int:cb_id>', methods=['GET'])
 def get_sa(cb_id):
     '''
     Get accessible sa_ids and sa_names of the specified user. Called when rendering SAs available to the user.
@@ -474,7 +478,7 @@ def get_sa(cb_id):
         abort(403, "Not a superuser!")
 
 
-@apis.route('/subsystem/cb_icon/<cb_id>', methods=["PUT"])
+@apis.route('/subsystem/cb_icon/<int:cb_id>', methods=["PUT"])
 def manage_icon(cb_id):
     '''
     Change specified CB's icon client given `cb_id` and `file` from request.
@@ -599,7 +603,7 @@ def delete_cb():
 @apis.route('/subsystem/get_cb', methods=['GET'])
 def get_cb():
     '''
-    Returns Accessible CB list of current logined user
+    Returns all accessible CB list of current logined user
 
     Args: None
 

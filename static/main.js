@@ -76,7 +76,7 @@ var app = new Vue({
     settings: [
       {
         actuator: "Bulb",
-        sensors: ["Luminance", "sensor1", "sensor2", "sensor3"],
+        sensors: ["Luminance"],
         mode: "Sensor",
         value: 100,
         dirty: false,
@@ -93,8 +93,8 @@ var app = new Vue({
       },
       {
         actuator: "Actuator2",
-        sensors: ["Humidity", "sensor4", "sensor5", "sensor6"],
-        mode: "Sensor",
+        sensors: [],
+        mode: "Timer",
         value: 200,
         dirty: false,
         status: false,
@@ -239,7 +239,7 @@ var app = new Vue({
     getSARules: function(fieldID) {
       return new Promise(function (resolve, reject) {
         axios
-          .get("/sa/" + fieldID.toString() + "/rules/")
+          .get("/sa/" + fieldID.toString() + "/rules")
           .then( (rules) => {
             resolve(rules);
           })

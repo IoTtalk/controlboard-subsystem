@@ -207,28 +207,28 @@ def test_db(logger):
     return
 
 
-status_logger = make_logger('cb_status', 'status')
+status_logger = make_logger("CB_status", "status")
 
 
-def status_receiver(msg):
+def status_receiver(msgs):
     '''
     Receive execution status from AG SAs.
 
     Args:
-        msg: Message sent from AG SAs.
+        msgs: Messages sent from AG SAs.
 
     Returns: None
     '''
-    status = json.loads(msg[0].decode('utf-8'))
-    print("Server received", status)
-    try:
-        sa_id = status["sa_id"]
-        status.pop("sa_id")
-        running_status[sa_id] = status
-        status_logger.info(f"Receive status from CB {sa_id}")
-        status_logger.info(status)
-    except KeyError:
-        status_logger.exception("Receive status error")
+    for msg in msgs:
+        status = json.loads(msg.decode("utf-8"))
+        print("Server received", status)
+        try:
+            rule_id = status["rule_id"]
+            running_status[rule_id] = status
+            status_logger.info(f"Receive status from Rule {rule_id}")
+            status_logger.info(status)
+        except KeyError:
+            status_logger.exception("Receive status error")
 
 
 def connect_zmq(logger):

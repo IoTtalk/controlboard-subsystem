@@ -29,7 +29,7 @@ class UserRule(cb_db.Entity):
     period = Required(int)  # Period functionality.
     exetime = Optional(int)  # execution time for periodically execution.
     mode = Required(str)  # Sensor/Timer/On/Off.
-    weekday = Optional(str)  # Weekdays this rule should be executed.
+    weekday = Optional(str)  # Weekdays this rule should be executed.  ranging from 0 to 6
     duty_pos = Optional(int)  # Positive edge of Duty Cycle.
     duty_neg = Optional(int)  # Negative edge of Duty Cycle.
     sa = Required("CB_SA")  # which SA this rule belongs to.

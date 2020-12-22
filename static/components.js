@@ -16,7 +16,7 @@ Vue.component('custom-sel', {
 })
 
 Vue.component('sensor-row', {
-    props: ['sensors', 'value', 'index', 'status'],
+    props: ['sensors', 'value', 'index', 'status', 'mode'],
     methods: {
         onSelectSensor: function (idx) {
             var temp = this.sensors[0];
@@ -27,13 +27,26 @@ Vue.component('sensor-row', {
     },
     template: `
         <b-row v-bind:class="['sensor-list', status?'triggered':'']" class="text-left">
-            <b-col align-self="start" text-align="start">
-                <b-dropdown v-bind:text="sensors[0]" v-bind:variant="status?'success':'danger'">
+            <b-col align-self="start" text-align="start" class="pl-0">
+                <b-dropdown v-if="mode=='Sensor'" v-bind:text="sensors[0]" 
+                    v-bind:variant="status?'success':'danger'"
+                    v-bind:class="sensors[1]? '': 'one-item-dropdown'"
+                >
                     <b-dropdown-item 
+                        v-if="sensors.length > 1"
                         v-for="(sensor, idx) in sensors.slice(1)"
                         v-on:click="onSelectSensor(idx + 1)"
                     >{{sensor}}</b-dropdown-item>
                 </b-dropdown>
+                <b-dropdown class="one-item-dropdown"
+                    v-if="mode==='Timer'" text='Timer' v-bind:variant="status?'success':'danger'"
+                ></b-dropdown>
+                <b-dropdown class="one-item-dropdown"
+                    v-if="mode==='ON'" text='Manually Opened' v-bind:variant="status?'success':'danger'"
+                ></b-dropdown>
+                <b-dropdown class="one-item-dropdown"
+                    v-if="mode==='OFF'" text='Manually Closed' v-bind:variant="status?'success':'danger'"
+                ></b-dropdown>
             </b-col>
             <span><b>{{value}}</b></span>
         </b-row>
@@ -41,7 +54,7 @@ Vue.component('sensor-row', {
 })
 
 Vue.component('actuator-row', {
-    props: ['mode', 'actuator', 'dirty', 'index'],
+    props: ['mode', 'actuator', 'dirty', 'index', 'sensors'],
     methods: {
         onSelectMode: function(nextMode) {
             this.$emit("update-mode", nextMode, this.index);
@@ -61,6 +74,7 @@ Vue.component('actuator-row', {
                     </b-button>
                     <b-button variant="outline-success" 
                         v-bind:pressed="mode==='Sensor'"
+                        v-bind:disabled="sensors"
                         v-on:click="onSelectMode(1)"
                     >Sensor</b-button>
                     <b-button variant="outline-success"

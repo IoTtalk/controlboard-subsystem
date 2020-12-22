@@ -41,7 +41,8 @@ def recover_sa(running_sa, config, logger):
         if status:
             sa.ag_token = ag_token
             running_sa[sa.sa_id] = sa
-            running_status[sa.sa_id] = dict()
+            for rule in sa.rule_set:
+                running_status[rule.rule_id] = dict()
     logger.info('Start Recovering SAs in Database......done')
     print(running_sa)
     return
