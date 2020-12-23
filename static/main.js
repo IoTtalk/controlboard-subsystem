@@ -275,7 +275,7 @@ var app = new Vue({
     onSADelete: function(action) {
       if (1 === action) {
         axios
-          .post("subsystem/delete_sa" + this.currentField.toString())
+          .post("subsystem/delete_sa", this.currentField)
           .then( (res) => {
             console.log(res);
             this.getAvailableSAs(this.currentProject)

@@ -444,8 +444,9 @@ def create_sa():
     return "Create SA succeeded", 200
 
 
-@apis.route('/subsystem/delete_sa/<int:sa_id>', methods=['POST'])
-def delete_sa(sa_id):
+@apis.route('/subsystem/delete_sa', methods=['POST'])
+@orm.db_session
+def delete_sa():
     '''
     Delete SA with specified sa_id.
 
@@ -457,13 +458,15 @@ def delete_sa(sa_id):
         message: 'SA deleted successfully'.
     '''
     try:
-        sa = running_sa[sa_id]
+        sa_id = int(request.get_data().decode("utf-8"))
+        if sa_id not in running_sa:
+            raise KeyError
+        sa = CB_SA[sa_id]
         status = deregister_ag(sa, api_logger)
-        sa.delete()
         if not status:
             api_logger.exception("Error delete SA, Deregister SA failed, check api log file")
             return "Delete SA failed, check api log files", 502
-
+        sa.delete()
         status, message = delete_proj_ag(sa.p_id, api_logger)
         if not status:
             api_logger.exception("Error delete SA, Delete project failed, check api log file")
@@ -473,7 +476,7 @@ def delete_sa(sa_id):
         api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
         return "Delete SA succeed", 200
     except KeyError:
-        api_logger.info('Specified ControlBoard not running')
+        api_logger.exception('Specified ControlBoard not running')
         return "Specified SA not found", 400
 
 

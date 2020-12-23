@@ -162,7 +162,7 @@
                   ></custom-sel>
                   <b-form-input size="sm" class="custom-input"
                     v-model="setting.content.openSensorVal"
-                    v-bind:disabled="setting.content.openSensor===null"
+                    v-bind:disabled="setting.content.openSensor==='notset'"
                   ></b-form-input>
                   <span class="setting-text-mid">ON.</span>
                   <custom-sel
@@ -174,7 +174,7 @@
                   ></custom-sel> 
                   <b-form-input size="sm" class="custom-input"
                     v-model="setting.content.closeSensorVal"
-                    v-bind:disabled="setting.content.closeSensor===null"
+                    v-bind:disabled="setting.content.closeSensor==='notset'"
                   ></b-form-input>
                   <span class="setting-text">OFF.</span>
                 </div>
