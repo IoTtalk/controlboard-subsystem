@@ -43,10 +43,10 @@
           <div class="field-manage" v-if="user.current.superuser">
             <div class="d-flex justify-content-between">
               <div>
-                <b-button size="sm" variant="success" v-b-modal="'CreateSA'" class="create-field">+ New Field</b-button>
-                <b-button size="sm" variant="secondary" class="ml-sm-1" v-on:click="onRefreshSA()">Refresh</b-button>
+                <b-button size="sm" variant="success" v-b-modal="'CreateSA'" v-if="currentProject>0" class="create-field">+ New Field</b-button>
+                <b-button size="sm" variant="secondary" class="ml-sm-1" v-if="currentField>0" v-on:click="onRefreshSA()">Refresh</b-button>
               </div>
-              <b-button size="sm" variant="danger" v-b-modal="'CancelSA'">Delete Field</b-button>
+              <b-button size="sm" variant="danger" v-if="currentField>0" v-b-modal="'CancelSA'">Delete Field</b-button>
               <b-modal id="CreateSA" size="lg" centered title="Create New ControlBoard Field"
                 v-on:ok="onSACreate(1)" v-on:cancel="onSACreate(0)" v-on:close="onSACreate(0)"
               >
@@ -80,7 +80,7 @@
         <b-card title="Card Title" no-body class="card mb-3">
           <b-card-header header-tag="nav">
             <b-nav card-header tabs>
-              <b-nav-item-dropdown text="More" lazy v-if="!manageMode">
+              <b-nav-item-dropdown text="More" lazy v-if="!manageMode && currentField>0">
                 <b-dropdown-group id="dropdown-group-1">
                   <template v-slot:header>
                     <div class="d-flex justify-content-between">
@@ -108,9 +108,10 @@
                   > <%field.text%> </b-dropdown-item>
                 </b-dropdown-group>
               </b-nav-item-dropdown>
+              <span v-if="!manageMode && currentField<1" style="font-weight: bolder;">Please create a field</span>
               <b-nav-item
                 v-for="(field, index) in fields.pinnedFields"
-                v-if="!manageMode && index < maxPinnedFields"
+                v-if="!manageMode && index < maxPinnedFields && currentField > 0"
                 v-bind:active="field.value===currentField"
                 v-on:click="switchField(field.value)"
                 class="fieldName"
@@ -127,7 +128,7 @@
           </b-card-header>
 
           <b-card-body class="text-center custom-card-body">
-            <div v-for="(setting, index) in settings" class="setting-card" v-if="!manageMode">
+            <div v-for="(setting, index) in settings" class="setting-card" v-if="!manageMode && currentField >0">
               <!-- sensor List and sensor value -->
               <sensor-row
                 v-bind:sensors="setting.sensors"

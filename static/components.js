@@ -130,7 +130,7 @@ Vue.component('select-projects', {
                         {{projects[0].text}}
                     </template>
                     <template v-slot:button-content v-else>
-                        New CB
+                        Add ControlBoard
                     </template>
                     <project 
                         v-for="(field, index) in projects.slice(1)"

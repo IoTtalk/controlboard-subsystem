@@ -73,78 +73,8 @@ var app = new Vue({
     },
     currentField: 0,  // Field refers to SA in a specific CB.
     currentProject: 0,  // Project refers to CB.
-    settings: [
-      {
-        actuator: "Bulb",
-        sensors: ["Luminance"],
-        mode: "Sensor",
-        value: 100,
-        dirty: false,
-        status: true,
-        content: {
-          "openSensor": "bigger",
-          "closeSensor": null,
-          "openTimer": [0, 0, 0],
-          "closeTimer": [0, 0, 0],
-          "openSensorVal": 0,
-          "closeSensorVal": 0,
-          "weekdays": [3],
-        }
-      },
-      {
-        actuator: "Actuator2",
-        sensors: [],
-        mode: "Timer",
-        value: 200,
-        dirty: false,
-        status: false,
-        content: {
-          "openSensor": "bigger",
-          "closeSensor": null,
-          "openTimer": [0, 0, 0],
-          "closeTimer": [0, 0, 0],
-          "openSensorVal": 0,
-          "closeSensorVal": 0,
-          "dutyPos": 0,
-          "dutyNeg": 0,
-          "weekdays": [4],
-        }
-      },
-      {
-        actuator: "Actuator3",
-        sensors: ["Test", "sensor7", "sensor8", "sensor9"],
-        mode: "ON",
-        value: 300,
-        dirty: false,
-        status: true,
-        content: {
-          "openSensor": null,
-          "closeSensor": null,
-          "openTimer": [0, 0, 0],
-          "closeTimer": [0, 0, 0],
-          "openSensorVal": 0,
-          "closeSensorVal": 0,
-          "weekdays": [5],
-        }
-      },
-      {
-        actuator: "Actuator4",
-        sensors: ["Test1", "sensor10", "sensor11", "sensor12"],
-        mode: "OFF",
-        value: 400,
-        dirty: false,
-        status: true,
-        content: {
-          "openSensor": null,
-          "closeSensor": null,
-          "openTimer": [0, 0, 0],
-          "closeTimer": [0, 0, 0],
-          "openSensorVal": 0,
-          "closeSensorVal": 0,
-          "weekdays": [6],
-        }
-      }
-    ]
+    backupSettings: [],
+    settings: []
   },
   created: function() {
     this.getAvailableCBs()
@@ -241,7 +171,19 @@ var app = new Vue({
         axios
           .get("/sa/" + fieldID.toString() + "/rules")
           .then( (rules) => {
-            resolve(rules);
+            resolve(rules.data);
+          })
+          .catch( (err) => {
+            reject(err);
+          });
+      });
+    },
+    getRuleStatus: function(fieldID) {
+      return new Promise(function (resolve, reject) {
+        axios
+          .get("/sa/" + fieldID.toString() + "/current_data")
+          .then( (status) => {
+            resolve(status.data);
           })
           .catch( (err) => {
             reject(err);
@@ -253,13 +195,23 @@ var app = new Vue({
         .get("/subsystem/refresh_sa/" + this.currentField.toString())
         .then( (res)=> {
           this.getSARules(this.currentField)
-          .then( (rules) => {
-            console.log(rules.data);
-            this.settings = rules.data;
-          })
-          .catch( (err) => {
-            console.log(err);
-          })
+            .then( (rules) => {
+              this.backupSettings = rules;
+              this.settings = rules.slice();
+              this.getRuleStatus(this.currentField)
+                .then( (status) => {
+                  console.log("rules:", status);
+                })
+                .catch( (err) => {
+                  console.log(err);
+                })
+              this.settings.forEach(element => {
+                element["dirty"] = false;
+              })
+            })
+            .catch( (err) => {
+              console.log(err);
+            })
         })
         .catch( (err) => {
           console.log(err);
@@ -292,6 +244,15 @@ var app = new Vue({
                   }
                 });
                 console.log(pinnedFields);
+                if (fields.length) {
+                  if (pinnedFields.length) {
+                    this.currentField = pinnedFields[0].value;
+                  } else {
+                    this.currentField = fields[0].value;
+                  }
+                } else {
+                  this.currentField = 0;
+                }
                 this.fields = {
                   "pinnedFields": pinnedFields,
                   "optionFields": fields
@@ -312,7 +273,32 @@ var app = new Vue({
       return;
     },
     onSADelete: function(action) {
-
+      if (1 === action) {
+        axios
+          .post("subsystem/delete_sa" + this.currentField.toString())
+          .then( (res) => {
+            console.log(res);
+            this.getAvailableSAs(this.currentProject)
+              .then( (fields) => {
+                pinnedFields = [];
+                fields.forEach(element => {
+                  if (element.pin) {
+                    pinnedFields.push(element);
+                  }
+                });
+                if (fields.length)
+                  this.currentField = fields[0].value;
+                else
+                  this.currentField = 0;
+                console.log(pinnedFields);
+                this.fields = {
+                  "pinnedFields": pinnedFields,
+                  "optionFields": fields
+                };
+              })
+          })
+          .catch
+      }
     },
     switchField: function(index) {
       this.currentField = index;
@@ -421,6 +407,10 @@ var app = new Vue({
             this.getAvailableCBs()
               .then( (projects) => {
                 this.projects = projects;
+                if (projects.accessibleProjects.length)
+                  this.currentProject = projects.accessibleProjects[0];
+                else
+                  this.currentProject = 0;
               })
               .catch( (error) => {
                 console.log(error);
@@ -492,4 +482,3 @@ var app = new Vue({
   }
 
 })
-
