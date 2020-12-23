@@ -83,20 +83,14 @@ var app = new Vue({
         this.currentProject = projects["accessibleProjects"][0];
         this.getAvailableSAs(projects["accessibleProjects"][0])
           .then( (fields) => {
-            pinnedFields = [];
-            fields.forEach(element => {
-              if (element.pin) {
-                pinnedFields.push(element);
-              }
-            });
-            this.fields = {
-              "pinnedFields": pinnedFields,
-              "optionFields": fields
-            };
-            if (fields.length) {
-              this.currentField = fields[0]["value"];
-            }
-            console.log(this.fields);
+            this.setupFields(fields);
+            // this.getRuleStatus(this.currentField)
+            //   .then( (status) => {
+            //     this.setupRuleStatus(status);
+            //   })
+            //   .catch( (err) => {
+            //     console.log(err);
+            //   });
           })
           .catch( () => {
             console.log("fetch SAs failed");
@@ -196,27 +190,55 @@ var app = new Vue({
         .then( (res)=> {
           this.getSARules(this.currentField)
             .then( (rules) => {
-              this.backupSettings = rules.slice();
-              this.settings = rules;
               this.getRuleStatus(this.currentField)
                 .then( (status) => {
-                  console.log("rules:", status);
+                  this.backupSettings = rules.slice();
+                  this.settings = rules;
+                  this.setupRuleStatus(status);
                 })
                 .catch( (err) => {
                   console.log(err);
                 })
-              this.settings.forEach(element => {
-                element["dirty"] = false;
-              })
             })
             .catch( (err) => {
               console.log(err);
-            })
+            });
         })
         .catch( (err) => {
           console.log(err);
         })
         return;
+    },
+    setupFields: function(fields) {
+      pinnedFields = [];
+      fields.forEach(element => {
+        if (element.pin) {
+          pinnedFields.push(element);
+        }
+      });
+      this.fields = {
+        "pinnedFields": pinnedFields,
+        "optionFields": fields
+      };
+      if (fields.length) {
+        if (pinnedFields.length) {
+          this.currentField = pinnedFields[0].value;
+        } else {
+          this.currentField = fields[0].value;
+        }
+      } else {
+        this.currentField = 0;
+      }
+      console.log(this.fields);
+    },
+    setupRuleStatus: function(status) {
+      this.settings.forEach( setting => {
+        setting["dirty"] = false;
+        setting["prevTrigger"] = status[setting.ruleID]["prev_trigger"];
+        setting["value"] = status[setting.ruleID]["value"];
+        setting["status"] = status[setting.ruleID]["status"] === "RED"? true: false;
+      });
+      return;
     },
     onSwitchManage: function() {
       this.manageMode = !this.manageMode;
@@ -237,26 +259,7 @@ var app = new Vue({
             console.log(res);
             this.getAvailableSAs(this.currentProject)
               .then( (fields) => {
-                pinnedFields = [];
-                fields.forEach(element => {
-                  if (element.pin) {
-                    pinnedFields.push(element);
-                  }
-                });
-                console.log(pinnedFields);
-                if (fields.length) {
-                  if (pinnedFields.length) {
-                    this.currentField = pinnedFields[0].value;
-                  } else {
-                    this.currentField = fields[0].value;
-                  }
-                } else {
-                  this.currentField = 0;
-                }
-                this.fields = {
-                  "pinnedFields": pinnedFields,
-                  "optionFields": fields
-                };
+                this.setupFields(fields);
               })
               .catch( (err) => {
                 console.log(err);
@@ -280,21 +283,7 @@ var app = new Vue({
             console.log(res);
             this.getAvailableSAs(this.currentProject)
               .then( (fields) => {
-                pinnedFields = [];
-                fields.forEach(element => {
-                  if (element.pin) {
-                    pinnedFields.push(element);
-                  }
-                });
-                if (fields.length)
-                  this.currentField = fields[0].value;
-                else
-                  this.currentField = 0;
-                console.log(pinnedFields);
-                this.fields = {
-                  "pinnedFields": pinnedFields,
-                  "optionFields": fields
-                };
+                this.setupFields(fields);
               })
           })
           .catch
@@ -302,6 +291,24 @@ var app = new Vue({
     },
     switchField: function(index) {
       this.currentField = index;
+      this.getSARules(this.currentField)
+        .then( (rules) => {
+          this.backupSettings = rules.slice();
+          this.settings = rules;
+          // this.getRuleStatus(this.currentField)
+          //   .then( (status) => {
+          //     this.setupRuleStatus(status);
+          //   })
+          //   .catch( (err) => {
+          //     console.log(err);
+          //   })
+          this.settings.forEach(element => {
+            element["dirty"] = false;
+          })
+        })
+        .catch( (err) => {
+          console.log(err);
+        });
     },
     reqFieldData: function(index) {
 

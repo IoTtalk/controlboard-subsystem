@@ -239,7 +239,6 @@ def get_rules(sa_id):
                 "mode": rule.mode,
                 "content": content
             }
-
             res_list.append(tmp)
         return jsonify(res_list), 200
     except KeyError:
@@ -271,15 +270,17 @@ def get_datum(sa_id):
     '''
     res_dict = dict()
     try:
-        rules = running_sa[sa_id].rule_set
+        if int(sa_id) not in running_sa:
+            raise KeyError
+        rules = CB_SA[sa_id].rule_set
     except KeyError:
         api_logger.exception("Error getting SA's current data, Specified SA not running")
         return "Specified SA not running", 400
 
     for rule in rules:
-        stats = running_status[sa_id][rule.sensor_alias]
-        stats['time'] = datetime.datetime.now().strftime('%H:%M')
-        res_dict[rule.sensor_alias] = stats
+        stats = running_status[rule.rule_id]
+        stats["time"] = datetime.datetime.now().strftime("%H:%M")
+        res_dict[rule.rule_id] = stats
 
     return jsonify(res_dict), 200
 
@@ -459,13 +460,12 @@ def delete_sa():
     '''
     try:
         sa_id = int(request.get_data().decode("utf-8"))
-        if sa_id not in running_sa:
-            raise KeyError
         sa = CB_SA[sa_id]
-        status = deregister_ag(sa, api_logger)
-        if not status:
-            api_logger.exception("Error delete SA, Deregister SA failed, check api log file")
-            return "Delete SA failed, check api log files", 502
+        if sa.ag_token != "NotCreated":
+            status = deregister_ag(sa, api_logger)
+            if not status:
+                api_logger.exception("Error delete SA, Deregister SA failed, check api log file")
+                return "Delete SA failed, check api log files", 502
         sa.delete()
         status, message = delete_proj_ag(sa.p_id, api_logger)
         if not status:

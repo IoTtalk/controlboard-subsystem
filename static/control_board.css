@@ -117,7 +117,7 @@ html, body {
 }
 
 .sensor-list {
-  background-color: #DC3545;
+  background-color: #28A745;
   border: 0.1px;
   border-top-right-radius: 5px;
   border-top-left-radius: 5px;
@@ -126,7 +126,7 @@ html, body {
 }
 
 .sensor-list.triggered {
-  background-color: #28A745;
+  background-color: #DC3545;
 }
 
 .actuator-control {
