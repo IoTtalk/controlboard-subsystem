@@ -15,7 +15,7 @@ var app = new Vue({
       pinned: false
     },
     comparisons: [
-      {value: null, text: ""},
+      {value: "notset", text: ""},
       {value: "smaller", html: "&lt;"},
       {value: "bigger", html:"&gt;"}
     ],
@@ -196,8 +196,8 @@ var app = new Vue({
         .then( (res)=> {
           this.getSARules(this.currentField)
             .then( (rules) => {
-              this.backupSettings = rules;
-              this.settings = rules.slice();
+              this.backupSettings = rules.slice();
+              this.settings = rules;
               this.getRuleStatus(this.currentField)
                 .then( (status) => {
                   console.log("rules:", status);

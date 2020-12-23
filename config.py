@@ -1,4 +1,5 @@
 import configparser
+import datetime
 import sys
 
 
@@ -7,7 +8,12 @@ default_rules = {
     "threshold_close": 0,
     "comparison_open": "notset",
     "comparison_close": "notset",
-    "period": 0
+    "time_open": datetime.time(0, 0, 0),
+    "time_close": datetime.time(0, 0, 0),
+    "period": 0,
+    "duty_pos": 0,
+    "duty_neg": 0,
+    "weekday": ""
 }
 
 

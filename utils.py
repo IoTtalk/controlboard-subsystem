@@ -415,9 +415,6 @@ def deregister_ag(sa, logger):
             'token': sa.ag_token
         }
         _post('delete_device', data)
-
-        with orm.db_session():
-            CB_SA[sa.sa_id].delete()
         return True
     except Exception as err:
         logger.exception(err)

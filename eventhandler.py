@@ -220,12 +220,11 @@ def get_rules(sa_id):
         sa = CB_SA[sa_id]
         for rule in sa.rule_set:
             content = dict()
-            if rule.mode == "Timer":
-                content["openTimer"] = rule.time_open.strftime('%H:%M:%S').split(":")
-                content["closeTimer"] = rule.time_close.strftime('%H:%M:%S').split(":")
-            else:
-                content["openSensor"] = rule.comparison_open
-                content["closeSensor"] = rule.comparison_close
+
+            content["openTimer"] = [int(data) for data in rule.time_open.strftime('%H:%M:%S').split(":")]
+            content["closeTimer"] = [int(data) for data in rule.time_close.strftime('%H:%M:%S').split(":")]
+            content["openSensor"] = rule.comparison_open
+            content["closeSensor"] = rule.comparison_close
             content["dutyPos"] = rule.duty_pos
             content["dutyNeg"] = rule.duty_neg
             if len(rule.weekday):
@@ -236,7 +235,7 @@ def get_rules(sa_id):
             tmp = {
                 "ruleID": rule.rule_id,
                 "actuator": rule.actuator_alias,
-                "sensors": rule.sensor_alias.split(","),
+                "sensors": rule.sensor_alias.split(",") if len(rule.sensor_alias) else list(),
                 "mode": rule.mode,
                 "content": content
             }
@@ -311,7 +310,8 @@ def refresh_sa(sa_id):
             print(NAs)
             if not len(NAs):
                 raise ValueError
-
+            if len(sa.rule_set):
+                sa.rule_set.clear()
             # Create UserRules for each NA
             src, dst = dict(), dict()
             for na in NAs:
@@ -345,8 +345,6 @@ def refresh_sa(sa_id):
                             **default_rules,
                             actuator_alias=actuator[0][1],
                             actuator_df=actuator[0][0],
-                            time_open=datetime.time(0, 0, 0),
-                            time_close=datetime.time(0, 0, 0),
                             mode="Timer",
                             df_order=order,
                             sa=sa
@@ -368,6 +366,12 @@ def refresh_sa(sa_id):
                         )
                     )
             cb_db.commit()
+
+            if sa.ag_token != "NotCreated":
+                status = deregister_ag(sa, api_logger)
+                if not status:
+                    api_logger.exception("Deregister Sa failed")
+                    abort(500, "Deregister SA failed")
 
             # Register device
             status, ag_token = register_ag(sa, api_logger)
@@ -455,6 +459,7 @@ def delete_sa(sa_id):
     try:
         sa = running_sa[sa_id]
         status = deregister_ag(sa, api_logger)
+        sa.delete()
         if not status:
             api_logger.exception("Error delete SA, Deregister SA failed, check api log file")
             return "Delete SA failed, check api log files", 502
