@@ -132,8 +132,7 @@
               <!-- sensor List and sensor value -->
               <sensor-row
                 v-bind:sensors="setting.sensors"
-                v-bind:value="setting.value"
-                v-bind:index="index"
+                v-bind:value="setting.mode==='Sensor'? setting.value: setting.time"
                 v-bind:status="setting.status"
                 v-bind:mode="setting.mode"
               ></sensor-row>

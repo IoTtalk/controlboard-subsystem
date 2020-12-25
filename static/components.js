@@ -16,7 +16,7 @@ Vue.component('custom-sel', {
 })
 
 Vue.component('sensor-row', {
-    props: ['sensors', 'value', 'index', 'status', 'mode'],
+    props: ['sensors', 'value', 'status', 'mode'],
     methods: {
         onSelectSensor: function (idx) {
             var temp = this.sensors[0];
@@ -29,7 +29,7 @@ Vue.component('sensor-row', {
         <b-row v-bind:class="['sensor-list', status?'triggered':'']" class="text-left">
             <b-col align-self="start" text-align="start" class="pl-0">
                 <b-dropdown v-if="mode=='Sensor'" v-bind:text="sensors[0]" 
-                    v-bind:variant="status?'success':'danger'"
+                    v-bind:variant="status?'danger':'success'"
                     v-bind:class="sensors[1]? '': 'one-item-dropdown'"
                 >
                     <b-dropdown-item 
@@ -39,13 +39,13 @@ Vue.component('sensor-row', {
                     >{{sensor}}</b-dropdown-item>
                 </b-dropdown>
                 <b-dropdown class="one-item-dropdown"
-                    v-if="mode==='Timer'" text='Timer' v-bind:variant="status?'success':'danger'"
+                    v-if="mode==='Timer'" text='Timer' v-bind:variant="status?'danger':'success'"
                 ></b-dropdown>
                 <b-dropdown class="one-item-dropdown"
-                    v-if="mode==='ON'" text='Manually Opened' v-bind:variant="status?'success':'danger'"
+                    v-if="mode==='ON'" text='Manually Opened' v-bind:variant="status?'danger':'success'"
                 ></b-dropdown>
                 <b-dropdown class="one-item-dropdown"
-                    v-if="mode==='OFF'" text='Manually Closed' v-bind:variant="status?'success':'danger'"
+                    v-if="mode==='OFF'" text='Manually Closed' v-bind:variant="status?'danger':'success'"
                 ></b-dropdown>
             </b-col>
             <span><b>{{value}}</b></span>

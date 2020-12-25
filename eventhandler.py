@@ -195,7 +195,7 @@ def get_rules(sa_id):
         sa_id: ID of the requester SA.
 
     Returns:
-        Status code: 200 / 400.
+        Status code: 200 / 500.
         rule_list: A list containing rules of the specific SA. Each element of this list is a rule in dictionary format.
             Each rule will contain the following information
                 `ruleID`: integer, primary key of the rule in database table `UserRule`.
@@ -212,8 +212,9 @@ def get_rules(sa_id):
                     `dutyPos`: integer, time in seconds representing the positive cycle length of one Duty cycle.
                     `dutyNeg`: integer, time in seconds representing the negative cycle length of one Duty cycle.
                     `weekdays`: list of integers representing weekdays. Mon <=> 0, Sun <=> 6, All <=> 7.
+            `rule_list` will be empty if the specified SA is not running.
     '''
-    res_list = list()
+    rule_list = list()
     try:
         if sa_id not in running_sa:
             raise KeyError
@@ -239,11 +240,11 @@ def get_rules(sa_id):
                 "mode": rule.mode,
                 "content": content
             }
-            res_list.append(tmp)
-        return jsonify(res_list), 200
+            rule_list.append(tmp)
+        return jsonify(rule_list), 200
     except KeyError:
-        api_logger.exception("Specified SA not running")
-        return abort(400, "Specified SA not running")
+        api_logger.warning("Specified SA not running")
+        return jsonify(list()), 200
     except Exception as err:
         api_logger.exception(err)
         return abort(500, "Internal server error")
@@ -273,14 +274,14 @@ def get_datum(sa_id):
         if int(sa_id) not in running_sa:
             raise KeyError
         rules = CB_SA[sa_id].rule_set
+
+        for rule in rules:
+            status = running_status[rule.rule_id]
+            status["time"] = datetime.datetime.now().strftime("%H:%M")
+            res_dict[rule.rule_id] = status
     except KeyError:
         api_logger.exception("Error getting SA's current data, Specified SA not running")
         return "Specified SA not running", 400
-
-    for rule in rules:
-        stats = running_status[rule.rule_id]
-        stats["time"] = datetime.datetime.now().strftime("%H:%M")
-        res_dict[rule.rule_id] = stats
 
     return jsonify(res_dict), 200
 
@@ -715,3 +716,8 @@ def login():
     session['']
 
     return 'hello', 200
+
+
+@apis.route("/accuont/get_accounts", methods=['GET'])
+def get_users():
+    pass

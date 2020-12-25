@@ -221,7 +221,6 @@ def status_receiver(msgs):
     '''
     for msg in msgs:
         status = json.loads(msg.decode("utf-8"))
-        print("Server received", status)
         try:
             rule_id = status["rule_id"]
             running_status[rule_id] = status
@@ -241,6 +240,7 @@ def connect_zmq(logger):
     Returns:
         socket: Created socket object for receiving messages from AG SA.
     '''
+    logger.info("\tCreate ZMQ Listener...")
     asyncio.set_event_loop(asyncio.new_event_loop())
     context = zmq.Context.instance()
     socket = context.socket(zmq.SUB)
@@ -251,7 +251,8 @@ def connect_zmq(logger):
     stream.on_recv(status_receiver)
     ioloop.IOLoop.instance().start()
 
-    print('test end')
+    logger.info("\tZMQ Listener binded")
+    return
 
 
 def get_iottalk_info(logger):

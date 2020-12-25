@@ -6,6 +6,7 @@ var app = new Vue({
     manageMode: false,  // Switch bwtween CB page & manage page
     managePage: false, // Used to switch active state between User/CB management
     newCBIcon: null,
+    refreshWorker: -1,  // Timer ID for periodically calling current_data
     newCB: {
       text: "",
       shared: false
@@ -77,6 +78,8 @@ var app = new Vue({
     settings: []
   },
   created: function() {
+    // Procedures to correctly render data:
+    // get CBs -> get SAs -> get Rules -> get Status
     this.getAvailableCBs()
       .then( (projects) => {
         this.projects = projects;
@@ -84,13 +87,24 @@ var app = new Vue({
         this.getAvailableSAs(projects["accessibleProjects"][0])
           .then( (fields) => {
             this.setupFields(fields);
-            // this.getRuleStatus(this.currentField)
-            //   .then( (status) => {
-            //     this.setupRuleStatus(status);
-            //   })
-            //   .catch( (err) => {
-            //     console.log(err);
-            //   });
+            this.getSARules(this.currentField)
+              .then( (rules) => {
+                if (rules.length) {
+                  this.backupSettings = JSON.parse(JSON.stringify(rules));
+                  this.settings = rules
+                  this.getRuleStatus(this.currentField)
+                    .then( (status) => {
+                      this.setupRuleStatus(status);
+                    })
+                    .catch( (err) => {
+                      console.log(err);
+                    });
+                }
+                this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
+              })
+              .catch( (err) => {
+                console.log(err);
+              })
           })
           .catch( () => {
             console.log("fetch SAs failed");
@@ -184,6 +198,18 @@ var app = new Vue({
           });
       });
     },
+    refreshStatusWorker: function() {
+      if (this.settings.length) {
+        this.getRuleStatus(this.currentField)
+          .then( (status) => {
+            this.setupRuleStatus(status);
+          })
+          .catch( (err) => {
+            console.log(err);
+          });
+      }
+      return;
+    },
     onRefreshSA: function() {
       axios
         .get("/subsystem/refresh_sa/" + this.currentField.toString())
@@ -192,9 +218,11 @@ var app = new Vue({
             .then( (rules) => {
               this.getRuleStatus(this.currentField)
                 .then( (status) => {
-                  this.backupSettings = rules.slice();
+                  window.clearInterval(this.refreshWorker);
+                  this.backupSettings = JSON.parse(JSON.stringify(rules));
                   this.settings = rules;
                   this.setupRuleStatus(status);
+                  this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
                 })
                 .catch( (err) => {
                   console.log(err);
@@ -234,6 +262,7 @@ var app = new Vue({
     setupRuleStatus: function(status) {
       this.settings.forEach( setting => {
         setting["dirty"] = false;
+        setting["time"] = status[setting.ruleID]["time"];
         setting["prevTrigger"] = status[setting.ruleID]["prev_trigger"];
         setting["value"] = status[setting.ruleID]["value"];
         setting["status"] = status[setting.ruleID]["status"] === "RED"? true: false;
@@ -283,7 +312,24 @@ var app = new Vue({
             console.log(res);
             this.getAvailableSAs(this.currentProject)
               .then( (fields) => {
+                window.clearInterval(this.refreshWorker);
                 this.setupFields(fields);
+                this.getSARules(this.currentField)
+                  .then( (rules) => {
+                    this.getRuleStatus(this.currentField)
+                      .then ( (status) => {
+                        this.backupSettings = JSON.parse(JSON.stringify(rules));
+                        this.settings = rules;
+                        this.setupRuleStatus(status);
+                        this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
+                      })
+                      .catch( (err) => {
+                        console.log(err);
+                      })
+                  })
+                  .catch( (err) => {
+                    console.log(err);
+                  })
               })
           })
           .catch
@@ -293,15 +339,15 @@ var app = new Vue({
       this.currentField = index;
       this.getSARules(this.currentField)
         .then( (rules) => {
-          this.backupSettings = rules.slice();
+          this.backupSettings = JSON.parse(JSON.stringify(rules));
           this.settings = rules;
-          // this.getRuleStatus(this.currentField)
-          //   .then( (status) => {
-          //     this.setupRuleStatus(status);
-          //   })
-          //   .catch( (err) => {
-          //     console.log(err);
-          //   })
+          this.getRuleStatus(this.currentField)
+            .then( (status) => {
+              this.setupRuleStatus(status);
+            })
+            .catch( (err) => {
+              console.log(err);
+            })
           this.settings.forEach(element => {
             element["dirty"] = false;
           })
