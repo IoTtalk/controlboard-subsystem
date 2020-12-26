@@ -28,7 +28,7 @@
         <!-- Navigation bar -->
         <b-navbar type="dark" variant="dark" class="d-flex">
           <select-projects
-            v-bind:projects="accessibleProjects"  
+            v-bind:projects="accessibleProjects"
           ></select-projects>
           
           <div class="ml-auto">
@@ -128,7 +128,8 @@
           </b-card-header>
 
           <b-card-body class="text-center custom-card-body">
-            <div v-for="(setting, index) in settings" class="setting-card" v-if="!manageMode && currentField >0">
+            <div v-for="(setting, index) in settings" class="setting-card" 
+              v-if="!manageMode && currentField > 0">
               <!-- sensor List and sensor value -->
               <sensor-row
                 v-bind:sensors="setting.sensors"

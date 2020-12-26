@@ -212,6 +212,13 @@ def get_rules(sa_id):
                     `dutyPos`: integer, time in seconds representing the positive cycle length of one Duty cycle.
                     `dutyNeg`: integer, time in seconds representing the negative cycle length of one Duty cycle.
                     `weekdays`: list of integers representing weekdays. Mon <=> 0, Sun <=> 6, All <=> 7.
+
+            The following 5 fields are dummy data for frontend rendering.
+                `dirty`: False,
+                `prevTrigger`: -10000,
+                `status`: False,
+                `time`: "00:00",
+                `value`: 0
             `rule_list` will be empty if the specified SA is not running.
     '''
     rule_list = list()
@@ -239,7 +246,12 @@ def get_rules(sa_id):
                 "sensors": rule.sensor_alias.split(",") if len(rule.sensor_alias) else list(),
                 "selectedSensor": rule.sensor_index,
                 "mode": rule.mode,
-                "content": content
+                "content": content,
+                "dirty": False,
+                "prevTrigger": -10000,
+                "status": False,
+                "time": "00:00",
+                "value": 0
             }
             rule_list.append(tmp)
         return jsonify(rule_list), 200

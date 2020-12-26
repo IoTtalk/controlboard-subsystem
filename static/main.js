@@ -381,9 +381,6 @@ var app = new Vue({
           console.log(err);
         });
     },
-    reqFieldData: function(index) {
-
-    },
     onSelectSensor: function(selected, ruleID) {
       console.log(selected, ruleID);
       this.settings.forEach( (setting) => {

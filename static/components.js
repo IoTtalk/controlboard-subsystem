@@ -69,6 +69,12 @@ Vue.component('actuator-row', {
         onSelectMode: function(nextMode) {
             this.$emit("update-mode", nextMode, this.index);
             return;
+        },
+        onUndo: function() {
+
+        },
+        onSave: function() {
+            
         }
     },
     template: `
@@ -95,8 +101,8 @@ Vue.component('actuator-row', {
                 <span class="setting-test">{{actuator}}</span>
             </b-col>
             <div class="ml-auto" v-if="dirty"> 
-                <b-button size="sm" variant="secondary" plain>Undo</b-button>
-                <b-button size="sm" variant="primary">Save</b-button>
+                <b-button size="sm" variant="secondary" plain v-on:click="onUndo">Undo</b-button>
+                <b-button size="sm" variant="primary" v-on:click="onSave">Save</b-button>
             </div>
         </b-row>
     `
