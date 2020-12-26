@@ -89,9 +89,9 @@ var app = new Vue({
             this.setupFields(fields);
             this.getSARules(this.currentField)
               .then( (rules) => {
+                this.backupSettings = JSON.parse(JSON.stringify(rules));
+                this.settings = rules
                 if (rules.length) {
-                  this.backupSettings = JSON.parse(JSON.stringify(rules));
-                  this.settings = rules
                   this.getRuleStatus(this.currentField)
                     .then( (status) => {
                       this.setupRuleStatus(status);
@@ -152,6 +152,7 @@ var app = new Vue({
         axios
           .get("/subsystem/get_cb")
           .then(function(res) {
+            console.log(res);
             resolve(res.data);
           })
           .catch(function(err) {
@@ -179,6 +180,7 @@ var app = new Vue({
         axios
           .get("/sa/" + fieldID.toString() + "/rules")
           .then( (rules) => {
+            console.log(rules);
             resolve(rules.data);
           })
           .catch( (err) => {
@@ -191,6 +193,7 @@ var app = new Vue({
         axios
           .get("/sa/" + fieldID.toString() + "/current_data")
           .then( (status) => {
+            console.log(status);
             resolve(status.data);
           })
           .catch( (err) => {
@@ -216,17 +219,19 @@ var app = new Vue({
         .then( (res)=> {
           this.getSARules(this.currentField)
             .then( (rules) => {
-              this.getRuleStatus(this.currentField)
-                .then( (status) => {
-                  window.clearInterval(this.refreshWorker);
-                  this.backupSettings = JSON.parse(JSON.stringify(rules));
-                  this.settings = rules;
-                  this.setupRuleStatus(status);
-                  this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
-                })
-                .catch( (err) => {
-                  console.log(err);
-                })
+              this.backupSettings = JSON.parse(JSON.stringify(rules));
+              this.settings = rules;
+              if (rules.length) {
+                this.getRuleStatus(this.currentField)
+                  .then( (status) => {
+                    window.clearInterval(this.refreshWorker);
+                    this.setupRuleStatus(status);
+                    this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
+                  })
+                  .catch( (err) => {
+                    console.log(err);
+                  })
+              }
             })
             .catch( (err) => {
               console.log(err);
@@ -286,13 +291,32 @@ var app = new Vue({
           .post("/subsystem/create_sa", data)
           .then( (res) => {
             console.log(res);
+            window.clearInterval(this.refreshWorker);
             this.getAvailableSAs(this.currentProject)
               .then( (fields) => {
                 this.setupFields(fields);
+                this.getSARules(this.currentField)
+                  .then( (rules) => {
+                    this.backupSettings = JSON.parse(JSON.stringify(rules));
+                    this.settings = rules;
+                    if (rules.length) {
+                      this.getRuleStatus(this.currentField)
+                        .then( (status) => {
+                          this.setupRuleStatus(status);
+                        })
+                        .catch( (err) => {
+                          console.log(err);
+                        })
+                    }
+                  })
+                .catch( (err) => {
+                  console.log(err);
+                })  
               })
               .catch( (err) => {
                 console.log(err);
               })
+            this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
           })
           .catch( (err) => {
             alert(err);
@@ -316,16 +340,18 @@ var app = new Vue({
                 this.setupFields(fields);
                 this.getSARules(this.currentField)
                   .then( (rules) => {
-                    this.getRuleStatus(this.currentField)
-                      .then ( (status) => {
-                        this.backupSettings = JSON.parse(JSON.stringify(rules));
-                        this.settings = rules;
-                        this.setupRuleStatus(status);
-                        this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
-                      })
-                      .catch( (err) => {
-                        console.log(err);
-                      })
+                    this.backupSettings = JSON.parse(JSON.stringify(rules));
+                    this.settings = rules;
+                    if (rules.length) {
+                      this.getRuleStatus(this.currentField)
+                        .then ( (status) => {
+                          this.setupRuleStatus(status);
+                          this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
+                        })
+                        .catch( (err) => {
+                          console.log(err);
+                        })
+                    }
                   })
                   .catch( (err) => {
                     console.log(err);
@@ -341,16 +367,15 @@ var app = new Vue({
         .then( (rules) => {
           this.backupSettings = JSON.parse(JSON.stringify(rules));
           this.settings = rules;
-          this.getRuleStatus(this.currentField)
-            .then( (status) => {
-              this.setupRuleStatus(status);
-            })
-            .catch( (err) => {
-              console.log(err);
-            })
-          this.settings.forEach(element => {
-            element["dirty"] = false;
-          })
+          if (rules.length) {
+            this.getRuleStatus(this.currentField)
+              .then( (status) => {
+                this.setupRuleStatus(status);
+              })
+              .catch( (err) => {
+                console.log(err);
+              })
+          }
         })
         .catch( (err) => {
           console.log(err);
@@ -358,6 +383,16 @@ var app = new Vue({
     },
     reqFieldData: function(index) {
 
+    },
+    onSelectSensor: function(selected, ruleID) {
+      console.log(selected, ruleID);
+      this.settings.forEach( (setting) => {
+        if (setting.ruleID === ruleID) {
+          setting.dirty = true;
+          setting.selectedSensor = selected;
+          return;
+        }
+      })
     },
     // Select trigger mode handler
     onSelectMode: function(nextMode, settingIndex) {

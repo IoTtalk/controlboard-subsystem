@@ -135,6 +135,8 @@
                 v-bind:value="setting.mode==='Sensor'? setting.value: setting.time"
                 v-bind:status="setting.status"
                 v-bind:mode="setting.mode"
+                v-bind:selected="setting.selectedSensor"
+                v-on:update-sensor="onSelectSensor($event, setting.ruleID)"
               ></sensor-row>
               <!-- Mode select and actuator name, Undo And Save -->
               <actuator-row

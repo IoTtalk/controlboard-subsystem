@@ -16,26 +16,36 @@ Vue.component('custom-sel', {
 })
 
 Vue.component('sensor-row', {
-    props: ['sensors', 'value', 'status', 'mode'],
+    props: ['sensors', 'value', 'status', 'mode', 'selected'],
     methods: {
-        onSelectSensor: function (idx) {
-            var temp = this.sensors[0];
-            this.$set(this.sensors, 0, this.sensors[idx]);
-            this.$set(this.sensors, idx, temp);
+        onSelectSensor: function (sensor) {
+            var selected = this.sensors.indexOf(sensor);
+            this.$emit("update-sensor", selected);
             return;
+        }
+    },
+    computed: {
+        candicateSensors: function() {
+            candicate = [];
+            this.sensors.forEach(element => {
+                if (element !== this.sensors[this.selected]) {
+                    candicate.push(element);
+                }
+            });
+            return candicate;
         }
     },
     template: `
         <b-row v-bind:class="['sensor-list', status?'triggered':'']" class="text-left">
             <b-col align-self="start" text-align="start" class="pl-0">
-                <b-dropdown v-if="mode=='Sensor'" v-bind:text="sensors[0]" 
+                <b-dropdown v-if="mode=='Sensor'" v-bind:text="sensors[selected]" 
                     v-bind:variant="status?'danger':'success'"
                     v-bind:class="sensors[1]? '': 'one-item-dropdown'"
                 >
                     <b-dropdown-item 
                         v-if="sensors.length > 1"
-                        v-for="(sensor, idx) in sensors.slice(1)"
-                        v-on:click="onSelectSensor(idx + 1)"
+                        v-for="sensor in candicateSensors"
+                        v-on:click="onSelectSensor(sensor)"
                     >{{sensor}}</b-dropdown-item>
                 </b-dropdown>
                 <b-dropdown class="one-item-dropdown"
