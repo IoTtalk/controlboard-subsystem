@@ -115,6 +115,7 @@ var app = new Vue({
     }
   },
   methods: {
+    /* API data getter Methods, including CB, SA, Rule, Status */
     getAvailableCBs: function() {
       return new Promise(function (resolve, reject) {
         axios
@@ -169,6 +170,7 @@ var app = new Vue({
           });
       });
     },
+    /* Refresh routine procedures, Start from CB, SA, Rule, Status */
     refreshCBWorker: function() {
       this.getAvailableCBs()
         .then( (projects) => {
@@ -213,18 +215,7 @@ var app = new Vue({
       }
       return;
     },
-    onRefreshSA: function() {
-      axios
-        .get("/subsystem/refresh_sa/" + this.currentField.toString())
-        .then( (res)=> {
-          console.log(res);
-          this.refreshRuleWorker();
-        })
-        .catch( (err) => {
-          console.log(err);
-        })
-        return;
-    },
+    /* API data parser for SA(Field) and Status*/
     setupFields: function(fields) {
       pinnedFields = [];
       fields.forEach(element => {
@@ -257,6 +248,9 @@ var app = new Vue({
       });
       return;
     },
+    /* System related handler, 
+    *  including manage page switching handlers and CB(Project)/SA(Field) selecting.
+    */
     onSwitchManage: function() {
       this.manageMode = !this.manageMode;
       return;
@@ -264,6 +258,53 @@ var app = new Vue({
     onSwitchManagePage: function() {
       this.managePage = !this.managePage;
     },
+    onSwitchField: function(fieldID) {
+      this.currentField = fieldID;
+      this.refreshRuleWorker();
+      return;
+    },
+    onSelectProject: function(selected) {
+      this.currentProject = selected;
+      this.refreshSAWorker()
+      return;
+    },
+    /* CB(Project) related procedures 
+    *  including create / delete
+    */
+    onCBCreate: function(action) {
+      if (1 === action) {
+        axios
+          .post("/subsystem/create_cb", this.newCB)
+          .then( (res) => {
+            console.log("Respond of creating CB", res);
+            this.refreshCBWorker();
+          })
+          .catch(function(error) {
+            console.log(error)
+          });
+      }
+      this.newCB = {
+        text: "",
+        shared: false
+      };
+      return;
+    },
+    onCBDelete: function(cbID, action) {
+      if (1 === action) {
+        axios
+        .post("/subsystem/delete_cb", cbID)
+        .then( (res) => {
+          console.log(res);
+          this.refreshCBWorker();
+        })
+        .catch(function(error) {
+          console.log(error);
+        });
+      }
+    },
+    /* SA(Field) related procedures 
+    *  including create / delete / refresh / confirm / reset
+    */
     onSACreate: function(action) {
       if (1 === action) {
         data = {
@@ -304,16 +345,24 @@ var app = new Vue({
     onSAReset: function() {
 
     },
-    switchField: function(index) {
-      this.currentField = index;
-      this.refreshRuleWorker();
-      return;
+    onSAConfirm: function() {
+
     },
-    onSelectProject: function(selected) {
-      this.currentProject = selected;
-      this.refreshSAWorker()
-      return;
+    onRefreshSA: function() {
+      axios
+        .get("/subsystem/refresh_sa/" + this.currentField.toString())
+        .then( (res)=> {
+          console.log(res);
+          this.refreshRuleWorker();
+        })
+        .catch( (err) => {
+          console.log(err);
+        })
+        return;
     },
+    /* Rule related procedures 
+    *  including selecting mode / which sensor to use /  comparison method / Timing
+    */
     onSelectSensor: function(selected, ruleID) {
       console.log(selected, ruleID);
       this.settings.forEach( (setting) => {
@@ -403,6 +452,9 @@ var app = new Vue({
       this.$set(this.settings[settingIndex].content, "weekdays", tempArr);
       return;
     },
+    /* Managing page related procedures 
+    *  including user privilege / CB Icon / Accessible CB(Project)
+    */
     lvlToText: function(userLvl) {
       if (userLvl === 2) {
         return "Admin";
@@ -415,37 +467,6 @@ var app = new Vue({
     onSelectUserLvl: function(event, userIndex) {
       console.log(event, userIndex);
       return;
-    },
-    onCBCreate: function(action) {
-      if (1 === action) {
-        axios
-          .post("/subsystem/create_cb", this.newCB)
-          .then( (res) => {
-            console.log("Respond of creating CB", res);
-            this.refreshCBWorker();
-          })
-          .catch(function(error) {
-            console.log(error)
-          });
-      }
-      this.newCB = {
-        text: "",
-        shared: false
-      };
-      return;
-    },
-    onCBDelete: function(cbID, action) {
-      if (1 === action) {
-        axios
-        .post("/subsystem/delete_cb", cbID)
-        .then( (res) => {
-          console.log(res);
-          this.refreshCBWorker();
-        })
-        .catch(function(error) {
-          console.log(error);
-        });
-      }
     },
     onUserUpdate: function(index, action) {
       console.log(index, action);

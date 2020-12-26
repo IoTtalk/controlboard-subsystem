@@ -95,7 +95,7 @@
                   <b-dropdown-item
                     v-for="field in fields.pinnedFields"
                     v-bind:active="field.value===currentField"
-                    v-on:click="switchField(field.value)"
+                    v-on:click="onSwitchField(field.value)"
                     align-self="start"
                   > <%field.text%> </b-dropdown-item>
                 </b-dropdown-group>
@@ -105,7 +105,7 @@
                   <b-dropdown-item
                     v-for="field in unPinnedFields"
                     v-bind:active="field.value===currentField"
-                    v-on:click="switchField(field.value)"
+                    v-on:click="onSwitchField(field.value)"
                     align-self="start"
                   > <%field.text%> </b-dropdown-item>
                 </b-dropdown-group>
@@ -115,7 +115,7 @@
                 v-for="(field, index) in fields.pinnedFields"
                 v-if="!manageMode && index < maxPinnedFields && currentField > 0"
                 v-bind:active="field.value===currentField"
-                v-on:click="switchField(field.value)"
+                v-on:click="onSwitchField(field.value)"
                 class="fieldName"
               ><% field.text %></b-nav-item>
 
@@ -149,6 +149,7 @@
                 v-bind:index="index"
                 v-bind:sensors="setting.sensors.length"
                 v-on:update-mode="onSelectMode"
+                v-on:undo="onUndoChangeSetting(setting.ruleID)"
               ></actuator-row>
 
               <!-- Trigger Area -->

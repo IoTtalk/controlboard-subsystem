@@ -648,10 +648,10 @@ def delete_cb():
         abort(502, "Internal error occurred")
 
 
-@apis.route('/subsystem/get_cb', methods=['GET'])
-def get_cb():
+@apis.route('/subsystem/get_cb/<str:usr_account>', methods=['GET'])
+def get_cb(usr_account):
     '''
-    Returns all accessible CB list of specified logined user
+    Returns all accessible CB list given user account
 
     Args: None
 
@@ -665,6 +665,7 @@ def get_cb():
             Otherwise `optionProjects` would contains all CBs.
     '''
     try:
+        print(usr_account)
         with orm.db_session():
             account = CB_Account.get(account=logined_user[session["token"]])
             if None is account:

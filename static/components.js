@@ -71,7 +71,7 @@ Vue.component('actuator-row', {
             return;
         },
         onUndo: function() {
-
+            this.$emit("undo");
         },
         onSave: function() {
 
