@@ -70,10 +70,10 @@ def _post(url, data):
             json=data
         ).text
     )
-    if url == "ccm_api":
-        print(data, response)
-    else:
-        print(url, response)
+    # if url == "ccm_api":
+    #     print(data, response)
+    # else:
+    #     print(url, response)
     state = (response["state"] == "ok")
     return state, response
 

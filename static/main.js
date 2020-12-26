@@ -80,39 +80,7 @@ var app = new Vue({
   created: function() {
     // Procedures to correctly render data:
     // get CBs -> get SAs -> get Rules -> get Status
-    this.getAvailableCBs()
-      .then( (projects) => {
-        this.projects = projects;
-        this.currentProject = projects["accessibleProjects"][0];
-        this.getAvailableSAs(projects["accessibleProjects"][0])
-          .then( (fields) => {
-            this.setupFields(fields);
-            this.getSARules(this.currentField)
-              .then( (rules) => {
-                this.backupSettings = JSON.parse(JSON.stringify(rules));
-                this.settings = rules
-                if (rules.length) {
-                  this.getRuleStatus(this.currentField)
-                    .then( (status) => {
-                      this.setupRuleStatus(status);
-                    })
-                    .catch( (err) => {
-                      console.log(err);
-                    });
-                }
-                this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
-              })
-              .catch( (err) => {
-                console.log(err);
-              })
-          })
-          .catch( () => {
-            console.log("fetch SAs failed");
-          });
-      })
-      .catch( () => {
-        console.log("created catch");
-      });
+    this.refreshCBWorker();
   },
   computed: {
     accessibleProjects: function() {
@@ -201,6 +169,38 @@ var app = new Vue({
           });
       });
     },
+    refreshCBWorker: function() {
+      this.getAvailableCBs()
+        .then( (projects) => {
+          this.projects = projects;
+          if (projects.accessibleProjects.length)
+            this.currentProject = projects.accessibleProjects[0];
+          else
+            this.currentProject = 0;
+          this.refreshSAWorker();
+        })
+        .catch( (err) => {
+          console.log(err);
+        })
+    },
+    refreshSAWorker: function() {
+      this.getAvailableSAs(this.currentProject)
+        .then( (fields) => {
+          this.setupFields(fields);
+          this.refreshRuleWorker();
+        })
+    },
+    refreshRuleWorker: function() {
+      this.getSARules(this.currentField)
+        .then( (rules) => {
+          this.backupSettings = JSON.parse(JSON.stringify(rules));
+          this.settings = rules;
+          this.refreshStatusWorker();
+        })
+        .catch( (err) => {
+          console.log(err);
+        })
+    },
     refreshStatusWorker: function() {
       if (this.settings.length) {
         this.getRuleStatus(this.currentField)
@@ -217,25 +217,8 @@ var app = new Vue({
       axios
         .get("/subsystem/refresh_sa/" + this.currentField.toString())
         .then( (res)=> {
-          this.getSARules(this.currentField)
-            .then( (rules) => {
-              this.backupSettings = JSON.parse(JSON.stringify(rules));
-              this.settings = rules;
-              if (rules.length) {
-                this.getRuleStatus(this.currentField)
-                  .then( (status) => {
-                    window.clearInterval(this.refreshWorker);
-                    this.setupRuleStatus(status);
-                    this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
-                  })
-                  .catch( (err) => {
-                    console.log(err);
-                  })
-              }
-            })
-            .catch( (err) => {
-              console.log(err);
-            });
+          console.log(res);
+          this.refreshRuleWorker();
         })
         .catch( (err) => {
           console.log(err);
@@ -292,30 +275,7 @@ var app = new Vue({
           .then( (res) => {
             console.log(res);
             window.clearInterval(this.refreshWorker);
-            this.getAvailableSAs(this.currentProject)
-              .then( (fields) => {
-                this.setupFields(fields);
-                this.getSARules(this.currentField)
-                  .then( (rules) => {
-                    this.backupSettings = JSON.parse(JSON.stringify(rules));
-                    this.settings = rules;
-                    if (rules.length) {
-                      this.getRuleStatus(this.currentField)
-                        .then( (status) => {
-                          this.setupRuleStatus(status);
-                        })
-                        .catch( (err) => {
-                          console.log(err);
-                        })
-                    }
-                  })
-                .catch( (err) => {
-                  console.log(err);
-                })  
-              })
-              .catch( (err) => {
-                console.log(err);
-              })
+            this.refreshSAWorker();
             this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
           })
           .catch( (err) => {
@@ -334,52 +294,25 @@ var app = new Vue({
           .post("subsystem/delete_sa", this.currentField)
           .then( (res) => {
             console.log(res);
-            this.getAvailableSAs(this.currentProject)
-              .then( (fields) => {
-                window.clearInterval(this.refreshWorker);
-                this.setupFields(fields);
-                this.getSARules(this.currentField)
-                  .then( (rules) => {
-                    this.backupSettings = JSON.parse(JSON.stringify(rules));
-                    this.settings = rules;
-                    if (rules.length) {
-                      this.getRuleStatus(this.currentField)
-                        .then ( (status) => {
-                          this.setupRuleStatus(status);
-                          this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
-                        })
-                        .catch( (err) => {
-                          console.log(err);
-                        })
-                    }
-                  })
-                  .catch( (err) => {
-                    console.log(err);
-                  })
-              })
+            this.refreshSAWorker();
           })
-          .catch
+          .catch( (err) => {
+            console.log(err);
+          })
       }
+    },
+    onSAReset: function() {
+
     },
     switchField: function(index) {
       this.currentField = index;
-      this.getSARules(this.currentField)
-        .then( (rules) => {
-          this.backupSettings = JSON.parse(JSON.stringify(rules));
-          this.settings = rules;
-          if (rules.length) {
-            this.getRuleStatus(this.currentField)
-              .then( (status) => {
-                this.setupRuleStatus(status);
-              })
-              .catch( (err) => {
-                console.log(err);
-              })
-          }
-        })
-        .catch( (err) => {
-          console.log(err);
-        });
+      this.refreshRuleWorker();
+      return;
+    },
+    onSelectProject: function(selected) {
+      this.currentProject = selected;
+      this.refreshSAWorker()
+      return;
     },
     onSelectSensor: function(selected, ruleID) {
       console.log(selected, ruleID);
@@ -489,17 +422,7 @@ var app = new Vue({
           .post("/subsystem/create_cb", this.newCB)
           .then( (res) => {
             console.log("Respond of creating CB", res);
-            this.getAvailableCBs()
-              .then( (projects) => {
-                this.projects = projects;
-                if (projects.accessibleProjects.length)
-                  this.currentProject = projects.accessibleProjects[0];
-                else
-                  this.currentProject = 0;
-              })
-              .catch( (error) => {
-                console.log(error);
-              });
+            this.refreshCBWorker();
           })
           .catch(function(error) {
             console.log(error)
@@ -517,13 +440,7 @@ var app = new Vue({
         .post("/subsystem/delete_cb", cbID)
         .then( (res) => {
           console.log(res);
-          this.getAvailableCBs()
-          .then( (projects) => {
-            this.projects = projects;
-          })
-          .catch( () => {
-            console.log("re-fetch CB failed");
-          });
+          this.refreshCBWorker();
         })
         .catch(function(error) {
           console.log(error);
@@ -547,23 +464,13 @@ var app = new Vue({
           })
           .then( (res) => {
             console.log(res);
-            this.getAvailableCBs()
-              .then( (projects) => {
-                this.projects = projects;
-              })
-              .catch( () => {
-                console.log("re-fetch CB failed");
-              });
+            this.refreshCBWorker();
           })
           .catch(function(error) {
             console.log(error);
           });
       }
       this.newCBIcon = null;
-    },
-    onGetAllCB: function() {
-
     }
   }
-
 })

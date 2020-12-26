@@ -651,7 +651,7 @@ def delete_cb():
 @apis.route('/subsystem/get_cb', methods=['GET'])
 def get_cb():
     '''
-    Returns all accessible CB list of current logined user
+    Returns all accessible CB list of specified logined user
 
     Args: None
 

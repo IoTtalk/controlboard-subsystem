@@ -29,6 +29,8 @@
         <b-navbar type="dark" variant="dark" class="d-flex">
           <select-projects
             v-bind:projects="accessibleProjects"
+            v-bind:selected="currentProject"
+            v-on:select-project="onSelectProject"
           ></select-projects>
           
           <div class="ml-auto">
@@ -356,7 +358,7 @@
         <b-container fluid class="fixed-bottom mb-1" v-if="!manageMode">
           <b-row class="text-center">
             <b-col><b-button size="lg" variant="primary">Confirm</b-button></b-col>
-            <b-col><b-button size="lg" variant="secondary">Reset All</b-button></b-col>
+            <b-col><b-button size="lg" variant="secondary" v-on:click="onSAReset">Reset All</b-button></b-col>
           </b-row>
         </b-container>
       </div>

@@ -74,7 +74,7 @@ Vue.component('actuator-row', {
 
         },
         onSave: function() {
-            
+
         }
     },
     template: `
@@ -127,14 +127,33 @@ Vue.component('project', {
 })
 
 Vue.component('select-projects', {
-    props: ['projects'],
+    props: ['projects', 'selected'],
     methods: {
         onSelectCB: function(projectIndex) {
-            var temp = this.projects[0];
-            this.$set(this.projects, 0, this.projects[projectIndex]);
-            this.$set(this.projects, projectIndex, temp);
-            console.log(this.projects);
+            this.$emit("select-project", projectIndex);
             return;
+        }
+    },
+    computed: {
+        candicateProjects: function() {
+            candicate = [];
+            this.projects.forEach(element => {
+                if (element.value !== this.selected) {
+                    candicate.push(element);
+                }
+            });
+            return candicate;
+        },
+        selectedProject: function() {
+            selected = {
+                "icon": "", "text": "", value: -1
+            };
+            this.projects.forEach(element => {
+                if (element.value === this.selected) {
+                    selected = element;
+                }
+            });
+            return selected;
         }
     },
     template: `
@@ -142,16 +161,16 @@ Vue.component('select-projects', {
             <b-navbar-nav>
                 <b-nav-item-dropdown>
                     <template v-slot:button-content v-if="projects.length!==0">
-                        <b-img v-bind:src="projects[0].icon"></b-img>
-                        {{projects[0].text}}
+                        <b-img v-bind:src="selectedProject.icon"></b-img>
+                        {{selectedProject.text}}
                     </template>
                     <template v-slot:button-content v-else>
                         Add ControlBoard
                     </template>
                     <project 
-                        v-for="(field, index) in projects.slice(1)"
+                        v-for="field in candicateProjects"
                         v-bind:field="field"
-                        v-on:selectCB="onSelectCB(index)"
+                        v-on:selectCB="onSelectCB(field.value)"
                         v-if="projects.length > 1"
                     ></project>
                 </b-nav-item-dropdown>
