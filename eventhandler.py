@@ -17,6 +17,7 @@ from werkzeug.utils import secure_filename
 from pony import orm
 
 
+from exceptions import NotAuthorizedError, NotFoundError
 from utils import running_sa, running_status
 from utils import make_logger
 from utils import create_proj_ag, delete_proj_ag
@@ -224,7 +225,7 @@ def get_rules(sa_id):
     rule_list = list()
     try:
         if sa_id not in running_sa:
-            raise KeyError
+            raise NotFoundError
         sa = CB_SA[sa_id]
         for rule in sa.rule_set:
             content = dict()
@@ -255,7 +256,7 @@ def get_rules(sa_id):
             }
             rule_list.append(tmp)
         return jsonify(rule_list), 200
-    except KeyError:
+    except NotFoundError:
         api_logger.warning("Specified SA not running")
         return jsonify(list()), 200
     except Exception as err:
@@ -285,16 +286,19 @@ def get_datum(sa_id):
     res_dict = dict()
     try:
         if int(sa_id) not in running_sa:
-            raise KeyError
+            raise NotFoundError
         rules = CB_SA[sa_id].rule_set
 
         for rule in rules:
             status = running_status[rule.rule_id]
             status["time"] = datetime.datetime.now().strftime("%H:%M")
             res_dict[rule.rule_id] = status
-    except KeyError:
+    except NotFoundError:
         api_logger.exception("Error getting SA's current data, Specified SA not running")
         return "Specified SA not running", 400
+    except Exception as err:
+        api_logger.exception(err)
+        return abort(500, err)
 
     return jsonify(res_dict), 200
 
@@ -324,7 +328,7 @@ def refresh_sa(sa_id):
                 NAs = ["testV2"]
             print(NAs)
             if not len(NAs):
-                raise ValueError
+                raise NotFoundError
             if len(sa.rule_set):
                 sa.rule_set.clear()
             # Create UserRules for each NA
@@ -406,7 +410,7 @@ def refresh_sa(sa_id):
 
             api_logger.info(f"Create New SA, DM Name: {dm_name}")
             return f"Create New SA, DM Name: {dm_name}", 200
-    except ValueError:
+    except NotFoundError:
         api_logger.exception("No NAs found, remind user to create NAs")
         return abort(400, f"No NAs detected, please create Join point in Project {str(sa_id) + '-' + sa.sa_name}")
     except Exception as err:
@@ -510,7 +514,7 @@ def get_sa(cb_id):
         with orm.db_session():
             account = CB_Account.get(account=logined_user[session["token"]])
             if CB[cb_id] not in account.cb_set:
-                raise ValueError
+                raise NotAuthorizedError
             for sa in CB[cb_id].sa_set:
                 available_sa.append({
                     "text": sa.sa_name,
@@ -521,7 +525,7 @@ def get_sa(cb_id):
     except KeyError:
         api_logger.exception("Error getting SA, User not logined!")
         abort(401, "Non-existed User!")
-    except ValueError:
+    except NotAuthorizedError:
         api_logger.exception("Error getting SA, Requested CB is not shared with this user.")
         abort(403, "Not a superuser!")
 
@@ -544,7 +548,7 @@ def manage_icon(cb_id):
         with orm.db_session():
             account = CB_Account.get(account=logined_user[session["token"]])
             if not account.privilege:
-                raise ValueError
+                raise NotAuthorizedError
             icon = request.files["file"]
             icon_name = secure_filename(icon.filename).rsplit(".", 1)
             if "." in icon.filename and icon_name[1] in icon_extensions:
@@ -562,7 +566,7 @@ def manage_icon(cb_id):
     except KeyError:
         api_logger.exception("Error Changing Icon, User not logined!")
         abort(401, "Non-existed User!")
-    except ValueError:
+    except NotAuthorizedError:
         api_logger.exception("Error Changing Icon, User is not a superuser.")
         abort(403, "Not a superuser!")
     except TypeError:
@@ -591,20 +595,20 @@ def create_cb():
     try:
         with orm.db_session():
             owner = CB_Account.get(account=logined_user[session["token"]])
+            if None is owner:
+                raise NotFoundError
             cb = CB(
                 cb_name=new_cb["text"],
                 shared=new_cb["shared"],
                 icon=env_config["env"]["default_icon"]
             )
-            if None is owner:
-                raise ValueError
             cb.account_set.add(owner)
         api_logger.info(f"Create ControlBoard by User {owner.account}, CB ID:  {cb.cb_id}")
     except KeyError:
         api_logger.exception("Error Create CB, User not logined")
         abort(401, "User not logined")
-    except ValueError:
-        api_logger.exception("Error Create CB, Non-existed User!")
+    except NotFoundError:
+        api_logger.exception("Error Create CB, No Such User!")
         abort(400, "Non-existed User!")
     except Exception as err:
         api_logger.exception(err)
@@ -630,7 +634,7 @@ def delete_cb():
             account = CB_Account.get(account=logined_user[session["token"]])
             api_logger.info(f"Delete ControlBoard {cb_id} by User {account.account}")
             if not account.privilege:
-                raise ValueError
+                raise NotAuthorizedError
             if CB[cb_id].icon != env_config["env"]["default_icon"]:
                 os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), CB[cb_id].icon))
             CB[cb_id].delete()  # By applying cascade deleting.
@@ -639,7 +643,7 @@ def delete_cb():
         api_logger.exception("Error Deleting ControlBoard, User not logined.")
         # TODO: redirect to AAA login page.
         abort(403, "Please login first")
-    except ValueError:
+    except NotAuthorizedError:
         api_logger.exception("Error Deleting ControlBoard, User is not a superuser.")
         abort(403, "Not a superuser!")
     except Exception as err:
@@ -648,7 +652,7 @@ def delete_cb():
         abort(502, "Internal error occurred")
 
 
-@apis.route('/subsystem/get_cb/<str:usr_account>', methods=['GET'])
+@apis.route('/subsystem/get_cb/<string:usr_account>', methods=['GET'])
 def get_cb(usr_account):
     '''
     Returns all accessible CB list given user account
@@ -667,9 +671,12 @@ def get_cb(usr_account):
     try:
         print(usr_account)
         with orm.db_session():
-            account = CB_Account.get(account=logined_user[session["token"]])
+            current_user = CB_Account.get(account=logined_user[session["token"]])
+            if 0 == current_user.privilege and usr_account != logined_user[session["token"]]:
+                raise NotAuthorizedError
+            account = CB_Account.get(account=usr_account)
             if None is account:
-                raise ValueError
+                raise NotFoundError
             accessible_cb = list()
             for cb in account.cb_set:
                 accessible_cb.append(cb.cb_id)
@@ -694,10 +701,16 @@ def get_cb(usr_account):
         api_logger.exception("Error Getting ControlBoard, User not logined.")
         # TODO: redirect to AAA login page.
         abort(403, "Please Login first")
-    except ValueError:
+    except NotAuthorizedError:
         api_logger.exception("Error Getting ControlBoard, No such user.")
         # TODO: redirect to AAA login page.
         abort(401, "No such User")
+    except NotFoundError:
+        api_logger.exception("No such user")
+        abort(403, "No such user")
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500, err)
 
 
 @apis.route('/account/login', methods=['GET', 'POST'])

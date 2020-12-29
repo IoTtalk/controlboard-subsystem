@@ -54,7 +54,7 @@ var app = new Vue({
     user: {
       current: {
         "superuser": 1,
-        "username": "luk1684tw"
+        "username": "test"
       },
       users: [
         {"superuser": 2, "username": "liny@gmail.com"},
@@ -116,10 +116,10 @@ var app = new Vue({
   },
   methods: {
     /* API data getter Methods, including CB, SA, Rule, Status */
-    getAvailableCBs: function() {
+    getAvailableCBs: function(account) {
       return new Promise(function (resolve, reject) {
         axios
-          .get("/subsystem/get_cb")
+          .get("/subsystem/get_cb" + account)
           .then(function(res) {
             console.log(res);
             resolve(res.data);
@@ -345,8 +345,8 @@ var app = new Vue({
     onSAReset: function() {
 
     },
-    onSAConfirm: function() {
-
+    onSAConfirm: function(ruleIDs) {
+      console.log(ruleIDs);
     },
     onRefreshSA: function() {
       axios
@@ -373,7 +373,6 @@ var app = new Vue({
         }
       })
     },
-    // Select trigger mode handler
     onSelectMode: function(nextMode, settingIndex) {
       console.log(nextMode);
       if (nextMode === undefined || settingIndex === undefined) return;
@@ -405,7 +404,6 @@ var app = new Vue({
       console.log(this.settings[settingIndex]);
       return;
     },
-    // Sensor comparision select handler
     onSelectCompare: function(val, settingIndex, content) {
       console.log(val, settingIndex, content);
       this.settings[settingIndex].dirty = true;
@@ -415,7 +413,6 @@ var app = new Vue({
         this.settings[settingIndex].content.closeSensor = val;
       }
     },
-    // Time select handler
     onSelectTime: function(val, settingIndex, content) {
       console.log(val, settingIndex, content);
       this.settings[settingIndex].dirty = true;

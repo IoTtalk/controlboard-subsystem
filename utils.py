@@ -15,6 +15,7 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 
 from config import env_config, reg_config, use_v1
+from exceptions import CCMAPIFailError
 from models import UserRule, CB_Account, CB_SA, CB
 
 
@@ -169,6 +170,11 @@ def test_db(logger):
                 privilege="1",
             )
 
+            # dummy_account = CB_Account(
+            #     account="luk1684tw",
+            #     privilege="0",
+            # )
+
             test_cb = CB(
                 cb_name="test_cb",
                 shared=0,
@@ -274,14 +280,14 @@ def get_iottalk_info(logger):
         }
         state, response = _post('ccm_api', data)
         if not state:
-            raise ValueError
+            raise CCMAPIFailError
         response = response["result"]
         iottalk_info['dm_id'] = response['dm_id']
         iottalk_info['df_id'] = list()
         for df in response["df_list"]:
             iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
-    except ValueError:
+    except CCMAPIFailError:
         logger.exception("Getting Device Model info failed.")
     except Exception as err:
         logger.exception(err)
@@ -447,7 +453,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
             }
             status, response = _post('ccm_api', data)
             if not status:
-                raise ValueError
+                raise CCMAPIFailError
             response = response["result"]
             logger.info('\tGet Device\t......done')
             device = None
@@ -456,7 +462,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                     device = candidate
                     break
             if device is None:
-                raise ValueError
+                raise CCMAPIFailError
             for id in do_id:
                 print(id)
                 data = {
@@ -470,7 +476,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                 status, response = _post("ccm_api", data)
             logger.info("\tBind device\t......done")
             return status, response["result"]
-    except ValueError:
+    except CCMAPIFailError:
         logger.exception("Device to bind not found, either SA code error causing registration failed or Server latency")
         return False, "DM not found"
     except Exception as err:
@@ -499,7 +505,12 @@ def get_na_ag(p_id, na_id, logger):
     }
     try:
         state, res = _post("ccm_api", data)
+        if not state:
+            raise CCMAPIFailError
         return state, res["result"]
+    except CCMAPIFailError:
+        logger.exception("Get NA failed")
+        return False, "AG returned bad response"
     except Exception as err:
         logger.exception(err)
         return False, "Send request to query NA failed, check API log."
