@@ -196,7 +196,6 @@ def test_db(logger):
                 actuator_alias="test_actuator",
                 actuator_df="test_df",
                 df_order=0,
-                # sensor_alias="test_sensor",
                 period=0,
                 sa=test_sa,
                 mode='Sensor'

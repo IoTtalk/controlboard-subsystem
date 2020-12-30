@@ -5,6 +5,7 @@ var app = new Vue({
   data: {
     manageMode: false,  // Switch bwtween CB page & manage page
     managePage: false, // Used to switch active state between User/CB management
+    privilege: 1,  // Whether current user is a superuser.
     newCBIcon: null,
     refreshWorker: -1,  // Timer ID for periodically calling current_data
     newCB: {
@@ -51,19 +52,7 @@ var app = new Vue({
       30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
       45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
     ],
-    user: {
-      current: {
-        "superuser": 1,
-        "username": "test"
-      },
-      users: [
-        {"superuser": 2, "username": "liny@gmail.com"},
-        {"superuser": 1, "username": "jyneda@gmail.com"},
-        {"superuser": 1, "username": "ksoy@gmail.com"},
-        {"superuser": 1, "username": "iblis@gmail.com"},
-        {"superuser": 0, "username": "awscloud666@gmail.com"},
-      ]
-    },
+    users: [],
     projects: { // All Shared projects of CB Subsystem + User's projects
       accessibleProjects: [], // Accessible CBs' IDs 
       optionProjects: []
@@ -81,6 +70,16 @@ var app = new Vue({
     // Procedures to correctly render data:
     // get CBs -> get SAs -> get Rules -> get Status
     this.refreshCBWorker();
+    if (this.privilege) {
+      this.getAllUsers()
+        .then( (users) => {
+          this.users = users;
+        })
+        .catch( (err) => {
+          console.log(err);
+        });
+    }
+    return;
   },
   computed: {
     accessibleProjects: function() {
@@ -115,11 +114,14 @@ var app = new Vue({
     }
   },
   methods: {
-    /* API data getter Methods, including CB, SA, Rule, Status */
+    /* API data getter Methods, including CB, SA, Rule, Status, Users */
     getAvailableCBs: function(account) {
       return new Promise(function (resolve, reject) {
+        if (account === undefined) {
+          account = "self";
+        }
         axios
-          .get("/subsystem/get_cb" + account)
+          .get("/subsystem/get_cb/" + account)
           .then(function(res) {
             console.log(res);
             resolve(res.data);
@@ -169,6 +171,20 @@ var app = new Vue({
             reject(err);
           });
       });
+    },
+    getAllUsers: function() {
+      return new Promise(function (resolve, reject) {
+        axios
+          .get("/account/get_accounts")
+          .then( (res) => {
+            console.log(res);
+            resolve(res.data);
+          })
+          .catch( (err) => {
+            console.log(err);
+            reject(err);
+          })
+      })
     },
     /* Refresh routine procedures, Start from CB, SA, Rule, Status */
     refreshCBWorker: function() {
@@ -253,6 +269,7 @@ var app = new Vue({
     */
     onSwitchManage: function() {
       this.manageMode = !this.manageMode;
+      
       return;
     },
     onSwitchManagePage: function() {

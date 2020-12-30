@@ -47,7 +47,8 @@ def render_index():
         Rendered HTML template of the SA.
         Status code: 200.
     '''
-    session["token"] = str(uuid.uuid4())
+    session["token"] = str(uuid.uuid4())  # dummy account, should be replaced with AAA token
+    session["user"] = "test"  # dummy account
     logined_user[session["token"]] = "test"
     return render_template("main.html"), 200
 
@@ -262,12 +263,6 @@ def get_rules(sa_id):
     except Exception as err:
         api_logger.exception(err)
         return abort(500, "Internal server error")
-
-
-@apis.route('/sa/<sa_id>current_data', methods=['POST'])
-@orm.db_session
-def set_datum(sa_id):
-    pass
 
 
 @apis.route('/sa/<int:sa_id>/current_data', methods=['GET'])
@@ -670,6 +665,8 @@ def get_cb(usr_account):
     '''
     try:
         print(usr_account)
+        if "self" == usr_account:  # Access current logined user's accessible CBs.
+            usr_account = session["user"]
         with orm.db_session():
             current_user = CB_Account.get(account=logined_user[session["token"]])
             if 0 == current_user.privilege and usr_account != logined_user[session["token"]]:
@@ -744,6 +741,38 @@ def login():
     return 'hello', 200
 
 
-@apis.route("/accuont/get_accounts", methods=['GET'])
+@apis.route("/account/get_accounts", methods=['GET'])
+@orm.db_session
 def get_users():
-    pass
+    '''
+    Returns all users, the logined user must be privileged to call this entry.
+
+    Args:
+        None
+
+    Returns:
+        Status code: 200 / 403 / 500.
+        users: A list of dictionary, each dict contains two keys `superuser` and `username`.
+    '''
+    try:
+        current_user = CB_Account.get(account=logined_user[session["token"]])
+        if None is current_user:
+            raise NotFoundError
+        if not current_user.privilege:
+            raise NotAuthorizedError
+        users = list()
+        for account in CB_Account.select():
+            users.append({
+                "superuser": account.privilege,
+                "username": account.account
+            })
+        return jsonify(users), 200
+    except NotFoundError:
+        api_logger.exception("No such user")
+        abort(403, "No such user")
+    except NotAuthorizedError:
+        api_logger.exception("User not authorized to access this api")
+        abort(403, "User not authorized")
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500, err)

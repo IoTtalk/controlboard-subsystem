@@ -35,14 +35,14 @@
           
           <div class="ml-auto">
             <b-navbar-nav>
-              <b-nav-item class="system-button" v-if="user.current.superuser" v-on:click="onSwitchManage"><b>System</b></b-nav-item>
+              <b-nav-item class="system-button" v-if="privilege" v-on:click="onSwitchManage"><b>System</b></b-nav-item>
               <b-nav-item class="system-button custom-nav-item"><b>Logout</b></b-nav-item>
             </b-navbar-nav>
           </div>
         </b-navbar>
         <!-- Add/delete field button -->
         <div v-if="!manageMode">
-          <div class="field-manage" v-if="user.current.superuser">
+          <div class="field-manage" v-if="privilege">
             <div class="d-flex justify-content-between">
               <div>
                 <b-button size="sm" variant="success" v-b-modal="'CreateSA'" v-if="currentProject>0" class="create-field">+ New Field</b-button>
@@ -264,7 +264,7 @@
                 </div>
               </div>
             </div>
-            <div v-if="manageMode && user.current.superuser">
+            <div v-if="manageMode && privilege">
               <b-row class="text-left">
                 <b-col v-if="managePage"><b>UserName</b></b-col>
                 <b-col v-else>
@@ -290,7 +290,7 @@
                 <b-col v-else><b>Actions</b></b-col>
               </b-row>
               <b-row class="text-left divide-top divide-bottom"
-                v-for="(user, index) in user.users" v-if="managePage"
+                v-for="(user, index) in users" v-if="managePage"
               >
                 <b-col><b-link v-b-modal="'modal'+index" size="sm" variant="outline-primary"><% user.username %></b-link></b-col>
                 <b-col> <% lvlToText(user.superuser) %> </b-col>
