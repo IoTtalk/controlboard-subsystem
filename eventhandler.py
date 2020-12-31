@@ -435,7 +435,8 @@ def refresh_sa(sa_id):
 @orm.db_session
 def create_sa():
     '''
-    Creates an empty SA.
+    Creates an empty SA. Further steps must be triggered by refresh_sa after
+        User has setup GUI connections(NAs).
 
     Args:
         cb_id: The ControlBoard this new SA belongs to.
@@ -513,6 +514,7 @@ def delete_sa():
 
 @apis.route('/subsystem/get_sa/<int:cb_id>', methods=['GET'])
 @requires_login
+@orm.db_session()
 def get_sa(cb_id):
     '''
     Get accessible sa_ids and sa_names of the specified user. Called when rendering SAs available to the user.
@@ -528,16 +530,15 @@ def get_sa(cb_id):
     if 0 == cb_id:
         return jsonify(list()), 200
     try:
-        with orm.db_session():
-            account = CB_Account.get(account=session["user"])
-            if CB[cb_id] not in account.cb_set:
-                raise NotAuthorizedError
-            for sa in CB[cb_id].sa_set:
-                available_sa.append({
-                    "text": sa.sa_name,
-                    "value": sa.sa_id,
-                    "pin": sa.pinned
-                })
+        account = CB_Account.get(account=session["user"])
+        if CB[cb_id] not in account.cb_set:
+            raise NotAuthorizedError
+        for sa in CB[cb_id].sa_set:
+            available_sa.append({
+                "text": sa.sa_name,
+                "value": sa.sa_id,
+                "pin": sa.pinned
+            })
         return jsonify(available_sa), 200
     except KeyError:
         api_logger.exception("Error getting SA, User not logined!")
@@ -603,9 +604,6 @@ def manage_icon(cb_id):
         else:
             raise TypeError
         return "Icon change finished", 200
-    except KeyError:
-        api_logger.exception("Error Changing Icon, User not logined!")
-        abort(401, "Non-existed User!")
     except NotAuthorizedError:
         api_logger.exception("Error Changing Icon, User is not a superuser.")
         abort(403, "Not a superuser!")
@@ -623,7 +621,7 @@ def manage_icon(cb_id):
 @orm.db_session
 def create_cb():
     '''
-    Create a Empty ControlBoard that contains no SA Field.
+    Create a Empty ControlBoard that contains no SA(Field).
 
     Args:
         text: cb_name of this ControlBoard.
@@ -645,9 +643,6 @@ def create_cb():
         )
         cb.account_set.add(owner)
         api_logger.info(f"Create ControlBoard by User {owner.account}, CB ID:  {cb.cb_id}")
-    except KeyError:
-        api_logger.exception("Error Create CB, User not logined")
-        abort(401, "User not logined")
     except NotFoundError:
         api_logger.exception("Error Create CB, No Such User!")
         abort(400, "Non-existed User!")
@@ -681,10 +676,6 @@ def delete_cb():
             os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), CB[cb_id].icon))
         CB[cb_id].delete()  # By applying cascade deleting.
         return "Specified ControlBoard deleted."
-    except KeyError:
-        api_logger.exception("Error Deleting ControlBoard, User not logined.")
-        # TODO: redirect to AAA login page.
-        abort(403, "Please login first")
     except NotAuthorizedError:
         api_logger.exception("Error Deleting ControlBoard, User is not a superuser.")
         abort(403, "Not a superuser!")
@@ -742,10 +733,6 @@ def get_cb(usr_account):
             "accessibleProjects": accessible_cb,
             "optionProjects": option_cb
         }), 200
-    except KeyError:
-        api_logger.exception("Error Getting ControlBoard, User not logined.")
-        # TODO: redirect to AAA login page.
-        abort(403, "Please Login first")
     except NotAuthorizedError:
         api_logger.exception("Error Getting ControlBoard, No such user.")
         # TODO: redirect to AAA login page.
