@@ -57,6 +57,7 @@ var app = new Vue({
       accessibleProjects: [], // Accessible CBs' IDs 
       optionProjects: []
     },
+    accessibleProjects: [],  // Empty list to save accessible CB changes in manage page.
     fields: {
       pinnedFields: [],
       optionFields: []
@@ -82,7 +83,7 @@ var app = new Vue({
     return;
   },
   computed: {
-    accessibleProjects: function() {
+    accessibleProjectObjects: function() {
       toAccess = [];
       for (projectIdx in this.projects.accessibleProjects) {
         toAccess.push(this.projects.optionProjects[projectIdx])
@@ -176,6 +177,21 @@ var app = new Vue({
       return new Promise(function (resolve, reject) {
         axios
           .get("/account/get_accounts")
+          .then( (res) => {
+            res.data.sort((a, b) => b.superuser - a.superuser);
+            console.log(res);
+            resolve(res.data);
+          })
+          .catch( (err) => {
+            console.log(err);
+            reject(err);
+          })
+      })
+    },
+    getAccessibleProjects: function(userName) {
+      return new Promise(function (resolve, reject) {
+        axios
+          .get("/subsystem/get_accessible_proj" + userName)
           .then( (res) => {
             console.log(res);
             resolve(res.data);

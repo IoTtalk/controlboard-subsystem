@@ -175,6 +175,11 @@ def test_db(logger):
             #     privilege="0",
             # )
 
+            # admin = CB_Account(
+            #     account="yb",
+            #     privilege="2",
+            # )
+
             test_cb = CB(
                 cb_name="test_cb",
                 shared=0,

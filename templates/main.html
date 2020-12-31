@@ -28,7 +28,7 @@
         <!-- Navigation bar -->
         <b-navbar type="dark" variant="dark" class="d-flex">
           <select-projects
-            v-bind:projects="accessibleProjects"
+            v-bind:projects="accessibleProjectObjects"
             v-bind:selected="currentProject"
             v-on:select-project="onSelectProject"
           ></select-projects>
@@ -292,7 +292,12 @@
               <b-row class="text-left divide-top divide-bottom"
                 v-for="(user, index) in users" v-if="managePage"
               >
-                <b-col><b-link v-b-modal="'modal'+index" size="sm" variant="outline-primary"><% user.username %></b-link></b-col>
+                <b-col>
+                  <b-link v-b-modal="'modal'+index" size="sm" 
+                    variant="outline-primary" v-on:click="onAccessibleCB(user.username)"
+                  ><% user.username %>
+                  </b-link>
+                </b-col>
                 <b-col> <% lvlToText(user.superuser) %> </b-col>
                 <b-modal v-bind:id="'modal'+index" size="lg" centered title="User Management"
                   v-on:ok="onUserUpdate(index, 1)" v-on:cancel="onUserUpdate(index, 0)" 
@@ -310,11 +315,11 @@
                       ></custom-sel>
                     </b-row>
                     <b-row class="divide-top"> 
-                      <b-col>Accessible Fields</b-col>
+                      <b-col>Accessible CBs</b-col>
                       <b-form-checkbox-group
                         class="custom-checkbox" size="sm"
                         v-bind:options="projects.optionProjects" 
-                        v-bind:checked="projects.accessibleProjects"
+                        v-bind:checked="accessibleProjects"
                       ></b-form-checkbox-group>
                     </b-row>
                   </b-container>

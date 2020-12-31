@@ -1,4 +1,5 @@
 import datetime
+from functools import wraps
 import json
 import requests
 import time
@@ -33,10 +34,26 @@ from config import use_v1
 
 api_logger = make_logger('API', 'API')
 apis = Blueprint('api', __name__)
-logined_user = dict()
+
+
+def requires_login(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get("token"):
+            print("has token")
+            return f(*args, **kwargs)
+        else:
+            next_url = request.path
+            print("testing decorator", next_url)
+            # TODO: redirect to AAA to login
+            session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
+            session["user"] = "test"  # dummy account
+            return redirect("/")
+    return decorated_function
 
 
 @apis.route('/', methods=["GET"])
+@requires_login
 def render_index():
     '''
     Render Function of main page.
@@ -47,9 +64,6 @@ def render_index():
         Rendered HTML template of the SA.
         Status code: 200.
     '''
-    session["token"] = str(uuid.uuid4())  # dummy account, should be replaced with AAA token
-    session["user"] = "test"  # dummy account
-    logined_user[session["token"]] = "test"
     return render_template("main.html"), 200
 
 
@@ -188,6 +202,7 @@ def stop_SA(sa_id):
 
 
 @apis.route('/sa/<int:sa_id>/rules', methods=['GET'])
+@requires_login
 @orm.db_session
 def get_rules(sa_id):
     '''
@@ -266,6 +281,7 @@ def get_rules(sa_id):
 
 
 @apis.route('/sa/<int:sa_id>/current_data', methods=['GET'])
+@requires_login
 @orm.db_session
 def get_datum(sa_id):
     '''
@@ -299,6 +315,7 @@ def get_datum(sa_id):
 
 
 @apis.route('/subsystem/refresh_sa/<int:sa_id>', methods=['GET'])
+@requires_login
 def refresh_sa(sa_id):
     '''
     Fetch NetworkApplications to read IDF/ODF name.
@@ -414,6 +431,8 @@ def refresh_sa(sa_id):
 
 
 @apis.route('/subsystem/create_sa', methods=['POST'])
+@requires_login
+@orm.db_session
 def create_sa():
     '''
     Creates an empty SA.
@@ -427,37 +446,37 @@ def create_sa():
         proj_name: Project name for user to choose input sensors and output actuators.
     '''
     sa_spec = request.json
-    with orm.db_session():
-        if not CB.exists(cb_id=sa_spec["cb_id"]):
-            abort(400, "Specified ControlBoard not existed")
-        mac_addr = str(uuid.uuid4())
-        sa = CB_SA(sa_name=sa_spec["sa"]["text"], ag_token="NotCreated", mac_addr=mac_addr,
-                   p_id=-1, do_id="-1", pinned=sa_spec["sa"]["pinned"], cb=CB[sa_spec["cb_id"]])
-        cb_db.commit()
-        api_logger.info("Start Creating CB SA")
+    if not CB.exists(cb_id=sa_spec["cb_id"]):
+        abort(400, "Specified ControlBoard not existed")
+    mac_addr = str(uuid.uuid4())
+    sa = CB_SA(sa_name=sa_spec["sa"]["text"], ag_token="NotCreated", mac_addr=mac_addr,
+               p_id=-1, do_id="-1", pinned=sa_spec["sa"]["pinned"], cb=CB[sa_spec["cb_id"]])
+    cb_db.commit()
+    api_logger.info("Start Creating CB SA")
 
-        # Create Project
-        status, p_id = create_proj_ag(sa, api_logger)
-        if not status:
-            deregister_ag(sa, api_logger)
-            sa.delete()
-            abort(400, "Create SA failed at creating project, check api log files")
-        sa.p_id = p_id
+    # Create Project
+    status, p_id = create_proj_ag(sa, api_logger)
+    if not status:
+        deregister_ag(sa, api_logger)
+        sa.delete()
+        abort(400, "Create SA failed at creating project, check api log files")
+    sa.p_id = p_id
 
-        # Create Device Object
-        status, do_id = create_do_ag(p_id, api_logger)
-        if not status:
-            deregister_ag(sa, api_logger)
-            sa.delete()
-            abort(400, "Create SA failed at creating DO, check api log files")
-        if use_v1:
-            sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
-        else:
-            sa.do_id = str(do_id)
+    # Create Device Object
+    status, do_id = create_do_ag(p_id, api_logger)
+    if not status:
+        deregister_ag(sa, api_logger)
+        sa.delete()
+        abort(400, "Create SA failed at creating DO, check api log files")
+    if use_v1:
+        sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
+    else:
+        sa.do_id = str(do_id)
     return "Create SA succeeded", 200
 
 
 @apis.route('/subsystem/delete_sa', methods=['POST'])
+@requires_login
 @orm.db_session
 def delete_sa():
     '''
@@ -493,6 +512,7 @@ def delete_sa():
 
 
 @apis.route('/subsystem/get_sa/<int:cb_id>', methods=['GET'])
+@requires_login
 def get_sa(cb_id):
     '''
     Get accessible sa_ids and sa_names of the specified user. Called when rendering SAs available to the user.
@@ -505,9 +525,11 @@ def get_sa(cb_id):
         available_sa: A list of CB SAs, each element is composed of sa_id and sa_name of the corresponging SA.
     '''
     available_sa = list()
+    if 0 == cb_id:
+        return jsonify(list()), 200
     try:
         with orm.db_session():
-            account = CB_Account.get(account=logined_user[session["token"]])
+            account = CB_Account.get(account=session["user"])
             if CB[cb_id] not in account.cb_set:
                 raise NotAuthorizedError
             for sa in CB[cb_id].sa_set:
@@ -525,7 +547,31 @@ def get_sa(cb_id):
         abort(403, "Not a superuser!")
 
 
+@apis.route('/subsystem/get_accessible_proj/<string:user_name>')
+@requires_login
+@orm.db_session
+def get_accessible_proj(user_name):
+    '''
+    Returns CB(Projects) approved to touched by `user_name`.
+
+    Args:
+        user_name: String, the user's account
+
+    Returns:
+        Status code:
+        proj_list: A list of `cb_id`s that this user can reach.
+    '''
+    try:
+        user = CB_Account.get(account=session["user"])
+        if None is user:
+            raise NotAuthorizedError
+    except NotAuthorizedError:
+        api_logger.exception("")
+
+
 @apis.route('/subsystem/cb_icon/<int:cb_id>', methods=["PUT"])
+@requires_login
+@orm.db_session
 def manage_icon(cb_id):
     '''
     Change specified CB's icon client given `cb_id` and `file` from request.
@@ -540,24 +586,23 @@ def manage_icon(cb_id):
     '''
     print(icon_extensions)
     try:
-        with orm.db_session():
-            account = CB_Account.get(account=logined_user[session["token"]])
-            if not account.privilege:
-                raise NotAuthorizedError
-            icon = request.files["file"]
-            icon_name = secure_filename(icon.filename).rsplit(".", 1)
-            if "." in icon.filename and icon_name[1] in icon_extensions:
-                print(icon_name)
-                icon_path = str(cb_id) + "_" + icon_name[0] + "." + icon_name[1]
-                old_path = CB[cb_id].icon
-                if old_path != env_config["env"]["default_icon"]:
-                    os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), old_path))
-                CB[cb_id].icon = icon_path
-                icon_path = os.path.join(env_config["env"]["icon_path"], icon_path)
-                icon.save(icon_path)
-            else:
-                raise TypeError
-            return "Icon change finished", 200
+        account = CB_Account.get(account=session["user"])
+        if not account.privilege:
+            raise NotAuthorizedError
+        icon = request.files["file"]
+        icon_name = secure_filename(icon.filename).rsplit(".", 1)
+        if "." in icon.filename and icon_name[1] in icon_extensions:
+            print(icon_name)
+            icon_path = str(cb_id) + "_" + icon_name[0] + "." + icon_name[1]
+            old_path = CB[cb_id].icon
+            if old_path != env_config["env"]["default_icon"]:
+                os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), old_path))
+            CB[cb_id].icon = icon_path
+            icon_path = os.path.join(env_config["env"]["icon_path"], icon_path)
+            icon.save(icon_path)
+        else:
+            raise TypeError
+        return "Icon change finished", 200
     except KeyError:
         api_logger.exception("Error Changing Icon, User not logined!")
         abort(401, "Non-existed User!")
@@ -574,6 +619,8 @@ def manage_icon(cb_id):
 
 
 @apis.route('/subsystem/create_cb', methods=['POST'])
+@requires_login
+@orm.db_session
 def create_cb():
     '''
     Create a Empty ControlBoard that contains no SA Field.
@@ -588,16 +635,15 @@ def create_cb():
     '''
     new_cb = request.json
     try:
-        with orm.db_session():
-            owner = CB_Account.get(account=logined_user[session["token"]])
-            if None is owner:
-                raise NotFoundError
-            cb = CB(
-                cb_name=new_cb["text"],
-                shared=new_cb["shared"],
-                icon=env_config["env"]["default_icon"]
-            )
-            cb.account_set.add(owner)
+        owner = CB_Account.get(account=session["user"])
+        if None is owner:
+            raise NotFoundError
+        cb = CB(
+            cb_name=new_cb["text"],
+            shared=new_cb["shared"],
+            icon=env_config["env"]["default_icon"]
+        )
+        cb.account_set.add(owner)
         api_logger.info(f"Create ControlBoard by User {owner.account}, CB ID:  {cb.cb_id}")
     except KeyError:
         api_logger.exception("Error Create CB, User not logined")
@@ -612,6 +658,8 @@ def create_cb():
 
 
 @apis.route('/subsystem/delete_cb', methods=['POST'])
+@requires_login
+@orm.db_session
 def delete_cb():
     '''
     Delete CB and corresponding SAs / UserRules with specified cb_id.
@@ -625,14 +673,13 @@ def delete_cb():
     '''
     try:
         cb_id = request.get_data().decode("utf-8")
-        with orm.db_session():
-            account = CB_Account.get(account=logined_user[session["token"]])
-            api_logger.info(f"Delete ControlBoard {cb_id} by User {account.account}")
-            if not account.privilege:
-                raise NotAuthorizedError
-            if CB[cb_id].icon != env_config["env"]["default_icon"]:
-                os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), CB[cb_id].icon))
-            CB[cb_id].delete()  # By applying cascade deleting.
+        account = CB_Account.get(account=session["user"])
+        api_logger.info(f"Delete ControlBoard {cb_id} by User {account.account}")
+        if not account.privilege:
+            raise NotAuthorizedError
+        if CB[cb_id].icon != env_config["env"]["default_icon"]:
+            os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), CB[cb_id].icon))
+        CB[cb_id].delete()  # By applying cascade deleting.
         return "Specified ControlBoard deleted."
     except KeyError:
         api_logger.exception("Error Deleting ControlBoard, User not logined.")
@@ -648,6 +695,8 @@ def delete_cb():
 
 
 @apis.route('/subsystem/get_cb/<string:usr_account>', methods=['GET'])
+@requires_login
+@orm.db_session
 def get_cb(usr_account):
     '''
     Returns all accessible CB list given user account
@@ -667,29 +716,28 @@ def get_cb(usr_account):
         print(usr_account)
         if "self" == usr_account:  # Access current logined user's accessible CBs.
             usr_account = session["user"]
-        with orm.db_session():
-            current_user = CB_Account.get(account=logined_user[session["token"]])
-            if 0 == current_user.privilege and usr_account != logined_user[session["token"]]:
-                raise NotAuthorizedError
-            account = CB_Account.get(account=usr_account)
-            if None is account:
-                raise NotFoundError
-            accessible_cb = list()
-            for cb in account.cb_set:
-                accessible_cb.append(cb.cb_id)
+        current_user = CB_Account.get(account=session["user"])
+        if 0 == current_user.privilege and usr_account != session["user"]:
+            raise NotAuthorizedError
+        account = CB_Account.get(account=usr_account)
+        if None is account:
+            raise NotFoundError
+        accessible_cb = list()
+        for cb in account.cb_set:
+            accessible_cb.append(cb.cb_id)
 
-            option_cb = list()
-            if account.privilege:
-                candidates = CB.select()
-            else:
-                candidates = account.cb_set()
-            for cb in candidates:
-                icon_path = os.path.join(os.path.normpath(env_config["env"]["icon_path"]), cb.icon)
-                option_cb.append({
-                    "icon": icon_path,
-                    "text": cb.cb_name,
-                    "value": cb.cb_id
-                })
+        option_cb = list()
+        if account.privilege:
+            candidates = CB.select()
+        else:
+            candidates = account.cb_set()
+        for cb in candidates:
+            icon_path = os.path.join(os.path.normpath(env_config["env"]["icon_path"]), cb.icon)
+            option_cb.append({
+                "icon": icon_path,
+                "text": cb.cb_name,
+                "value": cb.cb_id
+            })
         return jsonify({
             "accessibleProjects": accessible_cb,
             "optionProjects": option_cb
@@ -742,6 +790,7 @@ def login():
 
 
 @apis.route("/account/get_accounts", methods=['GET'])
+@requires_login
 @orm.db_session
 def get_users():
     '''
@@ -755,7 +804,7 @@ def get_users():
         users: A list of dictionary, each dict contains two keys `superuser` and `username`.
     '''
     try:
-        current_user = CB_Account.get(account=logined_user[session["token"]])
+        current_user = CB_Account.get(account=session["user"])
         if None is current_user:
             raise NotFoundError
         if not current_user.privilege:
