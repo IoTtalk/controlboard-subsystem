@@ -54,6 +54,7 @@ def requires_login(f):
 
 @apis.route('/', methods=["GET"])
 @requires_login
+@orm.db_session
 def render_index():
     '''
     Render Function of main page.
@@ -64,7 +65,12 @@ def render_index():
         Rendered HTML template of the SA.
         Status code: 200.
     '''
-    return render_template("main.html"), 200
+    try:
+        user = CB_Account.get(account=session["user"])
+        return render_template("main.html", userLevel=user.privilege), 200
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)
 
 
 @apis.route('/sa/<sa_id>/new_rules', methods=['POST'])
@@ -721,10 +727,10 @@ def get_cb(usr_account):
             accessible_cb.append(cb.cb_id)
 
         option_cb = list()
-        if account.privilege:
+        if 2 == account.privilege:
             candidates = CB.select()
         else:
-            candidates = account.cb_set()
+            candidates = account.cb_set
         for cb in candidates:
             icon_path = os.path.join(os.path.normpath(env_config["env"]["icon_path"]), cb.icon)
             option_cb.append({

@@ -5,7 +5,7 @@ var app = new Vue({
   data: {
     manageMode: false,  // Switch bwtween CB page & manage page
     managePage: false, // Used to switch active state between User/CB management
-    privilege: 1,  // Whether current user is a superuser.
+    privilege: userLevel,  // Whether current user is a superuser.
     newCBIcon: null,
     refreshWorker: -1,  // Timer ID for periodically calling current_data
     newCB: {

@@ -170,10 +170,10 @@ def test_db(logger):
                 privilege="1",
             )
 
-            # dummy_account = CB_Account(
-            #     account="luk1684tw",
-            #     privilege="0",
-            # )
+            dummy_account = CB_Account(
+                account="luk1684tw",
+                privilege="0",
+            )
 
             # admin = CB_Account(
             #     account="yb",
@@ -184,6 +184,13 @@ def test_db(logger):
                 cb_name="test_cb",
                 shared=0,
                 account_set=test_account,
+                icon="0_landscape.svg"
+            )
+
+            dummy_cb = CB(
+                cb_name="test_cb",
+                shared=0,
+                account_set=dummy_account,
                 icon="0_landscape.svg"
             )
 
@@ -207,6 +214,7 @@ def test_db(logger):
             )
 
             test_account.cb_set.add(test_cb)
+            dummy_account.cb_set.add(dummy_cb)
             test_cb.sa_set.add(test_sa)
             test_sa.rule_set.add(test_rule)
 
