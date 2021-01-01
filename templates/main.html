@@ -22,7 +22,7 @@
         <!-- Axios Library -->
         <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
         <script type="text/javascript">
-          var userLevel = {{userLevel}}
+          var privilege = {{userLevel}}
         </script>
         <link type="text/css" rel="stylesheet" href="/static/control_board.css" />
     </head>
@@ -149,9 +149,8 @@
                 v-bind:mode="setting.mode"
                 v-bind:actuator="setting.actuator"
                 v-bind:dirty="setting.dirty"
-                v-bind:index="index"
                 v-bind:sensors="setting.sensors.length"
-                v-on:update-mode="onSelectMode"
+                v-on:update-mode="onSelectMode($event, index)"
                 v-on:undo="onUndoChangeSetting(setting.ruleID)"
               ></actuator-row>
 
@@ -163,10 +162,8 @@
                 <div v-if="setting.mode==='Sensor'" class="setting-sensor">
                   <custom-sel
                     v-bind:options="comparisons"
-                    v-bind:index="index"
-                    v-bind:content="'open'"
                     v-bind:select="setting.content.openSensor"
-                    v-on:update-option="onSelectCompare"
+                    v-on:update-option="onSelectCompare($event, index, 'open')"
                   ></custom-sel>
                   <b-form-input size="sm" class="custom-input"
                     v-model="setting.content.openSensorVal"
@@ -175,10 +172,8 @@
                   <span class="setting-text-mid">ON.</span>
                   <custom-sel
                     v-bind:options="comparisons"
-                    v-bind:index="index"
-                    v-bind:content="'close'"
                     v-bind:select="setting.content.closeSensor"
-                    v-on:update-option="onSelectCompare"
+                    v-on:update-option="onSelectCompare($event, index, 'close')"
                   ></custom-sel> 
                   <b-form-input size="sm" class="custom-input"
                     v-model="setting.content.closeSensorVal"
@@ -191,50 +186,38 @@
                 <div v-if="setting.mode==='Timer'">
                   <custom-sel
                     v-bind:options="hours"
-                    v-bind:index="index"
-                    v-bind:content="0"
                     v-bind:select="setting.content.openTimer[0]"
-                    v-on:update-option="onSelectTime"
+                    v-on:update-option="onSelectTime($event, index, 0)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="minutes"
-                    v-bind:index="index"
-                    v-bind:content="1"
                     v-bind:select="setting.content.openTimer[1]"
-                    v-on:update-option="onSelectTime"
+                    v-on:update-option="onSelectTime($event, index, 1)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="seconds"
-                    v-bind:index="index"
-                    v-bind:content="2"
                     v-bind:select="setting.content.openTimer[2]"
-                    v-on:update-option="onSelectTime"
+                    v-on:update-option="onSelectTime($event, index, 2)"
                   ></custom-sel>
                   <span style="padding-right: 10px;">on</span>
                   <custom-sel
                     v-bind:options="hours"
-                    v-bind:index="index"
-                    v-bind:content="3"
                     v-bind:select="setting.content.closeTimer[0]"
-                    v-on:update-option="onSelectTime"
+                    v-on:update-option="onSelectTime($event, index, 3)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="minutes"
-                    v-bind:index="index"
-                    v-bind:content="4"
                     v-bind:select="setting.content.closeTimer[1]"
-                    v-on:update-option="onSelectTime"
+                    v-on:update-option="onSelectTime($event, index, 4)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="seconds"
-                    v-bind:index="index"
-                    v-bind:content="5"
                     v-bind:select="setting.content.closeTimer[2]"
-                    v-on:update-option="onSelectTime"
+                    v-on:update-option="onSelectTime($event, index, 5)"
                   ></custom-sel>
                   <span>off</span>
                 </div>

@@ -1,8 +1,8 @@
 Vue.component('custom-sel', {
-    props: ['options', 'index', 'content', 'select'],
+    props: ['options', 'select'],
     methods:{
         onSelect(val) {
-            this.$emit("update-option", val, this.index, this.content);
+            this.$emit("update-option", val);
             return;
         }
     },
@@ -64,10 +64,10 @@ Vue.component('sensor-row', {
 })
 
 Vue.component('actuator-row', {
-    props: ['mode', 'actuator', 'dirty', 'index', 'sensors'],
+    props: ['mode', 'actuator', 'dirty', 'sensors'],
     methods: {
         onSelectMode: function(nextMode) {
-            this.$emit("update-mode", nextMode, this.index);
+            this.$emit("update-mode", nextMode);
             return;
         },
         onUndo: function() {

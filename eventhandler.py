@@ -59,11 +59,12 @@ def render_index():
     '''
     Render Function of main page.
 
-    Args: None
+    Args:
+        None
 
     Returns:
         Rendered HTML template of the SA.
-        Status code: 200.
+        Status code: 200 / 500.
     '''
     try:
         user = CB_Account.get(account=session["user"])
@@ -322,6 +323,7 @@ def get_datum(sa_id):
 
 @apis.route('/subsystem/refresh_sa/<int:sa_id>', methods=['GET'])
 @requires_login
+@orm.db_session
 def refresh_sa(sa_id):
     '''
     Fetch NetworkApplications to read IDF/ODF name.
@@ -334,100 +336,99 @@ def refresh_sa(sa_id):
         Msg: Corresponding execution result.
     '''
     try:
-        with orm.db_session():
-            sa = CB_SA[sa_id]
-            if use_v1:
-                NAs = requests.post(  # Workaround for V1 CCM API project.get lacking NA info.
-                    f"http://{env_config['IoTtalk']['ServerIP']}:7788/reload_data",
-                    data={"p_id": sa.p_id}
-                )
-                NAs = json.loads(NAs.text)["join"]
+        sa = CB_SA[sa_id]
+        if use_v1:
+            NAs = requests.post(  # Workaround for V1 CCM API project.get lacking NA info.
+                f"http://{env_config['IoTtalk']['ServerIP']}:7788/reload_data",
+                data={"p_id": sa.p_id}
+            )
+            NAs = json.loads(NAs.text)["join"]
+        else:
+            NAs = ["testV2"]
+        print(NAs)
+        if not len(NAs):
+            raise NotFoundError
+        if len(sa.rule_set):
+            sa.rule_set.clear()
+        # Create UserRules for each NA
+        src, dst = dict(), dict()
+        for na in NAs:
+            na_info = get_na_ag(sa.p_id, na[0], api_logger)[1]
+            print("na_info: ", na_info)
+            order, idfs, odfs = 0, list(), list()
+            direction = 0  # 0 for src, 1 for dst
+            for idf in na_info["input"]:
+                if idf["df_name"].startswith("Trigger-I"):
+                    order = int(idf["df_name"][-1])
+                    direction = 1
+                idfs.append([idf["df_name"], idf["alias_name"].replace("-I", "")])
+
+            for odf in na_info["output"]:
+                if odf["df_name"].startswith("Threshold-O"):
+                    order = int(odf["df_name"][-1])
+                    direction = 0
+                odfs.append([odf["df_name"], odf["alias_name"].replace("-O", "")])
+
+            # Not a CB related NA.
+            if 0 == order:
+                continue
+            if direction:
+                dst[order] = odfs
             else:
-                NAs = ["testV2"]
-            print(NAs)
-            if not len(NAs):
-                raise NotFoundError
-            if len(sa.rule_set):
-                sa.rule_set.clear()
-            # Create UserRules for each NA
-            src, dst = dict(), dict()
-            for na in NAs:
-                na_info = get_na_ag(sa.p_id, na[0], api_logger)[1]
-                print("na_info: ", na_info)
-                order, idfs, odfs = 0, list(), list()
-                direction = 0  # 0 for src, 1 for dst
-                for idf in na_info["input"]:
-                    if idf["df_name"].startswith("Trigger-I"):
-                        order = int(idf["df_name"][-1])
-                        direction = 1
-                    idfs.append([idf["df_name"], idf["alias_name"].replace("-I", "")])
-
-                for odf in na_info["output"]:
-                    if odf["df_name"].startswith("Threshold-O"):
-                        order = int(odf["df_name"][-1])
-                        direction = 0
-                    odfs.append([odf["df_name"], odf["alias_name"].replace("-O", "")])
-
-                # Not a CB related NA.
-                if 0 == order:
-                    continue
-                if direction:
-                    dst[order] = odfs
-                else:
-                    src[order] = idfs
-            for order, actuator in dst.items():
-                if order not in src:
-                    sa.rule_set.add(
-                        UserRule(
-                            **default_rules,
-                            actuator_alias=actuator[0][1],
-                            actuator_df=actuator[0][0],
-                            mode="Timer",
-                            df_order=order,
-                            sa=sa
-                        )
+                src[order] = idfs
+        for order, actuator in dst.items():
+            if order not in src:
+                sa.rule_set.add(
+                    UserRule(
+                        **default_rules,
+                        actuator_alias=actuator[0][1],
+                        actuator_df=actuator[0][0],
+                        mode="Timer",
+                        df_order=order,
+                        sa=sa
                     )
-                else:
-                    print(src[order])
-                    sa.rule_set.add(
-                        UserRule(
-                            **default_rules,
-                            actuator_alias=actuator[0][1],
-                            actuator_df=actuator[0][0],
-                            sensor_alias=",".join([row[1] for row in src[order]]),
-                            sensor_df=",".join([row[0] for row in src[order]]),
-                            df_order=order,
-                            mode="Sensor",
-                            sa=sa
-                        )
+                )
+            else:
+                print(src[order])
+                sa.rule_set.add(
+                    UserRule(
+                        **default_rules,
+                        actuator_alias=actuator[0][1],
+                        actuator_df=actuator[0][0],
+                        sensor_alias=",".join([row[1] for row in src[order]]),
+                        sensor_df=",".join([row[0] for row in src[order]]),
+                        df_order=order,
+                        mode="Sensor",
+                        sa=sa
                     )
-            cb_db.commit()
+                )
+        cb_db.commit()
 
-            if sa.ag_token != "NotCreated":
-                status = deregister_ag(sa, api_logger)
-                if not status:
-                    api_logger.exception("Deregister Sa failed")
-                    abort(500, "Deregister SA failed")
-
-            # Register device
-            status, ag_token = register_ag(sa, api_logger)
+        if sa.ag_token != "NotCreated":
+            status = deregister_ag(sa, api_logger)
             if not status:
-                sa.delete()
-                abort(400, "Create SA failed at registering device, check api log files")
-            sa.ag_token = ag_token
+                api_logger.exception("Deregister Sa failed")
+                abort(500, "Deregister SA failed")
 
-            # Bind device to DO
-            time.sleep(5)  # Uncomment this if the IoTtalk Server cannot create DO in time.
-            do_id = sa.do_id.split(",")
-            status, dm_name = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
-            if not status:
-                deregister_ag(sa, api_logger)
-                sa.delete()
-                abort(400, "Create SA failed at auto binding, check api log files")
-            running_sa[sa.sa_id] = sa
+        # Register device
+        status, ag_token = register_ag(sa, api_logger)
+        if not status:
+            sa.delete()
+            abort(400, "Create SA failed at registering device, check api log files")
+        sa.ag_token = ag_token
 
-            api_logger.info(f"Create New SA, DM Name: {dm_name}")
-            return f"Create New SA, DM Name: {dm_name}", 200
+        # Bind device to DO
+        time.sleep(5)  # Uncomment this if the IoTtalk Server cannot create DO in time.
+        do_id = sa.do_id.split(",")
+        status, dm_name = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
+        if not status:
+            deregister_ag(sa, api_logger)
+            sa.delete()
+            abort(400, "Create SA failed at auto binding, check api log files")
+        running_sa[sa.sa_id] = sa
+
+        api_logger.info(f"Create New SA, DM Name: {dm_name}")
+        return f"Create New SA, DM Name: {dm_name}", 200
     except NotFoundError:
         api_logger.exception("No NAs found, remind user to create NAs")
         return abort(400, f"No NAs detected, please create Join point in Project {str(sa_id) + '-' + sa.sa_name}")
