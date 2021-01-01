@@ -191,7 +191,7 @@ var app = new Vue({
     getAccessibleProjects: function(userName) {
       return new Promise(function (resolve, reject) {
         axios
-          .get("/subsystem/get_accessible_proj" + userName)
+          .get("/subsystem/get_accessible_proj/" + userName)
           .then( (res) => {
             console.log(res);
             resolve(res.data);
@@ -522,6 +522,15 @@ var app = new Vue({
           });
       }
       this.newCBIcon = null;
+    },
+    onAccessibleCB: function(userName) {
+      this.getAccessibleProjects(userName)
+        .then( (projs) => {
+          this.accessibleProjects = projs;
+        })
+        .catch( (err) => {
+          console.log(err);
+        })
     }
   }
 })

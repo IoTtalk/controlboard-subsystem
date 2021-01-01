@@ -563,11 +563,14 @@ def get_accessible_proj(user_name):
         proj_list: A list of `cb_id`s that this user can reach.
     '''
     try:
-        user = CB_Account.get(account=session["user"])
-        if None is user:
-            raise NotAuthorizedError
-    except NotAuthorizedError:
-        api_logger.exception("")
+        proj_list = list()
+        req_account = CB_Account.get(account=user_name)
+        for cb in req_account.cb_set:
+            proj_list.append(cb.cb_id)
+        return jsonify(proj_list), 200
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)
 
 
 @apis.route('/subsystem/cb_icon/<int:cb_id>', methods=["PUT"])
@@ -697,7 +700,7 @@ def get_cb(usr_account):
     Returns:
         Status code: 200 / 401 / 403
         accessible_cb: A Dict containing 2 lists
-            accessibleProjects: A list containing all CB_ids owned/shared to this user.
+            accessibleProjects: A list containing all `CB_id`s owned/shared to this user.
             optionProjects: A list of CBs including all CBs shared to this user.
 
             If user is not a superuser, that `accessibleProjects` will be exactly the same as `optionProjects`.

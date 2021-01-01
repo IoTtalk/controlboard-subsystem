@@ -319,7 +319,7 @@
                       <b-form-checkbox-group
                         class="custom-checkbox" size="sm"
                         v-bind:options="projects.optionProjects" 
-                        v-bind:checked="accessibleProjects"
+                        v-model="accessibleProjects"
                       ></b-form-checkbox-group>
                     </b-row>
                   </b-container>
