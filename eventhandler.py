@@ -555,18 +555,18 @@ def get_sa(cb_id):
         abort(403, "Not a superuser!")
 
 
-@apis.route('/subsystem/get_accessible_proj/<string:user_name>')
+@apis.route('/subsystem/get_accessible_proj/<string:user_name>', methods=['GET'])
 @requires_login
 @orm.db_session
 def get_accessible_proj(user_name):
     '''
-    Returns CB(Projects) approved to touched by `user_name`.
+    Returns CB(Projects) granted to be controlled by user given `user_name`.
 
     Args:
         user_name: String, the user's account
 
     Returns:
-        Status code:
+        Status code: 200 / 500
         proj_list: A list of `cb_id`s that this user can reach.
     '''
     try:
@@ -575,6 +575,38 @@ def get_accessible_proj(user_name):
         for cb in req_account.cb_set:
             proj_list.append(cb.cb_id)
         return jsonify(proj_list), 200
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)
+
+
+@apis.route('/subsystem/set_pinned_field', methods=['POST'])
+@requires_login
+@orm.db_session
+def set_pinned_field():
+    '''
+    Set SA(Fields) to pinned in CB given `cb_id` and `sa_id`.
+
+    Args:
+        cb_id: Int, the CB's primary key.
+        to_pinned: List, SA_id of SAs to be pinned.
+
+    Returns:
+        Status code: 200 / 400 / 500
+        Msg: Corresponding execution status.
+    '''
+    try:
+        data = request.json
+        cb_id, pinned_list = data["cb_id"], data["to_pinned"]
+        for sa_id in pinned_list:
+            if CB_SA[sa_id] not in CB[cb_id].sa_set:
+                raise NotFoundError
+            CB_SA[sa_id].pinned = True
+
+        return "okay", 200
+    except NotFoundError:
+        api_logger.exception("Unrelated SA involved, abort request")
+        abort(400)
     except Exception as err:
         api_logger.exception(err)
         abort(500)

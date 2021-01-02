@@ -54,14 +54,15 @@ var app = new Vue({
     ],
     users: [],
     projects: { // All Shared projects of CB Subsystem + User's projects
-      accessibleProjects: [], // Accessible CBs' IDs 
-      optionProjects: []
+      accessibleProjects: [], // CB_ID of CBs this user can control
+      optionProjects: []  // All CBs this user can see.
     },
-    accessibleProjects: [],  // Empty list to save accessible CB changes in manage page.
+    accessibleProjects: [],  // Empty list to save accessible Project(CB) changes in manage page.
     fields: {
       pinnedFields: [],
       optionFields: []
     },
+    pinnedFields: [],  // Empty list to save pinned Field(SA) changes.
     currentField: 0,  // Field refers to SA in a specific CB.
     currentProject: 0,  // Project refers to CB.
     backupSettings: [],
@@ -72,6 +73,7 @@ var app = new Vue({
     // get CBs -> get SAs -> get Rules -> get Status
     this.refreshCBWorker();
     if (this.privilege) {
+      console.log("get user");
       this.getAllUsers()
         .then( (users) => {
           this.users = users;
@@ -115,7 +117,9 @@ var app = new Vue({
     }
   },
   methods: {
-    /* API data getter Methods, including CB, SA, Rule, Status, Users */
+    /* API data getter Methods, including CB, SA, Rule, Status, Users, 
+    *  Reachable Projects
+    */
     getAvailableCBs: function(account) {
       return new Promise(function (resolve, reject) {
         if (account === undefined) {
@@ -249,19 +253,20 @@ var app = new Vue({
     },
     /* API data parser for SA(Field) and Status*/
     setupFields: function(fields) {
-      pinnedFields = [];
+      pinnedFieldObjects = [];
       fields.forEach(element => {
         if (element.pin) {
-          pinnedFields.push(element);
+          pinnedFieldObjects.push(element);
+          this.pinnedFields.push(element.value)
         }
       });
       this.fields = {
-        "pinnedFields": pinnedFields,
+        "pinnedFields": pinnedFieldObjects,
         "optionFields": fields
       };
       if (fields.length) {
-        if (pinnedFields.length) {
-          this.currentField = pinnedFields[0].value;
+        if (pinnedFieldObjects.length) {
+          this.currentField = pinnedFieldObjects[0].value;
         } else {
           this.currentField = fields[0].value;
         }
@@ -302,7 +307,7 @@ var app = new Vue({
       return;
     },
     /* CB(Project) related procedures 
-    *  including create / delete
+    *  including create / delete / pin field
     */
     onCBCreate: function(action) {
       if (1 === action) {
@@ -333,6 +338,28 @@ var app = new Vue({
         .catch(function(error) {
           console.log(error);
         });
+      }
+    },
+    onPinFields: function(action) {
+      if (action && this.currentProject) {
+        data = {
+          "cb_id": this.currentProject,
+          "to_pinned": this.pinnedFields
+        };
+        axios.post("/subsystem/set_pinned_field", data)
+          .then( (res) => {
+            console.log(res);
+            this.getAvailableSAs(this.currentProject)
+              .then( (fields) => {
+                this.setupFields(fields);
+              })
+              .catch( (err) => {
+                console.log(err);
+              })
+          })
+          .catch( (err) => {
+            console.log(err);
+          })
       }
     },
     /* SA(Field) related procedures 

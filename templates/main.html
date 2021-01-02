@@ -22,7 +22,7 @@
         <!-- Axios Library -->
         <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
         <script type="text/javascript">
-          var privilege = {{userLevel}}
+          var privilege = {{ userLevel }};
         </script>
         <link type="text/css" rel="stylesheet" href="/static/control_board.css" />
     </head>
@@ -53,6 +53,7 @@
               </div>
               <b-button size="sm" variant="danger" v-if="currentField>0" v-b-modal="'CancelSA'">Delete Field</b-button>
               <b-modal id="CreateSA" size="lg" centered title="Create New ControlBoard Field"
+                hide-backdrop content-class="shadow"
                 v-on:ok="onSACreate(1)" v-on:cancel="onSACreate(0)" v-on:close="onSACreate(0)"
               >
                 <b-container fluid>
@@ -68,11 +69,10 @@
                 </b-container>
               </b-modal>
               <b-modal id="CancelSA" size="lg" centered title="Delete ControlBoard Field"
+                hide-backdrop content-class="shadow"
                 v-on:ok="onSADelete(1)" v-on:cancel="onSADelete(0)" v-on:close="onSADelete(0)"
-              >
-                Are you sure to delete Field <b><% currentFieldName %></b>?
+              > Are you sure to delete Field <b><% currentFieldName %></b>?
               </b-modal>
-
             </div>
           </div>
         </div>
@@ -80,6 +80,20 @@
         <div v-if="manageMode" class="manage-title">
           <b>System Management</b>
         </div>
+        <b-modal id="pinField" size="lg" centered title="Pinned Field" 
+          hide-backdrop content-class="shadow"
+          v-on:ok="onPinFields(1)" v-on:cancel="onPinFields(0)" v-on:close="onPinFields(0)"
+        >
+          <b-container fluid>
+            <b-row>
+              <b-col>Pinned Fields</b-col>
+              <b-form-checkbox-group size="sm"
+                v-bind:options="fields.optionFields" 
+                v-model="pinnedFields"
+              ></b-form-checkbox-group>
+            </b-row>
+          </b-container>
+        </b-modal>
 
         <!-- Field tabs -->
         <b-card title="Card Title" no-body class="card mb-3">
@@ -90,7 +104,7 @@
                   <template v-slot:header>
                     <div class="d-flex justify-content-between">
                       <span>Pinned Fields</span>
-                      <b-button size="sm" variant="light">
+                      <b-button size="sm" variant="light" v-b-modal="'pinField'">
                         <b-icon icon="plus" aria-hidden="true"></b-icon>
                       </b-button>
                     </div>
@@ -259,6 +273,7 @@
                     <b-icon icon="plus" aria-hidden="true"></b-icon>
                   </b-button>
                   <b-modal id="CreateCB" size="lg" centered title="Create ControlBoard"
+                    hide-backdrop content-class="shadow"
                     v-on:ok="onCBCreate(1)" v-on:cancel="onCBCreate(0)" v-on:close="onCBCreate(0)"
                   >
                     <b-container fluid>
@@ -286,8 +301,8 @@
                 </b-col>
                 <b-col> <% lvlToText(user.superuser) %> </b-col>
                 <b-modal v-bind:id="'modal'+index" size="lg" centered title="User Management"
-                  v-on:ok="onUserUpdate(index, 1)" v-on:cancel="onUserUpdate(index, 0)" 
-                  v-on:close="onUserUpdate(index, 0)"
+                  hide-backdrop content-class="shadow" v-on:ok="onUserUpdate(index, 1)"
+                  v-on:cancel="onUserUpdate(index, 0)" v-on:close="onUserUpdate(index, 0)"
                 >
                   <b-container fluid>
                     <b-row class="divide-bottom">
@@ -321,15 +336,15 @@
                   <b-link v-b-modal="'cbIcon'+index" size="sm" variant="outline-primary">Icons</b-link>
 
                   <b-modal v-bind:id="'deleteCB'+index" size="lg" centered title="Delete ControlBoard"
-                    v-on:ok="onCBDelete(project.value, 1)" v-on:cancel="onCBDelete(project.value, 0)" 
-                    v-on:close="onCBDelete(project.value, 0)"
+                    hide-backdrop content-class="shadow" v-on:ok="onCBDelete(project.value, 1)" 
+                    v-on:cancel="onCBDelete(project.value, 0)" v-on:close="onCBDelete(project.value, 0)"
                   >
                     Are you sure to delete ControlBoard <b><% project.text %></b>
                   </b-modal>
 
                   <b-modal v-bind:id="'cbIcon'+index" size="lg" centered title="User Management"
-                    v-on:ok="onIconUpload(project.value, 1)" v-on:cancel="onIconUpload(project.value, 0)" 
-                    v-on:close="onIconUpload(project.value, 0)"
+                    hide-backdrop content-class="shadow" v-on:ok="onIconUpload(project.value, 1)"
+                    v-on:cancel="onIconUpload(project.value, 0)" v-on:close="onIconUpload(project.value, 0)"
                   >
                     <b-container fluid>
                       <b-form-file
