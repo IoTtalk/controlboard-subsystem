@@ -34,6 +34,7 @@
             v-bind:projects="accessibleProjectObjects"
             v-bind:selected="currentProject"
             v-on:select-project="onSelectProject"
+            v-on:pressed="manageMode=false"
           ></select-projects>
           
           <div class="ml-auto">
@@ -279,11 +280,8 @@
                     <b-container fluid>
                       ControlBoard 
                       <b-form-input placeholder="Enter Your ControlBoard's Name Here"
-                        size="sm" v-model="newCB.text"
+                        size="sm" v-model="newCB"
                       ></b-form-input>
-                      <b-form-checkbox plain size="sm" class="mt-1"
-                        v-model="newCB.shared"
-                      >Visible to other users.</b-form-checkbox>
                     </b-container>
                   </b-modal>
                 </b-col>
@@ -308,12 +306,13 @@
                     <b-row class="divide-bottom">
                       <b-col>Privilege</b-col>
                       <custom-sel
+                        v-if="privilege===2"
                         v-bind:options="userlvls"
-                        v-bind:index="index"
                         v-bind:select="user.superuser"
                         v-on:update-option="onSelectUserLvl($event, index)"
                         class="select-privilege"
                       ></custom-sel>
+                      <span v-else><% lvlToText(user.superuser) %></span>
                     </b-row>
                     <b-row class="divide-top"> 
                       <b-col>Accessible CBs</b-col>

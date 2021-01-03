@@ -77,7 +77,7 @@ class AG_SA():
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
-        self.socket.connect("tcp://140.113.63.25:7790")
+        self.socket.connect(f"tcp://{{config['host_zmq']}}:{{config['port_zmq']}}")
         self.socket.send(b"hello world")
 
         DAN.profile = ctlboard_profile
@@ -109,7 +109,6 @@ class AG_SA():
             cb_id = orm.PrimaryKey(int, auto=True)
             cb_name = orm.Required(str)
             sa_set = orm.Set("CB_SA", cascade_delete=True)
-            shared = orm.Required(bool)
             account_set = orm.Set("CB_Account")  # accounts that can access this SA.
             icon = orm.Required(str)
 
@@ -154,11 +153,11 @@ class AG_SA():
         else:
             self.cb_db.bind(
                 provider='mysql',
-                host=self.config['host'],
+                host=self.config['host_db'],
                 user=self.config['user'],
                 passwd=self.config['pwd'],
                 db=self.config['dbname'],
-                port=int(self.config['port'])
+                port=int(self.config['port_db'])
             )
 
         while (retry_times < 3):

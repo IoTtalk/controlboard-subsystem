@@ -132,7 +132,8 @@ Vue.component('select-projects', {
         onSelectCB: function(projectIndex) {
             this.$emit("select-project", projectIndex);
             return;
-        }
+        },
+        
     },
     computed: {
         candicateProjects: function() {
@@ -149,6 +150,7 @@ Vue.component('select-projects', {
                 "icon": "", "text": "", value: -1
             };
             this.projects.forEach(element => {
+                console.log(element);
                 if (element.value === this.selected) {
                     selected = element;
                 }
@@ -159,7 +161,7 @@ Vue.component('select-projects', {
     template: `
         <div>
             <b-navbar-nav>
-                <b-nav-item-dropdown>
+                <b-nav-item-dropdown v-on:toggle="$emit('pressed')">
                     <template v-slot:button-content v-if="projects.length!==0">
                         <b-img v-bind:src="selectedProject.icon"></b-img>
                         {{selectedProject.text}}

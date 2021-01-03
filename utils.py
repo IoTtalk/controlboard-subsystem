@@ -165,10 +165,10 @@ def test_db(logger):
     '''
     try:
         with orm.db_session():
-            test_account = CB_Account(
-                account="test",
-                privilege="1",
-            )
+            # test_account = CB_Account(
+            #     account="test",
+            #     privilege="2",
+            # )
 
             dummy_account = CB_Account(
                 account="luk1684tw",
@@ -181,16 +181,12 @@ def test_db(logger):
             # )
 
             test_cb = CB(
-                cb_name="test_cb",
-                shared=0,
-                account_set=test_account,
+                cb_name="test_cb1",
                 icon="0_landscape.svg"
             )
 
             dummy_cb = CB(
                 cb_name="test_cb",
-                shared=0,
-                account_set=dummy_account,
                 icon="0_landscape.svg"
             )
 
@@ -213,7 +209,7 @@ def test_db(logger):
                 mode='Sensor'
             )
 
-            test_account.cb_set.add(test_cb)
+            dummy_account.cb_set.add(test_cb)
             dummy_account.cb_set.add(dummy_cb)
             test_cb.sa_set.add(test_sa)
             test_sa.rule_set.add(test_rule)

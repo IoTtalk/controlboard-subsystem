@@ -676,20 +676,18 @@ def create_cb():
 
     Args:
         text: cb_name of this ControlBoard.
-        shared: Whether to be seen by other users.
 
     Returns:
         Status Code: 200 / 400 / 401 / 500.
         Message: Corresponding execution result.
     '''
-    new_cb = request.json
+    new_cb = request.get_data().decode("utf-8")
     try:
         owner = CB_Account.get(account=session["user"])
         if None is owner:
             raise NotFoundError
         cb = CB(
-            cb_name=new_cb["text"],
-            shared=new_cb["shared"],
+            cb_name=new_cb,
             icon=env_config["env"]["default_icon"]
         )
         cb.account_set.add(owner)
@@ -863,3 +861,39 @@ def get_users():
     except Exception as err:
         api_logger.exception(err)
         abort(500, err)
+
+
+@apis.route('/account/adjust_privilege/<string:usr_name>', methods=['POST'])
+@requires_login
+@orm.db_session
+def adjust_privilege(usr_name):
+    '''
+    Adjust user privilege and accessible CB(Project)s
+
+    Args:
+        usr_name: String, account of the specified user.
+        usr_profile: Dictionary containing two fields `privilege` and `accessible_cb`
+            privilege: Int, ranging from 0~2, indicating user/superuser/admin individually.
+            accessible_cb: List, cb_ids this user should be granted to access.
+
+    Returns:
+        Status code: 200 / 400 / 500
+        Msg: Corresponding execution result.
+    '''
+    try:
+        data = request.json
+        print(data)
+        account = CB_Account.get(account=usr_name)
+        if None is account:
+            raise NotFoundError
+        account.privilege = data["privilege"]
+        account.cb_set.clear()
+        for cb_id in data["accessible_cb"]:
+            account.cb_set.add(CB[cb_id])
+        return "setup done", 200
+    except NotFoundError:
+        api_logger.exception("No Such Account")
+        abort(400)
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)

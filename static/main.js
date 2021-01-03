@@ -8,10 +8,7 @@ var app = new Vue({
     privilege: privilege,  // Whether current user is a superuser.
     newCBIcon: null,
     refreshWorker: -1,  // Timer ID for periodically calling current_data
-    newCB: {
-      text: "",
-      shared: false
-    },
+    newCB: "",
     newSA: {
       text: "",
       pinned: false
@@ -23,7 +20,7 @@ var app = new Vue({
     ],
     userlvls: [
       {value: 0, text: "User"},
-      {value: 1, text: "Super User"},
+      {value: 1, text: "Superuser"},
       {value: 2, text: "Admin"}
     ],
     weekdays: [
@@ -87,9 +84,11 @@ var app = new Vue({
   computed: {
     accessibleProjectObjects: function() {
       toAccess = [];
-      for (projectIdx in this.projects.accessibleProjects) {
-        toAccess.push(this.projects.optionProjects[projectIdx])
-      }
+      this.projects.optionProjects.forEach( project => {
+        if (this.projects.accessibleProjects.includes(project.value)) {
+          toAccess.push(project);
+        }
+      });
       return toAccess;
     },
     maxPinnedFields: function() {
@@ -117,8 +116,8 @@ var app = new Vue({
     }
   },
   methods: {
-    /* API data getter Methods, including CB, SA, Rule, Status, Users, 
-    *  Reachable Projects
+    /* API data getter Methods, including CB, SA, Rule, Status, User, 
+    *  Reachable Project
     */
     getAvailableCBs: function(account) {
       return new Promise(function (resolve, reject) {
@@ -128,11 +127,10 @@ var app = new Vue({
         axios
           .get("/subsystem/get_cb/" + account)
           .then(function(res) {
-            console.log(res);
+            res.data.optionProjects.sort((a, b) => b.value - a. value);
             resolve(res.data);
           })
           .catch(function(err) {
-            console.log(err);
             reject();
           });
       });
@@ -142,11 +140,9 @@ var app = new Vue({
         axios
           .get("/subsystem/get_sa/" + projectID.toString())
           .then(function(res) {
-            console.log(res);
             resolve(res.data);
           })
           .catch(function(err) {
-            console.log(err);
             reject();
           });
       });
@@ -156,7 +152,6 @@ var app = new Vue({
         axios
           .get("/sa/" + fieldID.toString() + "/rules")
           .then( (rules) => {
-            console.log(rules);
             resolve(rules.data);
           })
           .catch( (err) => {
@@ -169,7 +164,6 @@ var app = new Vue({
         axios
           .get("/sa/" + fieldID.toString() + "/current_data")
           .then( (status) => {
-            console.log(status);
             resolve(status.data);
           })
           .catch( (err) => {
@@ -183,11 +177,9 @@ var app = new Vue({
           .get("/account/get_accounts")
           .then( (res) => {
             res.data.sort((a, b) => b.superuser - a.superuser);
-            console.log(res);
             resolve(res.data);
           })
           .catch( (err) => {
-            console.log(err);
             reject(err);
           })
       })
@@ -197,11 +189,9 @@ var app = new Vue({
         axios
           .get("/subsystem/get_accessible_proj/" + userName)
           .then( (res) => {
-            console.log(res);
             resolve(res.data);
           })
           .catch( (err) => {
-            console.log(err);
             reject(err);
           })
       })
@@ -226,6 +216,9 @@ var app = new Vue({
         .then( (fields) => {
           this.setupFields(fields);
           this.refreshRuleWorker();
+        })
+        .catch( (err) => {
+          console.log(err);
         })
     },
     refreshRuleWorker: function() {
@@ -292,11 +285,11 @@ var app = new Vue({
     */
     onSwitchManage: function() {
       this.manageMode = !this.manageMode;
-      
       return;
     },
     onSwitchManagePage: function() {
       this.managePage = !this.managePage;
+      return;
     },
     onSwitchField: function(fieldID) {
       this.currentField = fieldID;
@@ -305,6 +298,8 @@ var app = new Vue({
     },
     onSelectProject: function(selected) {
       this.currentProject = selected;
+      this.manageMode = false;
+      this.managePage = false;
       this.refreshSAWorker()
       return;
     },
@@ -316,17 +311,14 @@ var app = new Vue({
         axios
           .post("/subsystem/create_cb", this.newCB)
           .then( (res) => {
-            console.log("Respond of creating CB", res);
+            console.log("Response of creating CB", res);
             this.refreshCBWorker();
           })
           .catch(function(error) {
             console.log(error)
           });
       }
-      this.newCB = {
-        text: "",
-        shared: false
-      };
+      this.newCB = "";
       return;
     },
     onCBDelete: function(cbID, action) {
@@ -518,17 +510,37 @@ var app = new Vue({
       if (userLvl === 2) {
         return "Admin";
       } else if (userLvl === 1) {
-        return "Super User";
+        return "Superuser";
       } else {
         return "User";
       }
     },
     onSelectUserLvl: function(event, userIndex) {
-      console.log(event, this.users[userIndex]);
+      this.users[userIndex].superuser = event;
       return;
     },
     onUserUpdate: function(index, action) {
-      console.log(index, action);
+      if (1 === action) {
+        data = {
+          "privilege": this.users[index].superuser,
+          "accessible_cb": this.accessibleProjects
+        };
+        axios.post("/account/adjust_privilege/" + this.users[index].username, data)
+          .then( (res) => {
+            console.log(res);
+            this.getAllUsers()
+              .then( (usrs) => {
+                this.users = usrs;
+              })
+              .catch( (err) => {
+                console.log(err);
+              });
+            this.refreshCBWorker();
+          })
+          .catch( (err) => {
+            console.log(err);
+          });
+      }
     },
     onIconUpload: function(cbID, action) {
       console.log(cbID, action);

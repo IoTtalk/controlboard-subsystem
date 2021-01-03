@@ -39,7 +39,6 @@ class CB(cb_db.Entity):
     cb_id = PrimaryKey(int, auto=True)
     cb_name = Required(str)
     sa_set = Set("CB_SA", cascade_delete=True)
-    shared = Required(bool)
     account_set = Set("CB_Account")  # accounts that can access this SA.
     icon = Required(str)
 
