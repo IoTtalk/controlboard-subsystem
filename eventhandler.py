@@ -598,10 +598,19 @@ def set_pinned_field():
     try:
         data = request.json
         cb_id, pinned_list = data["cb_id"], data["to_pinned"]
-        for sa_id in pinned_list:
-            if CB_SA[sa_id] not in CB[cb_id].sa_set:
+        sa_ids = set()
+        # Check `sa_id`s contained in `pinned_list` are all belong to the CB given `cb_id`
+        for sa in CB[cb_id].sa_set:
+            sa_ids.add(sa.sa_id)
+        for to_pinned in pinned_list:
+            if to_pinned not in sa_ids:
                 raise NotFoundError
-            CB_SA[sa_id].pinned = True
+
+        for sa_id in sa_ids:
+            if sa_id in pinned_list:
+                CB_SA[sa_id].pinned = True
+            else:
+                CB_SA[sa_id].pinned = False
 
         return "okay", 200
     except NotFoundError:

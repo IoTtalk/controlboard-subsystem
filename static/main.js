@@ -253,7 +253,9 @@ var app = new Vue({
     },
     /* API data parser for SA(Field) and Status*/
     setupFields: function(fields) {
+      fields.sort((a, b) => b.value - a.value);
       pinnedFieldObjects = [];
+      this.pinnedFields = [];
       fields.forEach(element => {
         if (element.pin) {
           pinnedFieldObjects.push(element);
