@@ -431,6 +431,7 @@ def refresh_sa(sa_id):
         return f"Create New SA, DM Name: {dm_name}", 200
     except NotFoundError:
         api_logger.exception("No NAs found, remind user to create NAs")
+        sa = CB_SA[sa_id]
         return abort(400, f"No NAs detected, please create Join point in Project {str(sa_id) + '-' + sa.sa_name}")
     except Exception as err:
         api_logger.exception(err)

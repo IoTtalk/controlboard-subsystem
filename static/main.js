@@ -7,7 +7,7 @@ var app = new Vue({
     managePage: false, // Used to switch active state between User/CB management
     privilege: privilege,  // Whether current user is a superuser.
     newCBIcon: null,
-    refreshWorker: -1,  // Timer ID for periodically calling current_data
+    statusTrackWorker: -1,  // Timer ID for periodically calling current_data
     newCB: "",
     newSA: {
       text: "",
@@ -272,7 +272,6 @@ var app = new Vue({
     },
     setupRuleStatus: function(status) {
       this.settings.forEach( setting => {
-        setting["dirty"] = false;
         setting["time"] = status[setting.ruleID]["time"];
         setting["prevTrigger"] = status[setting.ruleID]["prev_trigger"];
         setting["value"] = status[setting.ruleID]["value"];
@@ -357,7 +356,7 @@ var app = new Vue({
       }
     },
     /* SA(Field) related procedures 
-    *  including create / delete / refresh / confirm / reset
+    *  including create / delete / refresh / confirm / reset / undo
     */
     onSACreate: function(action) {
       if (1 === action) {
@@ -369,9 +368,9 @@ var app = new Vue({
           .post("/subsystem/create_sa", data)
           .then( (res) => {
             console.log(res);
-            window.clearInterval(this.refreshWorker);
+            window.clearInterval(this.statusTrackWorker);
             this.refreshSAWorker();
-            this.refreshWorker = setInterval(this.refreshStatusWorker, 1000);
+            this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
           })
           .catch( (err) => {
             alert(err);
@@ -414,6 +413,23 @@ var app = new Vue({
         })
         return;
     },
+    onUndoChangeSetting: function(ruleID) {
+      console.log("test");
+      var index = -1;
+      for (var i = 0; i < this.settings.length; i++) {
+        if (this.settings[i].ruleID === ruleID) {
+          index = i;
+          break;
+        }
+      }
+      if (i !== -1) {
+        this.$set(this.settings, i, JSON.parse(JSON.stringify(this.backupSettings[i])));
+        this.settings[i]["dirty"] = false;
+      }
+      console.log(this.settings[i]);
+      return;
+    },
+
     /* Rule related procedures 
     *  including selecting mode / which sensor to use /  comparison method / Timing
     */
