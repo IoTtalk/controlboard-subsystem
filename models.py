@@ -16,7 +16,7 @@ class UserRule(cb_db.Entity):
     rule_id = PrimaryKey(int, auto=True)  # For AG_SA to write status.
     actuator_alias = Required(str)  # Alias of the actuator in this rule.
     actuator_df = Required(str)  # Device Feature Name of the actuator in this rule.
-    sensor_alias = Optional(str)  # Alias of the actuator in this rule.
+    sensor_alias = Optional(str)  # Alias of the sensors in this rule.
     sensor_df = Optional(str)  # Device Feature Name of sensors in this rule.
     sensor_index = Optional(int)  # Which Sensor this rule is using currently.
     df_order = Required(int)  # Which IDF/ODF pair to pull/push data.
@@ -26,8 +26,6 @@ class UserRule(cb_db.Entity):
     comparison_close = Optional(str)  # Comparison method to decide close actuator or not.
     time_open = Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
     time_close = Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
-    period = Required(int)  # Period functionality.
-    exetime = Optional(int)  # execution time for periodically execution.
     mode = Required(str)  # Sensor/Timer/On/Off.
     weekday = Optional(str)  # Weekdays this rule should be executed.  ranging from 0 to 6
     duty_pos = Optional(int)  # Positive edge of Duty Cycle.

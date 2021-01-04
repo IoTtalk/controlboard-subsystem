@@ -45,13 +45,13 @@ if not os.path.isdir(log_root):
     os.makedirs(log_root)
 
 default_rules = {
-    'rule_type': 'sensor',
-    'threshold_open': 0.,
-    'threshold_close': 0,
-    'comparison_open': 'notset',
-    'comparison_close': 'notset',
-    'mode': 'auto',
-    'period': 0
+    "threshold_open": 0.,
+    "threshold_close": 0,
+    "comparison_open": "notset",
+    "comparison_close": "notset",
+    "mode": "Sensor",
+    "duty_pos": 0,
+    "duty_neg": 0
 }
 
 
@@ -164,55 +164,54 @@ def test_db(logger):
     Returns: None
     '''
     try:
-        with orm.db_session():
-            test_account = CB_Account(
-                account="test",
-                privilege="2",
-            )
+        test_account = CB_Account(
+            account="test",
+            privilege="2",
+        )
 
-            dummy_account = CB_Account(
-                account="luk1684tw",
-                privilege="0",
-            )
+        dummy_account = CB_Account(
+            account="luk1684tw",
+            privilege="0",
+        )
 
-            admin = CB_Account(
-                account="yb",
-                privilege="2",
-            )
+        # admin = CB_Account(
+        #     account="yb",
+        #     privilege="2",
+        # )
 
-            test_cb = CB(
-                cb_name="test_cb1",
-                icon="0_landscape.svg"
-            )
+        test_cb = CB(
+            cb_name="test_cb1",
+            icon="0_landscape.svg"
+        )
 
-            dummy_cb = CB(
-                cb_name="test_cb",
-                icon="0_landscape.svg"
-            )
+        dummy_cb = CB(
+            cb_name="test_cb",
+            icon="0_landscape.svg"
+        )
 
-            test_sa = CB_SA(
-                sa_name="test_sa",
-                ag_token="testagtoken",
-                mac_addr=str(uuid.uuid4()),
-                p_id=-1,
-                do_id="1234567",
-                cb=test_cb,
-                pinned=True
-            )
+        test_sa = CB_SA(
+            sa_name="test_sa",
+            ag_token="testagtoken",
+            mac_addr=str(uuid.uuid4()),
+            p_id=-1,
+            do_id="1234567",
+            cb=test_cb,
+            pinned=True
+        )
 
-            test_rule = UserRule(
-                actuator_alias="test_actuator",
-                actuator_df="test_df",
-                df_order=0,
-                period=0,
-                sa=test_sa,
-                mode='Sensor'
-            )
+        test_rule = UserRule(
+            actuator_alias="test_actuator",
+            actuator_df="test_df",
+            df_order=0,
+            duty_pos=0,
+            sa=test_sa,
+            mode='Sensor'
+        )
 
-            test_account.cb_set.add(test_cb)
-            dummy_account.cb_set.add(dummy_cb)
-            test_cb.sa_set.add(test_sa)
-            test_sa.rule_set.add(test_rule)
+        test_account.cb_set.add(test_cb)
+        dummy_account.cb_set.add(dummy_cb)
+        test_cb.sa_set.add(test_sa)
+        test_sa.rule_set.add(test_rule)
 
         logger.info('\tTest database connection......done')
     except Exception as err:

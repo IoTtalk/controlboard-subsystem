@@ -234,6 +234,7 @@ var app = new Vue({
     },
     refreshStatusWorker: function() {
       if (this.settings.length) {
+        window.clearInterval(this.statusTrackWorker);
         this.getRuleStatus(this.currentField)
           .then( (status) => {
             this.setupRuleStatus(status);
@@ -241,6 +242,7 @@ var app = new Vue({
           .catch( (err) => {
             console.log(err);
           });
+        this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       }
       return;
     },
@@ -368,9 +370,8 @@ var app = new Vue({
           .post("/subsystem/create_sa", data)
           .then( (res) => {
             console.log(res);
-            window.clearInterval(this.statusTrackWorker);
             this.refreshSAWorker();
-            // this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+            
           })
           .catch( (err) => {
             alert(err);
@@ -402,13 +403,29 @@ var app = new Vue({
       console.log(ruleIdx);
       toChange = [];
       ruleIdx.forEach( idx => {
-        toChange.push(this.settings[idx]);
+        var setting = this.settings[idx];
+        setting["dirty"] = false;
+        toChange.push({
+          "actuator_alias": setting["actuator"],
+          "mode": setting["mode"],
+          "sensor_index": setting["selectedSensor"],
+          "threshold_open": setting["content"]["openSensorVal"],
+          "threshold_close": setting["content"]["closeSensorVal"],
+          "comparison_open": setting["content"]["openSensor"],
+          "comparison_close": setting["content"]["closeSensor"],
+          "time_open": setting["content"]["openTimer"],
+          "time_close": setting["content"]["closeTimer"],
+          "weekday": setting["content"]["weekdays"],
+          "duty_pos": setting["content"]["dutyPos"],
+          "duty_neg": setting["content"]["dutyNeg"]
+        });
       });
       console.log(toChange);
 
       axios.post("/sa/" + this.currentField.toString() + "/new_rules", toChange)
         .then( (msg) => {
-
+          console.log(msg);
+          this.refreshRuleWorker();
         })
         .catch( (err) => {
           console.log(err);
@@ -449,25 +466,26 @@ var app = new Vue({
     },
     onSelectMode: function(nextMode, settingIndex) {
       console.log(nextMode);
+      this.$set(this.settings[settingIndex], "dirty", true);
       if (nextMode === undefined || settingIndex === undefined) return;
       switch (nextMode) {
-        case 0: // Manual mode
-          this.$set(this.settings[settingIndex], "dirty", true);
-          if (this.settings[settingIndex].mode==="ON") {
+        case 0: // OFF
+          if (this.settings[settingIndex].mode!=="OFF") {
             this.$set(this.settings[settingIndex], "mode", "OFF");
-          } else {
+          }
+          break;
+        case 1:
+          if (this.settings[settingIndex].mode!=="ON") {
             this.$set(this.settings[settingIndex], "mode", "ON");
           }
           break;
-        case 1: // Sensor mode
+        case 2: // Sensor mode
           if (this.settings[settingIndex].mode!=="Sensor") {
-            this.$set(this.settings[settingIndex], "dirty", true);
             this.$set(this.settings[settingIndex], "mode", "Sensor");
           }
           break;
-        case 2: // Timer mode
+        case 3: // Timer mode
           if (this.settings[settingIndex].mode!=="Timer") {
-            this.$set(this.settings[settingIndex], "dirty", true);
             this.$set(this.settings[settingIndex], "mode", "Timer");
           }
           break;

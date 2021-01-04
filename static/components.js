@@ -65,8 +65,16 @@ Vue.component('sensor-row', {
 
 Vue.component('actuator-row', {
     props: ['mode', 'actuator', 'dirty', 'sensors'],
+    data: function() {
+        return {
+            state: false
+        }
+    },
     methods: {
         onSelectMode: function(nextMode) {
+            if (0 === nextMode && true === this.state) {
+                nextMode += 1;
+            }
             this.$emit("update-mode", nextMode);
             return;
         },
@@ -84,18 +92,19 @@ Vue.component('actuator-row', {
                     <b-button size="md" variant="outline-success"
                         v-bind:pressed="mode==='ON' || mode==='OFF'"
                     >
-                        <b-form-checkbox switch 
+                        <b-form-checkbox switch
+                            v-model="state"
                             v-on:input="onSelectMode(0)"
                         >Manual</b-form-checkbox>
                     </b-button>
                     <b-button variant="outline-success" 
                         v-bind:pressed="mode==='Sensor'"
                         v-bind:disabled="sensors===0"
-                        v-on:click="onSelectMode(1)"
+                        v-on:click="onSelectMode(2)"
                     >Sensor</b-button>
                     <b-button variant="outline-success"
                         v-bind:pressed="mode==='Timer'"
-                        v-on:click="onSelectMode(2)"
+                        v-on:click="onSelectMode(3)"
                     >Timer</b-button>
                 </b-button-group>
                 <span class="setting-test">{{actuator}}</span>

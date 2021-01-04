@@ -30,3 +30,8 @@ class NotFoundError(EventHandlerError):
         or A Non-existed user trying to login.
     """
     pass
+
+
+class WrongSettingError(EventHandlerError):
+    """ Raised when a rule is detected to be invalid """
+    pass

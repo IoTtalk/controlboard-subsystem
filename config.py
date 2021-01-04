@@ -11,7 +11,6 @@ default_rules = {
     "time_open": datetime.time(0, 0, 0),
     "time_close": datetime.time(0, 0, 0),
     "sensor_index": 0,
-    "period": 0,
     "duty_pos": 0,
     "duty_neg": 0,
     "weekday": ""

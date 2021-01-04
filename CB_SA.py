@@ -56,7 +56,12 @@ class AG_SA():
             "threshold_close": 0,
             "comparison_open": "notset",
             "comparison_close": "notset",
-            "period": 0
+            "time_open": datetime.time(0, 0, 0),
+            "time_close": datetime.time(0, 0, 0),
+            "sensor_index": 0,
+            "duty_pos": 0,
+            "duty_neg": 0,
+            "weekday": ""
         }}
 
         self.condition_handler = {{
@@ -97,8 +102,6 @@ class AG_SA():
             comparison_close = orm.Optional(str)  # Comparison method to decide close actuator or not.
             time_open = orm.Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
             time_close = orm.Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
-            exetime = orm.Optional(int)  # execution time for periodically execution
-            period = orm.Required(int)  # Period functionality.
             mode = orm.Required(str)
             weekday = orm.Optional(str)  # Weekdays this rule should be executed.
             duty_pos = orm.Optional(int)  # Positive edge of Duty Cycle.
@@ -245,18 +248,18 @@ class AG_SA():
         actuator_df = 'Trigger' + '-I' + str(mapping[1])
         time_open = datetime.datetime.combine(datetime.date.today(), rule.time_open)
         time_close = datetime.datetime.combine(datetime.date.today(), rule.time_close)
-        exetime = rule.exetime
+        duty_neg = rule.duty_neg
 
         if time_open > time_close:
             time_close = time_close + datetime.timedelta(days=1)
 
         satisfied = (current > time_open and current < time_close)
         about2trigger = (abs((time_open - current).total_seconds()) < 600 and time_open > current)
-        expired = time.time() > (status['prev_trigger'] + rule.period)
+        expired = time.time() > (status['prev_trigger'] + rule.duty_pos)
 
         try:
             if not expired:
-                if exetime == 0:  # timer set to not set
+                if duty_neg == 0:  # timer set to not set
                     if status['status'] == 'RED':
                         DAN.push(actuator_df, 0)
                     status['status'] = 'GREEN'
@@ -271,7 +274,7 @@ class AG_SA():
                         if satisfied:
                             DAN.push(actuator_df, 1)
                             status['status'] = 'RED'
-                            status['prev_trigger'] = time.time() + rule.exetime
+                            status['prev_trigger'] = time.time() + rule.duty_neg
                         elif about2trigger:
                             status['status'] = 'YELLOW'
                         else:
@@ -280,7 +283,7 @@ class AG_SA():
                         if satisfied:
                             DAN.push(actuator_df, 1)
                             status['status'] = 'RED'
-                            status['prev_trigger'] = time.time() + rule.exetime
+                            status['prev_trigger'] = time.time() + rule.duty_neg
                         elif about2trigger:
                             status['status'] = 'YELLOW'
                         else:
@@ -337,7 +340,7 @@ class AG_SA():
                     action = "CLOSE"
                     satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close, avg)
 
-            expired = time.time() > (status.prev_trigger + rule.period)
+            expired = time.time() > (status.prev_trigger + rule.duty_pos)
             if not expired:
                 if status.status == "RED":
                     if action == "CLOSE":
@@ -352,7 +355,7 @@ class AG_SA():
                         if satisfied:
                             DAN.push(actuator_df, 1)
                             status.status = "RED"
-                            status.prev_triiger = time.time() + rule.exetime
+                            status.prev_triiger = time.time() + rule.duty_neg
                         else:
                             if next_action == "YELLOW":
                                 status.status = "YELLOW"
@@ -361,7 +364,7 @@ class AG_SA():
                         if satisfied:
                             DAN.push(actuator_df, 1)
                             status.status = "RED"
-                            status.prev_triiger = time.time() + rule.exetime
+                            status.prev_triiger = time.time() + rule.duty_neg
                         else:
                             if next_action != "YELLOW":
                                 status.status = "GREEN"

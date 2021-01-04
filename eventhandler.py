@@ -18,7 +18,7 @@ from werkzeug.utils import secure_filename
 from pony import orm
 
 
-from exceptions import NotAuthorizedError, NotFoundError
+from exceptions import NotAuthorizedError, NotFoundError, WrongSettingError
 from utils import running_sa, running_status
 from utils import make_logger
 from utils import create_proj_ag, delete_proj_ag
@@ -40,11 +40,9 @@ def requires_login(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if session.get("token"):
-            print("has token")
             return f(*args, **kwargs)
         else:
-            next_url = request.path
-            print("testing decorator", next_url)
+            # next_url = request.path
             # TODO: redirect to AAA to login
             session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
             session["user"] = "test"  # dummy account
@@ -97,76 +95,85 @@ def set_rules(sa_id):
     '''
     api_logger.info(f'Start setting new rules of SA NO. {sa_id}')
     invalid_list = list()
-    for rule_settings in request.json:
-        print(rule_settings)
-        invalid = False
-        # Sensor threshold setup < 0
-        if rule_settings["mode"] == "Sensor":
-            if rule_settings["openSensor"] != "notset" and float(rule_settings["threshold_open"]) < 0.0:
-                invalid = True
-            elif rule_settings["comparison_close"] != "notset" and float(rule_settings["threshold_close"]) < 0.0:
-                invalid = True
+    try:
+        for rule_setting in request.json:
+            invalid = False
+            # Sensor threshold setup < 0
+            if rule_setting["mode"] == "Sensor":
+                if rule_setting["comparison_open"] != "notset" and float(rule_setting["threshold_open"]) < 0.0:
+                    invalid = True
+                elif rule_setting["comparison_close"] != "notset" and float(rule_setting["threshold_close"]) < 0.0:
+                    invalid = True
+            # dutyPos > 0 but no dutyNeg
+            if int(rule_setting["duty_pos"]) > 0:
+                if rule_setting["duty_neg"] is None or int(rule_setting["duty_neg"]) <= 0:
+                    invalid = True
+            if invalid:
+                invalid_list.append(rule_setting["actuator_alias"])
 
-        # dutyPos > 0 but no dutyNeg
-        if int(rule_settings["dutyPos"]) > 0:
-            if rule_settings["dutyNeg"] is None or int(rule_settings["dutyNeg"]) <= 0:
-                invalid = True
+        if len(invalid_list):
+            raise WrongSettingError
 
-        if invalid:
-            invalid_list.append(rule_settings["actuator_alias"])
+        api_logger.info('\tStart setting rules')
+        sa = CB_SA[sa_id]
+        for rule_setting in request.json:
+            actuator = rule_setting["actuator_alias"]
+            rule_setting["weekday"] = ",".join([str(weekday) for weekday in rule_setting["weekday"]])
+            if rule_setting["time_open"] is not None:
+                time_open = datetime.time(
+                    hour=rule_setting["time_open"][0],
+                    minute=rule_setting["time_open"][1],
+                    second=rule_setting["time_open"][2]
+                )
+                rule_setting["time_open"] = time_open
 
-    if invalid_list:
-        invalid_actuators = str()
-        for actuator_alias in invalid_list:
-            invalid_actuators += (actuator_alias + ' ')
-        api_logger.info(f'Invalid new rules of SA NO. {sa_id} detected, abort all.')
-        return f'Abnormal threshold setting of {invalid_actuators} detected, aborting all', 400
+            if rule_setting["time_close"] is not None:
+                time_close = datetime.time(
+                    hour=rule_setting["time_close"][0],
+                    minute=rule_setting["time_close"][1],
+                    second=rule_setting["time_close"][2]
+                )
+                rule_setting["time_close"] = time_close
 
-    api_logger.info('\tStart setting rules')
-    sa = CB_SA[sa_id]
-    for rule_settings in request.json:
-        actuator_alias = rule_settings['actuator']
-        if rule_settings['rule_type'] == 'timer':
-            time_open = datetime.datetime.strptime(rule_settings['time_open'], '%H:%M:%S').time()
-            time_close = datetime.datetime.strptime(rule_settings['time_close'], '%H:%M:%S').time()
+            rule = UserRule.get(sa=sa, actuator_alias=actuator)
+            rule.set(**rule_setting)
 
-            rule_settings['time_open'] = time_open
-            rule_settings['time_close'] = time_close
+        if sa_id in running_sa:
+            status = deregister_ag(running_sa[sa_id], api_logger)
+            if not status:
+                api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
+                return "Internal Server Error", 500
 
-        try:
-            rule = UserRule.get(sa=sa, actuator_alias=actuator_alias)
-            rule.set(**rule_settings)
-        except orm.RowNotFound:
-            UserRule(
-                **default_rules,
-                actuator_alias=actuator_alias,
-                sa=sa
-            )
-        except orm.MultipleRowsFound:
-            api_logger.exception("Error creating new rule, Multiple Rules for the same mapping found")
-            return "Internal Server Error", 502
+        status, ag_token = register_ag(sa, api_logger)
+        if not status:
+            api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
+            return "Internal Server Error", 500
+        sa.ag_token = ag_token
+        running_sa[sa.sa_id] = sa
 
-    if sa_id in running_sa:
-        status = deregister_ag(running_sa[sa_id], api_logger)
+        do_id = [int(id) for id in sa.do_id.split(',')]
+        status = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
+
         if not status:
             api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
             return "Internal Server Error", 502
 
-    status, ag_token = register_ag(sa, api_logger)
-    if not status:
-        api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
-        return "Internal Server Error", 502
-    sa.ag_token = ag_token
-    running_sa[sa.sa_id] = sa
-
-    do_id = [int(id) for id in sa.do_id.split(',')]
-    status = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
-
-    if not status:
-        api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
-        return "Internal Server Error", 502
-
-    return 'Configuration Saved', 200
+        return 'Configuration Saved', 200
+    except WrongSettingError:
+        invalid_actuators = str()
+        for actuator in invalid_list:
+            invalid_actuators += (actuator + ' ')
+        api_logger.exception(f"Invalid new rules of SA NO. {sa_id} detected, abort all")
+        abort(400, f"Abnormal threshold setting of {invalid_actuators} detected, aborting all")
+    except orm.RowNotFound:
+        api_logger.exception("Specified rule not found")
+        abort(400)
+    except orm.MultipleRowsFound:
+        api_logger.exception("Multiple Rule found for the same actuator")
+        abort(500)
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)
 
 
 @apis.route('/sa/<int:sa_id>/stop', methods=['GET'])
@@ -490,7 +497,7 @@ def create_sa():
 @apis.route('/subsystem/delete_sa', methods=['POST'])
 @requires_login
 @orm.db_session
-def delete_sa():
+def delete_sa(sa_id=None):
     '''
     Delete SA with specified sa_id.
 
@@ -498,24 +505,24 @@ def delete_sa():
         sa_id: ID of the requester SA.
 
     Returns:
-        Status code: 200.
+        Status code: 200 / 400 / 500
         message: 'SA deleted successfully'.
     '''
     try:
-        sa_id = int(request.get_data().decode("utf-8"))
+        if None is sa_id:
+            sa_id = int(request.get_data().decode("utf-8"))
         sa = CB_SA[sa_id]
         if sa.ag_token != "NotCreated":
             status = deregister_ag(sa, api_logger)
             if not status:
                 api_logger.exception("Error delete SA, Deregister SA failed, check api log file")
-                return "Delete SA failed, check api log files", 502
-        sa.delete()
+                return "Delete SA failed, check api log files", 500
         status, message = delete_proj_ag(sa.p_id, api_logger)
         if not status:
             api_logger.exception("Error delete SA, Delete project failed, check api log file")
             api_logger.exception(f"Error msg from AG: {message}")
-            return "Delete SA failed, check api log files", 502
-
+            return "Delete SA failed, check api log files", 500
+        sa.delete()
         api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
         return "Delete SA succeed", 200
     except KeyError:
@@ -727,6 +734,8 @@ def delete_cb():
             raise NotAuthorizedError
         if CB[cb_id].icon != env_config["env"]["default_icon"]:
             os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), CB[cb_id].icon))
+        for sa in CB[cb_id].sa_set:
+            delete_sa(sa.sa_id)
 
         CB[cb_id].delete()  # By applying cascade deleting.
         return "Specified ControlBoard and subsequent Fields deleted."
