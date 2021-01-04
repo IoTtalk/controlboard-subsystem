@@ -82,6 +82,7 @@ class AG_SA():
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
+        print(f"tcp://{{config['host_zmq']}}:{{config['port_zmq']}}")
         self.socket.connect(f"tcp://{{config['host_zmq']}}:{{config['port_zmq']}}")
         self.socket.send(b"hello world")
 
@@ -184,7 +185,7 @@ class AG_SA():
             True: Recover succeeded.
             False: Recover failed.
         '''
-        # Pulling Alias
+        DAN.state = "RESUME"
         self.status = dict()
         self.rules = dict()
         print("print sa's rules")
@@ -222,12 +223,13 @@ class AG_SA():
                     DAN.push(actuator_df, 0)
             # auto mode
             else:
-                weekdays = rule["weekday"].split(",")
+                weekdays = rule["weekday"].split(",") if len(rule["weekday"]) else list()
                 if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
                     if rule["mode"] == "Sensor":
                         self.sensor_checker(df_order)
                     else:
                         self.timer_checker(df_order)
+            print(status)
             self.socket.send_json(status)
 
         return
@@ -309,74 +311,82 @@ class AG_SA():
             None
         """
         sensor_df = "Threshold-O" + str(df_order)
+        rule = self.rules[df_order]
         data = DAN.pull(sensor_df)
         if data is None:
+            print("No sensor data pulled")
             return
+        candidate_sensors = rule["sensor_alias"].split(",")
+        if len(candidate_sensors) == 1:
+            data = data[0]
+        else:
+            data = data[0][self.rules[df_order]["sensor_index"]]
         print("Data received:", data)
-        data = data[self.rules[df_order]["sensor_index"]]
-        rule = self.rules[df_order]
-        status = self.status[df_order]
-        status.value = data
-        self.df_hist_val[rule.sensor_alias].append(data)
+        sensor_alias = rule["sensor_alias"].split(",")[rule["sensor_index"]]
+        status = self.status[rule["rule_id"]]
+        status["value"] = data
+        if sensor_alias not in self.df_hist_val:
+            self.df_hist_val[sensor_alias] = list()
+        self.df_hist_val[sensor_alias].append(data)
         actuator_df = "Trigger-I" + str(df_order)
 
         try:
-            avg = sum(self.df_hist_val[rule.sensor_alias]) / len(self.df_hist_val[rule.sensor_alias])
-            if "notset" in rule.comparison_open and "notset" in rule.comparison_close:
-                if status.status == "RED":
+            avg = sum(self.df_hist_val[sensor_alias]) / len(self.df_hist_val[sensor_alias])
+            if "notset" in rule["comparison_open"] and "notset" in rule["comparison_close"]:
+                if status["status"] == "RED":
                     DAN.push(actuator_df, 0)
-                status.status = "GREEN"
+                status["status"] = "GREEN"
                 return
-            elif "notset" in rule.comparison_open:
+            elif "notset" in rule["comparison_open"]:
                 action = "CLOSE"
-                satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close, avg)
-            elif "notset" in rule.comparison_close:
+                satisfied, next_action = self.condition_handler[rule["comparison_close"]](data, rule["threshold_close"], avg)
+            elif "notset" in rule["comparison_close"]:
                 action = "OPEN"
-                satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open, avg)
+                satisfied, next_action = self.condition_handler[rule["comparison_open"]](data, rule["threshold_open"], avg)
             else:
-                satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open, avg)
+                satisfied, next_action = self.condition_handler[rule["comparison_open"]](data, rule["threshold_open"], avg)
                 action = "OPEN"
                 if not satisfied:
                     action = "CLOSE"
-                    satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close, avg)
+                    satisfied, next_action = self.condition_handler[rule["comparison_close"]](data, rule["threshold_close"], avg)
 
-            expired = time.time() > (status.prev_trigger + rule.duty_pos)
+            expired = time.time() > (status["prev_trigger"] + rule["duty_pos"])
             if not expired:
-                if status.status == "RED":
+                if status["status"] == "RED":
                     if action == "CLOSE":
                         if satisfied:
                             DAN.push(actuator_df, 0)
                             if next_action == "YELLOW":
-                                status.status = "YELLOW"
+                                status["status"] = "YELLOW"
                             else:
-                                status.status = "GREEN"
-                elif status.status == "GREEN":
+                                status["status"] = "GREEN"
+                elif status["status"] == "GREEN":
                     if action == "OPEN":
                         if satisfied:
                             DAN.push(actuator_df, 1)
-                            status.status = "RED"
-                            status.prev_triiger = time.time() + rule.duty_neg
+                            status["status"] = "RED"
+                            status["prev_triiger"] = time.time() + rule["duty_neg"]
                         else:
                             if next_action == "YELLOW":
-                                status.status = "YELLOW"
+                                status["status"] = "YELLOW"
                 else:
                     if action == "OPEN":
                         if satisfied:
                             DAN.push(actuator_df, 1)
-                            status.status = "RED"
-                            status.prev_triiger = time.time() + rule.duty_neg
+                            status["status"] = "RED"
+                            status["prev_triiger"] = time.time() + rule["duty_neg"]
                         else:
                             if next_action != "YELLOW":
-                                status.status = "GREEN"
+                                status["status"] = "GREEN"
                     else:
                         if next_action != "YELLOW":
-                            status.status = "GREEN"
+                            status["status"] = "GREEN"
             else:
-                if status.status == "RED":
+                if status["status"] == "RED":
                     DAN.push(actuator_df, 0)
-                    status.status = "GREEN"
+                    status["status"] = "GREEN"
                 else:
-                    status.status = "GREEN"
+                    status["status"] = "GREEN"
             return
         except Exception as err:
             print(err)
@@ -495,4 +505,4 @@ sa.recover()
 while True:
     print('start checking rules')
     sa.check_rules()
-    time.sleep(5)
+    time.sleep(10)

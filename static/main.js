@@ -276,7 +276,7 @@ var app = new Vue({
       this.settings.forEach( setting => {
         setting["time"] = status[setting.ruleID]["time"];
         setting["prevTrigger"] = status[setting.ruleID]["prev_trigger"];
-        setting["value"] = status[setting.ruleID]["value"];
+        setting["value"] = status[setting.ruleID]["value"].toFixed(2);
         setting["status"] = status[setting.ruleID]["status"] === "RED"? true: false;
       });
       return;

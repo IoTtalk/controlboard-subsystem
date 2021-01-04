@@ -265,6 +265,8 @@ def get_rules(sa_id):
             content["closeTimer"] = [int(data) for data in rule.time_close.strftime('%H:%M:%S').split(":")]
             content["openSensor"] = rule.comparison_open
             content["closeSensor"] = rule.comparison_close
+            content["openSensorVal"] = rule.threshold_open
+            content["closeSensorVal"] = rule.threshold_close
             content["dutyPos"] = rule.duty_pos
             content["dutyNeg"] = rule.duty_neg
             if len(rule.weekday):
