@@ -74,7 +74,8 @@ def render_index():
         abort(500)
 
 
-@apis.route('/sa/<sa_id>/new_rules', methods=['POST'])
+@apis.route('/sa/<int:sa_id>/new_rules', methods=['POST'])
+@requires_login
 @orm.db_session
 def set_rules(sa_id):
     '''
@@ -100,15 +101,15 @@ def set_rules(sa_id):
         print(rule_settings)
         invalid = False
         # Sensor threshold setup < 0
-        if rule_settings["rule_type"] == "sensor":
-            if rule_settings["comparison_open"] != "notset" and float(rule_settings["threshold_open"]) < 0.0:
+        if rule_settings["mode"] == "Sensor":
+            if rule_settings["openSensor"] != "notset" and float(rule_settings["threshold_open"]) < 0.0:
                 invalid = True
             elif rule_settings["comparison_close"] != "notset" and float(rule_settings["threshold_close"]) < 0.0:
                 invalid = True
 
-        # Period > 0 but no exetime
-        if int(rule_settings["period"]) > 0:
-            if rule_settings["exetime"] is None or int(rule_settings["exetime"]) <= 0:
+        # dutyPos > 0 but no dutyNeg
+        if int(rule_settings["dutyPos"]) > 0:
+            if rule_settings["dutyNeg"] is None or int(rule_settings["dutyNeg"]) <= 0:
                 invalid = True
 
         if invalid:
@@ -119,12 +120,12 @@ def set_rules(sa_id):
         for actuator_alias in invalid_list:
             invalid_actuators += (actuator_alias + ' ')
         api_logger.info(f'Invalid new rules of SA NO. {sa_id} detected, abort all.')
-        return f'Abnormal threshold setting of {invalid_actuators}detected, aborting all', 400
+        return f'Abnormal threshold setting of {invalid_actuators} detected, aborting all', 400
 
     api_logger.info('\tStart setting rules')
     sa = CB_SA[sa_id]
     for rule_settings in request.json:
-        actuator_alias = rule_settings['actuator_alias']
+        actuator_alias = rule_settings['actuator']
         if rule_settings['rule_type'] == 'timer':
             time_open = datetime.datetime.strptime(rule_settings['time_open'], '%H:%M:%S').time()
             time_close = datetime.datetime.strptime(rule_settings['time_close'], '%H:%M:%S').time()

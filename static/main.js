@@ -370,7 +370,7 @@ var app = new Vue({
             console.log(res);
             window.clearInterval(this.statusTrackWorker);
             this.refreshSAWorker();
-            this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+            // this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
           })
           .catch( (err) => {
             alert(err);
@@ -398,8 +398,21 @@ var app = new Vue({
     onSAReset: function() {
 
     },
-    onSAConfirm: function(ruleIDs) {
-      console.log(ruleIDs);
+    onSettingSaveChange: function(ruleIdx) {
+      console.log(ruleIdx);
+      toChange = [];
+      ruleIdx.forEach( idx => {
+        toChange.push(this.settings[idx]);
+      });
+      console.log(toChange);
+
+      axios.post("/sa/" + this.currentField.toString() + "/new_rules", toChange)
+        .then( (msg) => {
+
+        })
+        .catch( (err) => {
+          console.log(err);
+        })
     },
     onRefreshSA: function() {
       axios
@@ -413,20 +426,11 @@ var app = new Vue({
         })
         return;
     },
-    onUndoChangeSetting: function(ruleID) {
-      console.log("test");
-      var index = -1;
-      for (var i = 0; i < this.settings.length; i++) {
-        if (this.settings[i].ruleID === ruleID) {
-          index = i;
-          break;
-        }
-      }
-      if (i !== -1) {
-        this.$set(this.settings, i, JSON.parse(JSON.stringify(this.backupSettings[i])));
-        this.settings[i]["dirty"] = false;
-      }
-      console.log(this.settings[i]);
+    onSettingUndoChange: function(settingIndex) {
+      this.$set(this.settings, settingIndex, 
+        JSON.parse(JSON.stringify(this.backupSettings[settingIndex])));
+      this.settings[settingIndex]["dirty"] = false;
+      console.log(this.settings[settingIndex]);
       return;
     },
 

@@ -166,7 +166,8 @@
                 v-bind:dirty="setting.dirty"
                 v-bind:sensors="setting.sensors.length"
                 v-on:update-mode="onSelectMode($event, index)"
-                v-on:undo="onUndoChangeSetting(setting.ruleID)"
+                v-on:undo="onSettingUndoChange(index)"
+                v-on:save="onSettingSaveChange([index])"
               ></actuator-row>
 
               <!-- Trigger Area -->
