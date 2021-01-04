@@ -26,7 +26,7 @@ from utils import create_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag, get_na_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB
-from config import default_rules
+from config import default_rules, default_status
 from config import env_config
 from config import icon_extensions
 from config import use_v1
@@ -426,13 +426,15 @@ def refresh_sa(sa_id):
             sa.delete()
             abort(400, "Create SA failed at auto binding, check api log files")
         running_sa[sa.sa_id] = sa
+        for rule in sa.rule_set:
+            running_status[rule.rule_id] = default_status
 
         api_logger.info(f"Create New SA, DM Name: {dm_name}")
         return f"Create New SA, DM Name: {dm_name}", 200
     except NotFoundError:
         api_logger.exception("No NAs found, remind user to create NAs")
         sa = CB_SA[sa_id]
-        return abort(400, f"No NAs detected, please create Join point in Project {str(sa_id) + '-' + sa.sa_name}")
+        return abort(400, f"No detected, please create Join point in Project {str(sa_id) + '-' + sa.sa_name}")
     except Exception as err:
         api_logger.exception(err)
         return abort(502, "Internal Server Error")
@@ -724,8 +726,9 @@ def delete_cb():
             raise NotAuthorizedError
         if CB[cb_id].icon != env_config["env"]["default_icon"]:
             os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), CB[cb_id].icon))
+
         CB[cb_id].delete()  # By applying cascade deleting.
-        return "Specified ControlBoard deleted."
+        return "Specified ControlBoard and subsequent Fields deleted."
     except NotAuthorizedError:
         api_logger.exception("Error Deleting ControlBoard, User is not a superuser.")
         abort(403, "Not a superuser!")

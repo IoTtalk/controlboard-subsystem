@@ -18,6 +18,14 @@ default_rules = {
 }
 
 
+default_status = {
+    "prevTrigger": -10000,
+    "status": False,
+    "time": "00:00",
+    "value": 0
+}
+
+
 config_path = str(sys.argv[1])
 env_config = configparser.ConfigParser()
 env_config.read(config_path)

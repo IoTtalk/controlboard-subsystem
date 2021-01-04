@@ -11,7 +11,7 @@ from pony import orm
 import models
 
 
-from config import env_config
+from config import env_config, default_status
 from eventhandler import apis
 from models import cb_db
 from utils import connect_db, connect_zmq, test_db
@@ -42,7 +42,7 @@ def recover_sa(running_sa, config, logger):
             sa.ag_token = ag_token
             running_sa[sa.sa_id] = sa
             for rule in sa.rule_set:
-                running_status[rule.rule_id] = dict()
+                running_status[rule.rule_id] = default_status
     logger.info('Start Recovering SAs in Database......done')
     print(running_sa)
     return
