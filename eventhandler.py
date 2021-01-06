@@ -45,7 +45,7 @@ def requires_login(f):
             # next_url = request.path
             # TODO: redirect to AAA to login
             session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
-            session["user"] = "test"  # dummy account
+            session["user"] = "yb"  # dummy account
             return redirect("/")
     return decorated_function
 
@@ -65,8 +65,14 @@ def render_index():
         Status code: 200 / 500.
     '''
     try:
+        print(session["user"])
         user = CB_Account.get(account=session["user"])
+        if None is user:
+            raise NotFoundError
         return render_template("main.html", userLevel=user.privilege), 200
+    except NotFoundError:
+        api_logger.exception("Account recorded in session does not exist")
+        abort(500)
     except Exception as err:
         api_logger.exception(err)
         abort(500)

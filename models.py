@@ -56,4 +56,5 @@ class CB_SA(cb_db.Entity):
 class CB_Account(cb_db.Entity):
     account = Required(str)  # Account of this user.
     privilege = Required(int)  # User level of this user.
+    aaa_token = Optional(str)  # AAA token for this user.
     cb_set = Set(CB)  # CBs this user can see.

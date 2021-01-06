@@ -12,9 +12,9 @@
 
         <!-- Load Vue followed by BootstrapVue -->
         <!-- Develop version -->
-        <!-- <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script> -->
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
         <!-- Production version -->
-        <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script>
+        <!-- <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script> -->
         <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.js"></script>
 
         <!-- Load the following for BootstrapVueIcons support -->
@@ -249,16 +249,21 @@
 
                 <!-- Duty Cycle Area -->
                 <div class="duty-area">
-                  <div><b>Duty Cycle</b></div>
+                  <div class="d-flex justify-content-between">
+                    <span><b>Duty Cycle</b></span>
+                    <span><b><% onJudgeDutyCycle(setting) %></b></span>
+                  </div>
                   <div class="setting-sensor">
                     <span class="setting-text-start">ON</span>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"
                       v-model="setting.content.dutyPos"
+                      v-on:change="setting.dirty=true"
                     ></b-form-input>
                     <span class="setting-text-mid">Seconds.</span>
                     <span class="setting-text-start">OFF</span>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"
                       v-model="setting.content.dutyNeg"
+                      v-on:change="setting.dirty=true"
                       v-bind:disabled="setting.content.dutyPos===0"
                     ></b-form-input>
                     <span class="setting-text-mid">Seconds.</span>

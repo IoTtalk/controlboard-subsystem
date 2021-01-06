@@ -69,6 +69,7 @@ var app = new Vue({
     // Procedures to correctly render data:
     // get CBs -> get SAs -> get Rules -> get Status
     this.refreshCBWorker();
+    this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
     if (this.privilege) {
       console.log("get user");
       this.getAllUsers()
@@ -196,7 +197,7 @@ var app = new Vue({
           })
       })
     },
-    /* Refresh routine procedures, Start from CB, SA, Rule, Status */
+    /* Refresh routine procedures, including CB, SA, Rule, Status */
     refreshCBWorker: function() {
       this.getAvailableCBs()
         .then( (projects) => {
@@ -234,7 +235,6 @@ var app = new Vue({
     },
     refreshStatusWorker: function() {
       if (this.settings.length) {
-        window.clearInterval(this.statusTrackWorker);
         this.getRuleStatus(this.currentField)
           .then( (status) => {
             this.setupRuleStatus(status);
@@ -242,7 +242,6 @@ var app = new Vue({
           .catch( (err) => {
             console.log(err);
           });
-        this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       }
       return;
     },
@@ -293,15 +292,19 @@ var app = new Vue({
       return;
     },
     onSwitchField: function(fieldID) {
+      window.clearInterval(this.statusTrackWorker);
       this.currentField = fieldID;
       this.refreshRuleWorker();
+      this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       return;
     },
     onSelectProject: function(selected) {
+      window.clearInterval(this.statusTrackWorker);
       this.currentProject = selected;
       this.manageMode = false;
       this.managePage = false;
       this.refreshSAWorker()
+      this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       return;
     },
     /* CB(Project) related procedures 
@@ -424,8 +427,10 @@ var app = new Vue({
 
       axios.post("/sa/" + this.currentField.toString() + "/new_rules", toChange)
         .then( (msg) => {
+          window.clearInterval(this.statusTrackWorker);
           console.log(msg);
           this.refreshRuleWorker();
+          this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
         })
         .catch( (err) => {
           console.log(err);
@@ -435,8 +440,10 @@ var app = new Vue({
       axios
         .get("/subsystem/refresh_sa/" + this.currentField.toString())
         .then( (res)=> {
+          window.clearInterval(this.statusTrackWorker);
           console.log(res);
           this.refreshRuleWorker();
+          this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
         })
         .catch( (err) => {
           console.log(err);
@@ -452,7 +459,7 @@ var app = new Vue({
     },
 
     /* Rule related procedures 
-    *  including selecting mode / which sensor to use /  comparison method / Timing
+    *  including selecting mode / which sensor to use /  comparison method / Timing / Calculate Duty Cycle Stage.
     */
     onSelectSensor: function(selected, ruleID) {
       console.log(selected, ruleID);
@@ -540,6 +547,16 @@ var app = new Vue({
       }
       this.$set(this.settings[settingIndex].content, "weekdays", tempArr);
       return;
+    },
+    onJudgeDutyCycle: function(setting) {
+      if (setting.prevTrigger === -10000) {
+        return "";
+      }
+      if (setting.status) {
+        return "POS";
+      } else {
+        return "NEG";
+      }
     },
     /* Managing page related procedures 
     *  including user privilege / CB Icon / Accessible CB(Project)
