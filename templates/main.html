@@ -369,7 +369,7 @@
         <!-- Confirm/Reset all buttons -->
         <b-container fluid class="fixed-bottom mb-1" v-if="!manageMode">
           <b-row class="text-center">
-            <b-col><b-button size="lg" variant="primary" v-on:click="">Confirm</b-button></b-col>
+            <b-col><b-button size="lg" variant="primary" v-on:click="onSAConfirm">Confirm</b-button></b-col>
             <b-col><b-button size="lg" variant="secondary" v-on:click="onSAReset">Reset All</b-button></b-col>
           </b-row>
         </b-container>
