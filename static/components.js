@@ -18,9 +18,17 @@ Vue.component('custom-sel', {
 Vue.component('sensor-row', {
     props: ['sensors', 'value', 'status', 'mode', 'selected'],
     methods: {
-        onSelectSensor: function (sensor) {
+        onSelectSensor: function(sensor) {
             var selected = this.sensors.indexOf(sensor);
             this.$emit("update-sensor", selected);
+            return;
+        },
+        onShow: function(bvEvent) {
+            if (this.mode !== "Sensor") {
+                bvEvent.preventDefault();
+            } else if (this.sensors.length <= 1) {
+                bvEvent.preventDefault();
+            }
             return;
         }
     },
@@ -41,6 +49,7 @@ Vue.component('sensor-row', {
                 <b-dropdown v-if="mode=='Sensor'" v-bind:text="sensors[selected]" 
                     v-bind:variant="status?'danger':'success'"
                     v-bind:class="sensors[1]? '': 'one-item-dropdown'"
+                    v-on:show="onShow"
                 >
                     <b-dropdown-item 
                         v-if="sensors.length > 1"
@@ -49,13 +58,13 @@ Vue.component('sensor-row', {
                     >{{sensor}}</b-dropdown-item>
                 </b-dropdown>
                 <b-dropdown class="one-item-dropdown"
-                    v-if="mode==='Timer'" text='Timer' v-bind:variant="status?'danger':'success'"
+                    v-if="mode==='Timer'" text='Timer' v-bind:variant="status?'danger':'success'" v-on:show="onShow"
                 ></b-dropdown>
                 <b-dropdown class="one-item-dropdown"
-                    v-if="mode==='ON'" text='Manually Opened' v-bind:variant="status?'danger':'success'"
+                    v-if="mode==='ON'" text='Manually Opened' v-bind:variant="status?'danger':'success'" v-on:show="onShow"
                 ></b-dropdown>
                 <b-dropdown class="one-item-dropdown"
-                    v-if="mode==='OFF'" text='Manually Closed' v-bind:variant="status?'danger':'success'"
+                    v-if="mode==='OFF'" text='Manually Closed' v-bind:variant="status?'danger':'success'" v-on:show="onShow"
                 ></b-dropdown>
             </b-col>
             <span><b>{{value}}</b></span>
@@ -142,6 +151,12 @@ Vue.component('select-projects', {
             this.$emit("select-project", projectIndex);
             return;
         },
+        onShow: function(bvEvent) {
+            if (this.projects.length <= 1) {
+                bvEvent.preventDefault();
+            }
+            return;
+        }
         
     },
     computed: {
@@ -170,7 +185,7 @@ Vue.component('select-projects', {
     template: `
         <div>
             <b-navbar-nav>
-                <b-nav-item-dropdown v-on:toggle="$emit('pressed')">
+                <b-nav-item-dropdown v-on:toggle="$emit('pressed')" v-on:show="onShow">
                     <template v-slot:button-content v-if="projects.length!==0">
                         <b-img v-bind:src="selectedProject.icon"></b-img>
                         {{selectedProject.text}}
