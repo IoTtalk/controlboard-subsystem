@@ -404,8 +404,26 @@ var app = new Vue({
           })
       }
     },
+    onSAConfirm: function() {
+      ruleIDs = [];
+      this.settings.forEach((setting, index) => {
+        if (setting["dirty"]) {
+          ruleIDs.push(index);
+        }
+      });
+      console.log(ruleIDs);
+      this.onSettingSaveChange(ruleIDs);
+      return;
+    },
     onSAReset: function() {
-
+      ruleIDs = [];
+      this.settings.forEach((setting, index) => {
+        ruleIDs.push(index);
+        setting["mode"] = "OFF";
+      });
+      console.log(ruleIDs);
+      this.onSettingSaveChange(ruleIDs);
+      return;
     },
     onSettingSaveChange: function(ruleIdx) {
       console.log(ruleIdx);
@@ -440,6 +458,7 @@ var app = new Vue({
         .catch( (err) => {
           console.log(err);
         })
+      return;
     },
     onRefreshSA: function() {
       window.clearInterval(this.statusTrackWorker);

@@ -217,11 +217,9 @@ class AG_SA():
             status = self.status[rule["rule_id"]]
             actuator_df = "Trigger-I" + str(df_order)
             if rule["mode"] == "ON":
-                print(1)
                 if status["status"] != "RED":
                     DAN.push(actuator_df, 1)
             elif rule["mode"] == "OFF":
-                print(2)
                 if status["status"] == "RED":
                     DAN.push(actuator_df, 0)
             # auto mode
@@ -230,10 +228,8 @@ class AG_SA():
                     if len(rule["weekday"]) else list()
                 if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
                     if rule["mode"] == "Sensor":
-                        print(3)
                         self.sensor_checker(df_order)
                     else:
-                        print(4)
                         self.timer_checker(df_order)
                 else:
                     if status["status"] == "RED":
@@ -339,7 +335,6 @@ class AG_SA():
                 if status["status"] == "RED":
                     DAN.push(actuator_df, 0)
                 status["status"] = "GREEN"
-                print(1)
                 return
             elif "notset" in rule["comparison_open"]:
                 action = "CLOSE"
@@ -357,7 +352,6 @@ class AG_SA():
             duty = (rule["duty_pos"] != 0) and ((current < (status["prev_trigger"] + rule["duty_pos"])) or (current > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"])))  # Pos -> True, Neg -> False
             if status["prev_trigger"] == -10000:
                 duty = True
-            print(satisfied, next_action, duty)
             if duty:
                 if status["status"] == "RED":
                     if action == "CLOSE":
@@ -392,7 +386,6 @@ class AG_SA():
                 if status["status"] == "RED":
                     DAN.push(actuator_df, 0)
                 status["status"] = "GREEN"
-            print(status)
             return
         except Exception as err:
             print(err)
