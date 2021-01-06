@@ -276,7 +276,7 @@ def get_rules(sa_id):
             content["dutyPos"] = rule.duty_pos
             content["dutyNeg"] = rule.duty_neg
             if len(rule.weekday):
-                content["weekdays"] = rule.weekday.spilt(",")
+                content["weekdays"] = rule.weekday.split(",")
             else:
                 content["weekdays"] = list()
 
@@ -364,8 +364,6 @@ def refresh_sa(sa_id):
         print(NAs)
         if not len(NAs):
             raise NotFoundError
-        if len(sa.rule_set):
-            sa.rule_set.clear()
         # Create UserRules for each NA
         src, dst = dict(), dict()
         for na in NAs:
@@ -393,31 +391,56 @@ def refresh_sa(sa_id):
             else:
                 src[order] = idfs
         for order, actuator in dst.items():
+            old_rule = UserRule.get(df_order=order)
+            has_record = False
+            if None is not old_rule:
+                if old_rule.actuator_alias == actuator[0][1]:
+                    has_record = True
+                else:
+                    old_rule.delete()
+
             if order not in src:
-                sa.rule_set.add(
-                    UserRule(
-                        **default_rules,
+                if has_record:
+                    old_rule.set(
                         actuator_alias=actuator[0][1],
                         actuator_df=actuator[0][0],
-                        mode="Timer",
                         df_order=order,
-                        sa=sa
+                        mode="Timer",
                     )
-                )
+                else:
+                    sa.rule_set.add(
+                        UserRule(
+                            **default_rules,
+                            actuator_alias=actuator[0][1],
+                            actuator_df=actuator[0][0],
+                            df_order=order,
+                            mode="Timer",
+                            sa=sa
+                        )
+                    )
             else:
-                print(src[order])
-                sa.rule_set.add(
-                    UserRule(
-                        **default_rules,
+                if has_record:
+                    old_rule.set(
                         actuator_alias=actuator[0][1],
                         actuator_df=actuator[0][0],
                         sensor_alias=",".join([row[1] for row in src[order]]),
                         sensor_df=",".join([row[0] for row in src[order]]),
                         df_order=order,
                         mode="Sensor",
-                        sa=sa
                     )
-                )
+                else:
+                    sa.rule_set.add(
+                        UserRule(
+                            **default_rules,
+                            actuator_alias=actuator[0][1],
+                            actuator_df=actuator[0][0],
+                            sensor_alias=",".join([row[1] for row in src[order]]),
+                            sensor_df=",".join([row[0] for row in src[order]]),
+                            df_order=order,
+                            mode="Sensor",
+                            sa=sa
+                        )
+                    )
         cb_db.commit()
 
         if sa.ag_token != "NotCreated":

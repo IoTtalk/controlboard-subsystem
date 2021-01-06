@@ -185,7 +185,6 @@ class AG_SA():
             True: Recover succeeded.
             False: Recover failed.
         '''
-        DAN.state = "RESUME"
         self.status = dict()
         self.rules = dict()
         print("print sa's rules")
@@ -198,6 +197,7 @@ class AG_SA():
             }}
             self.rules[rule.df_order] = rule.to_dict()
             DAN.push("Trigger-I" + str(rule.df_order), 0)
+        DAN.state = "RESUME"
         print("recovered rules:", self.rules)
         print("status recorder: ", self.status)
         return
@@ -217,19 +217,28 @@ class AG_SA():
             status = self.status[rule["rule_id"]]
             actuator_df = "Trigger-I" + str(df_order)
             if rule["mode"] == "ON":
+                print(1)
                 if status["status"] != "RED":
                     DAN.push(actuator_df, 1)
             elif rule["mode"] == "OFF":
+                print(2)
                 if status["status"] == "RED":
                     DAN.push(actuator_df, 0)
             # auto mode
             else:
-                weekdays = rule["weekday"].split(",") if len(rule["weekday"]) else list()
+                weekdays = [int(x) for x in rule["weekday"].split(",")] \
+                    if len(rule["weekday"]) else list()
                 if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
                     if rule["mode"] == "Sensor":
+                        print(3)
                         self.sensor_checker(df_order)
                     else:
+                        print(4)
                         self.timer_checker(df_order)
+                else:
+                    if status["status"] == "RED":
+                        status["status"] = "GREEN"
+                        DAN.push(actuator_df, 0)
             self.socket.send_json(status)
 
         return
@@ -244,58 +253,53 @@ class AG_SA():
         Returns:
             None
         """
-        rule = self.cb_db.UserRule[rule_id]
-        status = self.status[rule.sensor_alias]
+        rule = self.rules[df_order]
+        status = self.status[rule["rule_id"]]
+
         current = datetime.datetime.now()
-        actuator_df = 'Trigger' + '-I' + str(mapping[1])
-        time_open = datetime.datetime.combine(datetime.date.today(), rule.time_open)
-        time_close = datetime.datetime.combine(datetime.date.today(), rule.time_close)
-        duty_neg = rule.duty_neg
+        current_epoch = time.time()
+        actuator_df = "Trigger-I" + str(df_order)
+        time_open = datetime.datetime.combine(datetime.date.today(), rule["time_open"])
+        time_close = datetime.datetime.combine(datetime.date.today(), rule["time_close"])
 
         if time_open > time_close:
             time_close = time_close + datetime.timedelta(days=1)
 
         satisfied = (current > time_open and current < time_close)
         about2trigger = (abs((time_open - current).total_seconds()) < 600 and time_open > current)
-        expired = time.time() > (status['prev_trigger'] + rule.duty_pos)
+        duty = current_epoch < (status["prev_trigger"] + rule["duty_pos"]) \
+            or current_epoch > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"])  # Pos -> True, Neg -> False
 
         try:
-            if not expired:
-                if duty_neg == 0:  # timer set to not set
-                    if status['status'] == 'RED':
+            if duty:
+                if status["status"] == "RED":
+                    if satisfied:
+                        pass
+                    else:
                         DAN.push(actuator_df, 0)
-                    status['status'] = 'GREEN'
-                else:
-                    if status['status'] == 'RED':
-                        if satisfied:
-                            pass
-                        else:
-                            DAN.push(actuator_df, 0)
-                            status['status'] = 'GREEN'
-                    elif status['status'] == 'YELLOW':
-                        if satisfied:
-                            DAN.push(actuator_df, 1)
-                            status['status'] = 'RED'
-                            status['prev_trigger'] = time.time() + rule.duty_neg
-                        elif about2trigger:
-                            status['status'] = 'YELLOW'
-                        else:
-                            status['status'] = 'GREEN'
-                    elif status['status'] == 'GREEN':
-                        if satisfied:
-                            DAN.push(actuator_df, 1)
-                            status['status'] = 'RED'
-                            status['prev_trigger'] = time.time() + rule.duty_neg
-                        elif about2trigger:
-                            status['status'] = 'YELLOW'
-                        else:
-                            status['status'] = 'GREEN'
+                        status["status"] = "GREEN"
+                elif status["status"] == "YELLOW":
+                    if satisfied:
+                        DAN.push(actuator_df, 1)
+                        status["status"] = "RED"
+                        status["prev_trigger"] = current_epoch
+                    elif about2trigger:
+                        status["status"] = "YELLOW"
+                    else:
+                        status["status"] = "GREEN"
+                elif status["status"] == "GREEN":
+                    if satisfied:
+                        DAN.push(actuator_df, 1)
+                        status["status"] = "RED"
+                        status["prev_trigger"] = current_epoch
+                    elif about2trigger:
+                        status["status"] = "YELLOW"
+                    else:
+                        status["status"] = "GREEN"
             else:
-                if status['status'] == 'RED':
+                if status["status"] == "RED":
                     DAN.push(actuator_df, 0)
-                    status['status'] = 'GREEN'
-                else:
-                    status['status'] = 'GREEN'
+                status["status"] = "GREEN"
         except Exception as err:
             print(err)
         return
@@ -349,11 +353,12 @@ class AG_SA():
                 if not satisfied:
                     action = "CLOSE"
                     satisfied, next_action = self.condition_handler[rule["comparison_close"]](data, rule["threshold_close"], avg)
-
-            expired = (rule["duty_pos"] != 0) and (status["prev_trigger"] != -10000) \
-                and (time.time() < (status["prev_trigger"] + rule["duty_pos"]))
-            print(satisfied, next_action, expired)
-            if not expired:
+            current = time.time()
+            duty = (rule["duty_pos"] != 0) and ((current < (status["prev_trigger"] + rule["duty_pos"])) or (current > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"])))  # Pos -> True, Neg -> False
+            if status["prev_trigger"] == -10000:
+                duty = True
+            print(satisfied, next_action, duty)
+            if duty:
                 if status["status"] == "RED":
                     if action == "CLOSE":
                         if satisfied:
@@ -367,7 +372,7 @@ class AG_SA():
                         if satisfied:
                             DAN.push(actuator_df, 1)
                             status["status"] = "RED"
-                            status["prev_trigger"] = time.time() + rule["duty_neg"]
+                            status["prev_trigger"] = current
                         else:
                             if next_action == "YELLOW":
                                 status["status"] = "YELLOW"
@@ -376,7 +381,7 @@ class AG_SA():
                         if satisfied:
                             DAN.push(actuator_df, 1)
                             status["status"] = "RED"
-                            status["prev_trigger"] = time.time() + rule["duty_neg"]
+                            status["prev_trigger"] = current
                         else:
                             if next_action != "YELLOW":
                                 status["status"] = "GREEN"
@@ -386,9 +391,7 @@ class AG_SA():
             else:
                 if status["status"] == "RED":
                     DAN.push(actuator_df, 0)
-                    status["status"] = "GREEN"
-                else:
-                    status["status"] = "GREEN"
+                status["status"] = "GREEN"
             print(status)
             return
         except Exception as err:
@@ -405,8 +408,8 @@ class AG_SA():
             avg: the average of history data stored in memory.
 
         Returns:
-            satisfied: whether the rule is satisfied by arg data
-            status: Card status in UI.
+            satisfied: True/False, whether the rule is satisfied by arg data
+            status: RED/YELLOW/UNCHANGED, Card status in UI.
         """
         if data > threshold:
             satisfied = True
@@ -414,7 +417,7 @@ class AG_SA():
         else:
             satisfied = False
             print('bigger', 0.5 * (threshold - avg) + avg)
-            if data > 0.5 * (threshold - avg) + avg:
+            if data > 0.78 * (threshold - avg) + avg:
                 status = 'YELLOW'
             else:
                 status = 'UNCHANGED'
@@ -508,4 +511,4 @@ sa.recover()
 while True:
     print('start checking rules')
     sa.check_rules()
-    time.sleep(10)
+    time.sleep(5)

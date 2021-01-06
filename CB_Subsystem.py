@@ -50,13 +50,13 @@ def recover_sa(running_sa, logger):
 
 @orm.db_session
 def on_exit(logger, running_sa):
-    logger.info("Closing Subsystem...\n")
-    logger.info("\t...Deregistering all running SAs")
+    logger.info("Closing Subsystem......")
+    logger.info("\tDeregistering all running SAs")
     for sa_id in running_sa:
         status = deregister_ag(CB_SA[sa_id], logger)
         if not status:
             logger.warning(f"Deregistration for SA Device for {CB_SA[sa_id].sa_name} failed")
-    logger.info("Closing Subsystem......done")
+    logger.info("Subsystem closed")
     return
 
 

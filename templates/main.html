@@ -251,7 +251,7 @@
                 <div class="duty-area">
                   <div class="d-flex justify-content-between">
                     <span><b>Duty Cycle</b></span>
-                    <span><b><% onJudgeDutyCycle(setting) %></b></span>
+                    <span v-if="setting.content.dutyPos > 0"><b><% onJudgeDutyCycle(setting) %></b></span>
                   </div>
                   <div class="setting-sensor">
                     <span class="setting-text-start">ON</span>

@@ -8,6 +8,7 @@ var app = new Vue({
     privilege: privilege,  // Whether current user is a superuser.
     newCBIcon: null,
     statusTrackWorker: -1,  // Timer ID for periodically calling current_data
+    width: -1,
     newCB: "",
     newSA: {
       text: "",
@@ -70,6 +71,8 @@ var app = new Vue({
     // get CBs -> get SAs -> get Rules -> get Status
     this.refreshCBWorker();
     this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+    this.width = window.innerWidth;
+    window.addEventListener("resize", this.onWindowResize);
     if (this.privilege) {
       console.log("get user");
       this.getAllUsers()
@@ -82,6 +85,9 @@ var app = new Vue({
     }
     return;
   },
+  destoryed: function() {
+    window.removeEventListener("resize", this.onWindowResize);
+  },
   computed: {
     accessibleProjectObjects: function() {
       toAccess = [];
@@ -93,8 +99,7 @@ var app = new Vue({
       return toAccess;
     },
     maxPinnedFields: function() {
-      console.log(window.outerWidth);
-      return Math.floor(window.outerWidth / 80) - 1;
+      return Math.floor(this.width / 80) - 1;
     },
     currentFieldName: function() {
       var name = "";
@@ -361,7 +366,7 @@ var app = new Vue({
       }
     },
     /* SA(Field) related procedures 
-    *  including create / delete / refresh / confirm / reset / undo
+    *  including create / delete / refresh / confirm / reset / undo / Resize pinned SA
     */
     onSACreate: function(action) {
       if (1 === action) {
@@ -437,10 +442,10 @@ var app = new Vue({
         })
     },
     onRefreshSA: function() {
+      window.clearInterval(this.statusTrackWorker);
       axios
         .get("/subsystem/refresh_sa/" + this.currentField.toString())
         .then( (res)=> {
-          window.clearInterval(this.statusTrackWorker);
           console.log(res);
           this.refreshRuleWorker();
           this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
@@ -457,7 +462,10 @@ var app = new Vue({
       console.log(this.settings[settingIndex]);
       return;
     },
-
+    onWindowResize: function() {
+      this.width = window.innerWidth * 0.98;
+      return;
+    },
     /* Rule related procedures 
     *  including selecting mode / which sensor to use /  comparison method / Timing / Calculate Duty Cycle Stage.
     */
