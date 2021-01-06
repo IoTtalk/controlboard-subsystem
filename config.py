@@ -1,23 +1,44 @@
-import logging
-
-class EnvironmentConfig():
-    host = '0.0.0.0'
-    port = 7789
-    df_his_record_len = 200
-    max_thresholds = 5
-    sqlite_rule_db = 'UserRule.sqlite'
-    server_ip = 'http://farm.iottalk.tw:9999'
-    mac_addr = 'CES'
-    ctlboard_profile = {
-        'd_name': 'ControlBoard',
-        'dm_name': 'ControlBoard',
-        'u_name': 'yb',
-        'is_sim': False,
-        'df_list': ['Threshold1-O', 'Trigger1-I', 'Threshold2-O', 'Trigger2-I',
-                    'Threshold3-O', 'Trigger3-I', 'Threshold4-O', 'Trigger4-I',
-                    'Threshold5-O', 'Trigger5-I']
-    }
+import configparser
+import datetime
+import sys
 
 
+default_rules = {
+    "threshold_open": 0.,
+    "threshold_close": 0,
+    "comparison_open": "notset",
+    "comparison_close": "notset",
+    "time_open": datetime.time(0, 0, 0),
+    "time_close": datetime.time(0, 0, 0),
+    "sensor_index": 0,
+    "duty_pos": 0,
+    "duty_neg": 0,
+    "weekday": ""
+}
 
-env_config = EnvironmentConfig()
+
+default_status = {
+    "prevTrigger": -10000,
+    "status": False,
+    "time": "00:00",
+    "value": 0
+}
+
+
+config_path = str(sys.argv[1])
+env_config = configparser.ConfigParser()
+env_config.read(config_path)
+use_v1 = env_config["IoTtalk"]["version"] == "1"
+icon_extensions = env_config["env"]["icon_extensions"].split(",")
+
+reg_config = {
+    "database": env_config["db"]["database"],
+    "host_db": env_config["db"]["host"],
+    "port_db": env_config["db"]["port"],
+    "user": env_config["db"]["user"],
+    "pwd": env_config["db"]["pwd"],
+    "dbname": env_config["db"]["dbname"],
+    "iottalk_server": env_config["IoTtalk"]["ServerIP"],
+    "host_zmq": env_config["env"]["host"],
+    "port_zmq": env_config["env"]["port_zmq"]
+}
