@@ -390,16 +390,17 @@ def refresh_sa(sa_id):
                 dst[order] = odfs
             else:
                 src[order] = idfs
+        actuators = list()
         for order, actuator in dst.items():
-            old_rule = UserRule.get(df_order=order)
+            old_rule = UserRule.get(df_order=order, sa=sa_id)
             has_record = False
             if None is not old_rule:
                 if old_rule.actuator_alias == actuator[0][1]:
                     has_record = True
                 else:
                     old_rule.delete()
-
-            if order not in src:
+            actuators.append(actuator[0][1])
+            if order not in src:  # Timer Type, No Sensors connected.
                 if has_record:
                     old_rule.set(
                         actuator_alias=actuator[0][1],
@@ -418,7 +419,7 @@ def refresh_sa(sa_id):
                             sa=sa
                         )
                     )
-            else:
+            else:  # Sensor type
                 if has_record:
                     old_rule.set(
                         actuator_alias=actuator[0][1],
@@ -442,6 +443,9 @@ def refresh_sa(sa_id):
                         )
                     )
         cb_db.commit()
+        for rule in sa.rule_set:
+            if rule.actuator_alias not in actuators:
+                sa.rule_set.remove(rule)
 
         if sa.ag_token != "NotCreated":
             status = deregister_ag(sa, api_logger)
@@ -554,6 +558,7 @@ def delete_sa(sa_id=None):
             api_logger.exception(f"Error msg from AG: {message}")
             return "Delete SA failed, check api log files", 500
         sa.delete()
+        del running_sa[sa_id]
         api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
         return "Delete SA succeed", 200
     except KeyError:

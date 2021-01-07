@@ -1,4 +1,4 @@
-Vue.config.devtools = true;
+// Vue.config.devtools = true;
 var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
@@ -158,6 +158,17 @@ var app = new Vue({
         axios
           .get("/sa/" + fieldID.toString() + "/rules")
           .then( (rules) => {
+            rules.data.sort((a, b) => {
+              actuator1 = a.actuator.toUpperCase();
+              actuator2 = b.actuator.toUpperCase();
+              if (actuator1 < actuator2) {
+                return -1;
+              } else if (actuator1 > actuator2) {
+                return 1;
+              } else {
+                return 0;
+              }
+            })
             resolve(rules.data);
           })
           .catch( (err) => {

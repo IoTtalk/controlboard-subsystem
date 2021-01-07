@@ -118,10 +118,10 @@ Vue.component('actuator-row', {
                 </b-button-group>
                 <span class="setting-test">{{actuator}}</span>
             </b-col>
-            <div class="ml-auto" v-if="dirty"> 
+            <b-button-group class="ml-auto" v-if="dirty">
                 <b-button size="sm" variant="secondary" plain v-on:click="onUndo">Undo</b-button>
                 <b-button size="sm" variant="primary" v-on:click="onSave">Save</b-button>
-            </div>
+            </b-button-group>
         </b-row>
     `
 })

@@ -187,6 +187,7 @@ class AG_SA():
         '''
         self.status = dict()
         self.rules = dict()
+        DAN.state = "RESUME"
         print("print sa's rules")
         for rule in self.cb_db.CB_SA[self.sa_id].rule_set:
             self.status[rule.rule_id] = {{
@@ -197,7 +198,6 @@ class AG_SA():
             }}
             self.rules[rule.df_order] = rule.to_dict()
             DAN.push("Trigger-I" + str(rule.df_order), 0)
-        DAN.state = "RESUME"
         print("recovered rules:", self.rules)
         print("status recorder: ", self.status)
         return
@@ -218,9 +218,11 @@ class AG_SA():
             actuator_df = "Trigger-I" + str(df_order)
             if rule["mode"] == "ON":
                 if status["status"] != "RED":
+                    status["status"] = "RED"
                     DAN.push(actuator_df, 1)
             elif rule["mode"] == "OFF":
                 if status["status"] == "RED":
+                    status["status"] = "GREEN"
                     DAN.push(actuator_df, 0)
             # auto mode
             else:
@@ -265,7 +267,7 @@ class AG_SA():
         about2trigger = (abs((time_open - current).total_seconds()) < 600 and time_open > current)
         duty = current_epoch < (status["prev_trigger"] + rule["duty_pos"]) \
             or current_epoch > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"])  # Pos -> True, Neg -> False
-
+        print(rule, satisfied, about2trigger, duty)
         try:
             if duty:
                 if status["status"] == "RED":
@@ -349,9 +351,12 @@ class AG_SA():
                     action = "CLOSE"
                     satisfied, next_action = self.condition_handler[rule["comparison_close"]](data, rule["threshold_close"], avg)
             current = time.time()
-            duty = (rule["duty_pos"] != 0) and ((current < (status["prev_trigger"] + rule["duty_pos"])) or (current > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"])))  # Pos -> True, Neg -> False
-            if status["prev_trigger"] == -10000:
+            has_duty = rule["duty_pos"] != 0
+            if has_duty:
+                duty = (current < (status["prev_trigger"] + rule["duty_pos"])) or (current > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"]))  # Pos -> True, Neg -> False
+            else:
                 duty = True
+            print(rule, data, duty, satisfied, next_action)
             if duty:
                 if status["status"] == "RED":
                     if action == "CLOSE":
@@ -409,7 +414,7 @@ class AG_SA():
             status = 'RED'
         else:
             satisfied = False
-            print('bigger', 0.5 * (threshold - avg) + avg)
+            print('bigger', 0.78 * (threshold - avg) + avg)
             if data > 0.78 * (threshold - avg) + avg:
                 status = 'YELLOW'
             else:

@@ -12,9 +12,9 @@
 
         <!-- Load Vue followed by BootstrapVue -->
         <!-- Develop version -->
-        <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+        <!-- <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script> -->
         <!-- Production version -->
-        <!-- <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script> -->
+        <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script>
         <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.js"></script>
 
         <!-- Load the following for BootstrapVueIcons support -->
@@ -257,13 +257,13 @@
                     <span class="setting-text-start">ON</span>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"
                       v-model="setting.content.dutyPos"
-                      v-on:change="setting.dirty=true"
+                      v-on:input="setting.dirty=true"
                     ></b-form-input>
                     <span class="setting-text-mid">Seconds.</span>
                     <span class="setting-text-start">OFF</span>
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"
                       v-model="setting.content.dutyNeg"
-                      v-on:change="setting.dirty=true"
+                      v-on:input="setting.dirty=true"
                       v-bind:disabled="setting.content.dutyPos===0"
                     ></b-form-input>
                     <span class="setting-text-mid">Seconds.</span>
@@ -367,7 +367,7 @@
         </b-card>
 
         <!-- Confirm/Reset all buttons -->
-        <b-container fluid class="fixed-bottom mb-1" v-if="!manageMode">
+        <b-container fluid class="fixed-bottom mb-1" v-if="!manageMode && currentField > 0">
           <b-row class="text-center">
             <b-col><b-button size="lg" variant="primary" v-on:click="onSAConfirm">Confirm</b-button></b-col>
             <b-col><b-button size="lg" variant="secondary" v-on:click="onSAReset">Reset All</b-button></b-col>
