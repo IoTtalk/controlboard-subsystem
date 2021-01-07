@@ -499,11 +499,10 @@ class AG_SA():
             # temporary method
             cb = requests.Session()
             r = cb.post(
-                f'http://{{config["iottalk_server"]}}:9999' + '/calibrate_sensor',
-                json=('p_id': p_id,'sensor': sensor, 'state': None), 
+                f'http://{{config["iottalk_server"]}}:9999/calibrate_sensor',
+                json=[{'p_id': p_id,'sensor': sensor, 'state': None}], 
                 timeout=TIMEOUT
             )
-            if r.status_code != 200: raise CSMError(r.text)
         except Exception as e:
             print("calibration request error: ")
             print(e)
