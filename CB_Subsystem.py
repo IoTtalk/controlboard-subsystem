@@ -12,23 +12,12 @@ from pony import orm
 import models
 
 
-<<<<<<< HEAD
-from config import env_config
-from eventhandler import apis
-from models import cb_db
-from utils import connect_db
-from utils import make_logger
-from utils import running_sa
-from utils import register_ag
-from utils import get_iottalk_info
-=======
 from config import env_config, default_status
 from eventhandler import apis
 from models import CB_SA, CB_Account
 from utils import connect_db, connect_zmq
 from utils import make_logger, register_ag, deregister_ag, get_iottalk_info
 from utils import running_sa, running_status
->>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
 
 
 @orm.db_session
