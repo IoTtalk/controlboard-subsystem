@@ -15,6 +15,10 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 
 from config import env_config, reg_config, use_v1
+<<<<<<< HEAD
+=======
+from exceptions import CCMAPIFailError
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
 from models import UserRule, CB_Account, CB_SA, CB
 
 
@@ -44,13 +48,13 @@ if not os.path.isdir(log_root):
     os.makedirs(log_root)
 
 default_rules = {
-    'rule_type': 'sensor',
-    'threshold_open': 0.,
-    'threshold_close': 0,
-    'comparison_open': 'notset',
-    'comparison_close': 'notset',
-    'mode': 'auto',
-    'period': 0
+    "threshold_open": 0.,
+    "threshold_close": 0,
+    "comparison_open": "notset",
+    "comparison_close": "notset",
+    "mode": "Sensor",
+    "duty_pos": 0,
+    "duty_neg": 0
 }
 
 
@@ -70,10 +74,17 @@ def _post(url, data):
             json=data
         ).text
     )
+<<<<<<< HEAD
     if url == "ccm_api":
         print(data, response)
     else:
         print(url, response)
+=======
+    # if url == "ccm_api":
+    #     print(data, response)
+    # else:
+    #     print(url, response)
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
     state = (response["state"] == "ok")
     return state, response
 
@@ -138,7 +149,13 @@ def connect_db(logger, cb_db):
             port=int(env_config['db']['port'])
         )
     cb_db.generate_mapping(check_tables=False)
+<<<<<<< HEAD
     cb_db.drop_all_tables(with_all_data=True)  # used to clean testcase
+=======
+    if env_config["db"]["reset"] == "1":
+        logger.info("Reset Database")
+        cb_db.drop_all_tables(with_all_data=True)  # used to clean testcase
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
     while (retry_times < 3):
         try:
             cb_db.create_tables()
@@ -163,6 +180,7 @@ def test_db(logger):
     Returns: None
     '''
     try:
+<<<<<<< HEAD
         with orm.db_session():
             test_account = CB_Account(
                 account="test",
@@ -199,6 +217,56 @@ def test_db(logger):
             test_account.cb_set.add(test_cb)
             test_cb.sa_set.add(test_sa)
             test_sa.rule_set.add(test_rule)
+=======
+        test_account = CB_Account(
+            account="test",
+            privilege="2",
+        )
+
+        dummy_account = CB_Account(
+            account="luk1684tw",
+            privilege="0",
+        )
+
+        # admin = CB_Account(
+        #     account="yb",
+        #     privilege="2",
+        # )
+
+        test_cb = CB(
+            cb_name="test_cb1",
+            icon="0_landscape.svg"
+        )
+
+        dummy_cb = CB(
+            cb_name="test_cb",
+            icon="0_landscape.svg"
+        )
+
+        test_sa = CB_SA(
+            sa_name="test_sa",
+            ag_token="testagtoken",
+            mac_addr=str(uuid.uuid4()),
+            p_id=-1,
+            do_id="1234567",
+            cb=test_cb,
+            pinned=True
+        )
+
+        test_rule = UserRule(
+            actuator_alias="test_actuator",
+            actuator_df="test_df",
+            df_order=0,
+            duty_pos=0,
+            sa=test_sa,
+            mode='Sensor'
+        )
+
+        test_account.cb_set.add(test_cb)
+        dummy_account.cb_set.add(dummy_cb)
+        test_cb.sa_set.add(test_sa)
+        test_sa.rule_set.add(test_rule)
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
 
         logger.info('\tTest database connection......done')
     except Exception as err:
@@ -207,14 +275,22 @@ def test_db(logger):
     return
 
 
+<<<<<<< HEAD
 status_logger = make_logger('cb_status', 'status')
 
 
 def status_receiver(msg):
+=======
+status_logger = make_logger("CB_status", "status")
+
+
+def status_receiver(msgs):
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
     '''
     Receive execution status from AG SAs.
 
     Args:
+<<<<<<< HEAD
         msg: Message sent from AG SAs.
 
     Returns: None
@@ -229,6 +305,21 @@ def status_receiver(msg):
         status_logger.info(status)
     except KeyError:
         status_logger.exception("Receive status error")
+=======
+        msgs: Messages sent from AG SAs.
+
+    Returns: None
+    '''
+    for msg in msgs:
+        status = json.loads(msg.decode("utf-8"))
+        try:
+            rule_id = status["rule_id"]
+            running_status[rule_id] = status
+            status_logger.info(f"Receive status from Rule {rule_id}")
+            status_logger.info(status)
+        except KeyError:
+            status_logger.exception("Receive status error")
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
 
 
 def connect_zmq(logger):
@@ -241,6 +332,10 @@ def connect_zmq(logger):
     Returns:
         socket: Created socket object for receiving messages from AG SA.
     '''
+<<<<<<< HEAD
+=======
+    logger.info("\tCreate ZMQ Listener...")
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
     asyncio.set_event_loop(asyncio.new_event_loop())
     context = zmq.Context.instance()
     socket = context.socket(zmq.SUB)
@@ -251,7 +346,12 @@ def connect_zmq(logger):
     stream.on_recv(status_receiver)
     ioloop.IOLoop.instance().start()
 
+<<<<<<< HEAD
     print('test end')
+=======
+    logger.info("\tZMQ Listener binded")
+    return
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
 
 
 def get_iottalk_info(logger):
@@ -273,14 +373,22 @@ def get_iottalk_info(logger):
         }
         state, response = _post('ccm_api', data)
         if not state:
+<<<<<<< HEAD
             raise ValueError
+=======
+            raise CCMAPIFailError
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
         response = response["result"]
         iottalk_info['dm_id'] = response['dm_id']
         iottalk_info['df_id'] = list()
         for df in response["df_list"]:
             iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
+<<<<<<< HEAD
     except ValueError:
+=======
+    except CCMAPIFailError:
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
         logger.exception("Getting Device Model info failed.")
     except Exception as err:
         logger.exception(err)
@@ -415,9 +523,12 @@ def deregister_ag(sa, logger):
             'token': sa.ag_token
         }
         _post('delete_device', data)
+<<<<<<< HEAD
 
         with orm.db_session():
             CB_SA[sa.sa_id].delete()
+=======
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
         return True
     except Exception as err:
         logger.exception(err)
@@ -449,7 +560,11 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
             }
             status, response = _post('ccm_api', data)
             if not status:
+<<<<<<< HEAD
                 raise ValueError
+=======
+                raise CCMAPIFailError
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
             response = response["result"]
             logger.info('\tGet Device\t......done')
             device = None
@@ -458,7 +573,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                     device = candidate
                     break
             if device is None:
-                raise ValueError
+                raise CCMAPIFailError
             for id in do_id:
                 print(id)
                 data = {
@@ -472,7 +587,11 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                 status, response = _post("ccm_api", data)
             logger.info("\tBind device\t......done")
             return status, response["result"]
+<<<<<<< HEAD
     except ValueError:
+=======
+    except CCMAPIFailError:
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
         logger.exception("Device to bind not found, either SA code error causing registration failed or Server latency")
         return False, "DM not found"
     except Exception as err:
@@ -501,7 +620,16 @@ def get_na_ag(p_id, na_id, logger):
     }
     try:
         state, res = _post("ccm_api", data)
+<<<<<<< HEAD
         return state, res["result"]
+=======
+        if not state:
+            raise CCMAPIFailError
+        return state, res["result"]
+    except CCMAPIFailError:
+        logger.exception("Get NA failed")
+        return False, "AG returned bad response"
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
     except Exception as err:
         logger.exception(err)
         return False, "Send request to query NA failed, check API log."

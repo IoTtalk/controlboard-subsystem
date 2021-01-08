@@ -16,7 +16,7 @@ class UserRule(cb_db.Entity):
     rule_id = PrimaryKey(int, auto=True)  # For AG_SA to write status.
     actuator_alias = Required(str)  # Alias of the actuator in this rule.
     actuator_df = Required(str)  # Device Feature Name of the actuator in this rule.
-    sensor_alias = Optional(str)  # Alias of the actuator in this rule.
+    sensor_alias = Optional(str)  # Alias of the sensors in this rule.
     sensor_df = Optional(str)  # Device Feature Name of sensors in this rule.
     sensor_index = Optional(int)  # Which Sensor this rule is using currently.
     df_order = Required(int)  # Which IDF/ODF pair to pull/push data.
@@ -26,10 +26,8 @@ class UserRule(cb_db.Entity):
     comparison_close = Optional(str)  # Comparison method to decide close actuator or not.
     time_open = Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
     time_close = Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
-    period = Required(int)  # Period functionality.
-    exetime = Optional(int)  # execution time for periodically execution.
     mode = Required(str)  # Sensor/Timer/On/Off.
-    weekday = Optional(str)  # Weekdays this rule should be executed.
+    weekday = Optional(str)  # Weekdays this rule should be executed.  ranging from 0 to 6
     duty_pos = Optional(int)  # Positive edge of Duty Cycle.
     duty_neg = Optional(int)  # Negative edge of Duty Cycle.
     sa = Required("CB_SA")  # which SA this rule belongs to.
@@ -38,10 +36,8 @@ class CB(cb_db.Entity):
     cb_id = PrimaryKey(int, auto=True)
     cb_name = Required(str)
     sa_set = Set("CB_SA", cascade_delete=True)
-    shared = Required(bool)
     account_set = Set("CB_Account")  # accounts that can access this SA.
     icon = Required(str)
-
 
 
 class CB_SA(cb_db.Entity):
@@ -61,6 +57,7 @@ class CB_SA(cb_db.Entity):
 class CB_Account(cb_db.Entity):
     account = Required(str)  # Account of this user.
     privilege = Required(int)  # User level of this user.
+    aaa_token = Optional(str)  # AAA token for this user.
     cb_set = Set(CB)  # CBs this user can see.
 
 class Outlier(cb_db.Entity):

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ControlBoard</title>
+        <!-- Load required Bootstrap and BootstrapVue CSS -->
+        <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap/dist/css/bootstrap.min.css" />
+        <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.css" />
+        <!-- Load polyfills to support older browsers -->
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es2015%2CIntersectionObserver" crossorigin="anonymous"></script>
+
+        <!-- Load Vue followed by BootstrapVue -->
+        <!-- Develop version -->
+        <!-- <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script> -->
+        <!-- Production version -->
+        <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script>
+        <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.js"></script>
+
+        <!-- Load the following for BootstrapVueIcons support -->
+        <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue-icons.min.js"></script>
+        <!-- Axios Library -->
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+        <script type="text/javascript">
+          var privilege = {{ userLevel }};
+        </script>
+        <link type="text/css" rel="stylesheet" href="/static/control_board.css" />
+    </head>
+    <body>
+      <div id=app>
+        <!-- Navigation bar -->
+        <b-navbar type="dark" variant="dark" class="d-flex">
+          <select-projects
+            v-bind:projects="accessibleProjectObjects"
+            v-bind:selected="currentProject"
+            v-on:select-project="onSelectProject"
+            v-on:pressed="manageMode=false"
+          ></select-projects>
+          
+          <div class="ml-auto">
+            <b-navbar-nav>
+              <b-nav-item class="system-button" v-if="privilege" v-on:click="onSwitchManage"><b>System</b></b-nav-item>
+              <b-nav-item class="system-button custom-nav-item"><b>Logout</b></b-nav-item>
+            </b-navbar-nav>
+          </div>
+        </b-navbar>
+        <!-- Add/delete field button -->
+        <div v-if="!manageMode">
+          <div class="field-manage" v-if="privilege">
+            <div class="d-flex justify-content-between">
+              <div>
+                <b-button size="sm" variant="success" v-b-modal="'CreateSA'" v-if="currentProject>0" class="create-field">+ New Field</b-button>
+                <b-button size="sm" variant="secondary" class="ml-sm-1" v-if="currentField>0" v-on:click="onRefreshSA()">Refresh</b-button>
+              </div>
+              <b-button size="sm" variant="danger" v-if="currentField>0" v-b-modal="'CancelSA'">Delete Field</b-button>
+              <b-modal id="CreateSA" size="lg" centered title="Create New ControlBoard Field"
+                hide-backdrop content-class="shadow"
+                v-on:ok="onSACreate(1)" v-on:cancel="onSACreate(0)" v-on:close="onSACreate(0)"
+              >
+                <b-container fluid>
+                  Field Name
+                  <b-form-input placeholder="Enter Your Field's Name Here"
+                    size="sm" v-model="newSA.text" id="input-fieldName"
+                  ></b-form-input>
+                  <b-form-text id="input-fieldName">This name will be 
+                    used to create project on IoTtalk Server.</b-form-text>
+                  <b-form-checkbox plain size="sm" class="mt-1"
+                      v-model="newSA.pinned"
+                    >Pinned.</b-form-checkbox>
+                </b-container>
+              </b-modal>
+              <b-modal id="CancelSA" size="lg" centered title="Delete ControlBoard Field"
+                hide-backdrop content-class="shadow"
+                v-on:ok="onSADelete(1)" v-on:cancel="onSADelete(0)" v-on:close="onSADelete(0)"
+              > Are you sure to delete Field <b><% currentFieldName %></b>?
+              </b-modal>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="manageMode" class="manage-title">
+          <b>System Management</b>
+        </div>
+        <b-modal id="pinField" size="lg" centered title="Pinned Field" 
+          hide-backdrop content-class="shadow"
+          v-on:ok="onPinFields(1)" v-on:cancel="onPinFields(0)" v-on:close="onPinFields(0)"
+        >
+          <b-container fluid>
+            <b-row>
+              <b-col>Pinned Fields</b-col>
+              <b-form-checkbox-group size="sm"
+                v-bind:options="fields.optionFields" 
+                v-model="pinnedFields"
+              ></b-form-checkbox-group>
+            </b-row>
+          </b-container>
+        </b-modal>
+
+        <!-- Field tabs -->
+        <b-card title="Card Title" no-body class="card mb-3">
+          <b-card-header header-tag="nav">
+            <b-nav card-header tabs>
+              <b-nav-item-dropdown text="More" lazy v-if="!manageMode && currentField>0">
+                <b-dropdown-group id="dropdown-group-1">
+                  <template v-slot:header>
+                    <div class="d-flex justify-content-between">
+                      <span>Pinned Fields</span>
+                      <b-button size="sm" variant="light" v-b-modal="'pinField'">
+                        <b-icon icon="plus" aria-hidden="true"></b-icon>
+                      </b-button>
+                    </div>
+                  </template>
+                  <b-dropdown-item
+                    v-for="field in fields.pinnedFields"
+                    v-bind:active="field.value===currentField"
+                    v-on:click="onSwitchField(field.value)"
+                    align-self="start"
+                  > <%field.text%> </b-dropdown-item>
+                </b-dropdown-group>
+                <b-dropdown-divider v-if="unPinnedFields.length"></b-dropdown-divider>
+                <b-dropdown-group id="dropdown-group-2" header="Other Fields" 
+                  v-if="unPinnedFields.length">
+                  <b-dropdown-item
+                    v-for="field in unPinnedFields"
+                    v-bind:active="field.value===currentField"
+                    v-on:click="onSwitchField(field.value)"
+                    align-self="start"
+                  > <%field.text%> </b-dropdown-item>
+                </b-dropdown-group>
+              </b-nav-item-dropdown>
+              <span v-if="!manageMode && currentField<1" style="font-weight: bolder;">Please create a field</span>
+              <b-nav-item
+                v-for="(field, index) in fields.pinnedFields"
+                v-if="!manageMode && index < maxPinnedFields && currentField > 0"
+                v-bind:active="field.value===currentField"
+                v-on:click="onSwitchField(field.value)"
+                class="fieldName"
+              ><% field.text %></b-nav-item>
+
+              <b-nav-item v-if="manageMode" v-bind:active="managePage" v-on:click="onSwitchManagePage">
+                User
+              </b-nav-item>
+              <b-nav-item v-if="manageMode" v-bind:active="!managePage" v-on:click="onSwitchManagePage">
+                ControlBoard
+              </b-nav-item>
+
+            </b-nav>
+          </b-card-header>
+
+          <b-card-body class="text-center custom-card-body">
+            <div v-for="(setting, index) in settings" class="setting-card" 
+              v-if="!manageMode && currentField > 0">
+              <!-- sensor List and sensor value -->
+              <sensor-row
+                v-bind:sensors="setting.sensors"
+                v-bind:value="setting.mode==='Sensor'? setting.value: setting.time"
+                v-bind:status="setting.status"
+                v-bind:mode="setting.mode"
+                v-bind:selected="setting.selectedSensor"
+                v-on:update-sensor="onSelectSensor($event, setting.ruleID)"
+              ></sensor-row>
+              <!-- Mode select and actuator name, Undo And Save -->
+              <actuator-row
+                v-bind:mode="setting.mode"
+                v-bind:actuator="setting.actuator"
+                v-bind:dirty="setting.dirty"
+                v-bind:sensors="setting.sensors.length"
+                v-on:update-mode="onSelectMode($event, index)"
+                v-on:undo="onSettingUndoChange(index)"
+                v-on:save="onSettingSaveChange([index])"
+              ></actuator-row>
+
+              <!-- Trigger Area -->
+              <div class="setting-area" v-if="setting.mode!=='ON' && setting.mode!=='OFF'">
+                <div><b>Trigger</b></div>
+
+                <!-- Sensor settings -->
+                <div v-if="setting.mode==='Sensor'" class="setting-sensor">
+                  <custom-sel
+                    v-bind:options="comparisons"
+                    v-bind:select="setting.content.openSensor"
+                    v-on:update-option="onSelectCompare($event, index, 'open')"
+                  ></custom-sel>
+                  <b-form-input size="sm" class="custom-input"
+                    v-model="setting.content.openSensorVal"
+                    v-bind:disabled="setting.content.openSensor==='notset'"
+                  ></b-form-input>
+                  <span class="setting-text-mid">ON.</span>
+                  <custom-sel
+                    v-bind:options="comparisons"
+                    v-bind:select="setting.content.closeSensor"
+                    v-on:update-option="onSelectCompare($event, index, 'close')"
+                  ></custom-sel> 
+                  <b-form-input size="sm" class="custom-input"
+                    v-model="setting.content.closeSensorVal"
+                    v-bind:disabled="setting.content.closeSensor==='notset'"
+                  ></b-form-input>
+                  <span class="setting-text">OFF.</span>
+                </div>
+
+                <!-- Timer setting area -->
+                <div v-if="setting.mode==='Timer'">
+                  <custom-sel
+                    v-bind:options="hours"
+                    v-bind:select="setting.content.openTimer[0]"
+                    v-on:update-option="onSelectTime($event, index, 0)"
+                  ></custom-sel>
+                  <span>:</span>
+                  <custom-sel
+                    v-bind:options="minutes"
+                    v-bind:select="setting.content.openTimer[1]"
+                    v-on:update-option="onSelectTime($event, index, 1)"
+                  ></custom-sel>
+                  <span>:</span>
+                  <custom-sel
+                    v-bind:options="seconds"
+                    v-bind:select="setting.content.openTimer[2]"
+                    v-on:update-option="onSelectTime($event, index, 2)"
+                  ></custom-sel>
+                  <span style="padding-right: 10px;">on</span>
+                  <custom-sel
+                    v-bind:options="hours"
+                    v-bind:select="setting.content.closeTimer[0]"
+                    v-on:update-option="onSelectTime($event, index, 3)"
+                  ></custom-sel>
+                  <span>:</span>
+                  <custom-sel
+                    v-bind:options="minutes"
+                    v-bind:select="setting.content.closeTimer[1]"
+                    v-on:update-option="onSelectTime($event, index, 4)"
+                  ></custom-sel>
+                  <span>:</span>
+                  <custom-sel
+                    v-bind:options="seconds"
+                    v-bind:select="setting.content.closeTimer[2]"
+                    v-on:update-option="onSelectTime($event, index, 5)"
+                  ></custom-sel>
+                  <span>off</span>
+                </div>
+                <div>
+                  <b-form-group>
+                    <b-form-checkbox-group
+                      :options="weekdays" size="sm" plain
+                      v-on:change="onSelectWeekdays($event, index)"
+                      v-bind:checked="setting.content.weekdays"
+                    ></b-form-checkbox-group>
+                  </b-form-group>
+                </div>
+
+                <!-- Duty Cycle Area -->
+                <div class="duty-area">
+                  <div class="d-flex justify-content-between">
+                    <span><b>Duty Cycle</b></span>
+                    <span v-if="setting.content.dutyPos > 0"><b><% onJudgeDutyCycle(setting) %></b></span>
+                  </div>
+                  <div class="setting-sensor">
+                    <span class="setting-text-start">ON</span>
+                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"
+                      v-model="setting.content.dutyPos"
+                      v-on:input="setting.dirty=true"
+                    ></b-form-input>
+                    <span class="setting-text-mid">Seconds.</span>
+                    <span class="setting-text-start">OFF</span>
+                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"
+                      v-model="setting.content.dutyNeg"
+                      v-on:input="setting.dirty=true"
+                      v-bind:disabled="setting.content.dutyPos===0"
+                    ></b-form-input>
+                    <span class="setting-text-mid">Seconds.</span>
+                  </div>               
+                </div>
+              </div>
+            </div>
+            <div v-if="manageMode && privilege">
+              <b-row class="text-left">
+                <b-col v-if="managePage"><b>UserName</b></b-col>
+                <b-col v-else>
+                  <b>ControlBoard</b>
+                  <b-button size="sm" variant="light" v-b-modal="'CreateCB'">
+                    <b-icon icon="plus" aria-hidden="true"></b-icon>
+                  </b-button>
+                  <b-modal id="CreateCB" size="lg" centered title="Create ControlBoard"
+                    hide-backdrop content-class="shadow"
+                    v-on:ok="onCBCreate(1)" v-on:cancel="onCBCreate(0)" v-on:close="onCBCreate(0)"
+                  >
+                    <b-container fluid>
+                      ControlBoard 
+                      <b-form-input placeholder="Enter Your ControlBoard's Name Here"
+                        size="sm" v-model="newCB"
+                      ></b-form-input>
+                    </b-container>
+                  </b-modal>
+                </b-col>
+                <b-col v-if="managePage"><b>Privilege</b></b-col>
+                <b-col v-else><b>Actions</b></b-col>
+              </b-row>
+              <b-row class="text-left divide-top divide-bottom"
+                v-for="(user, index) in users" v-if="managePage"
+              >
+                <b-col>
+                  <b-link v-b-modal="'modal'+index" size="sm" 
+                    variant="outline-primary" v-on:click="onAccessibleCB(user.username)"
+                  ><% user.username %>
+                  </b-link>
+                </b-col>
+                <b-col> <% lvlToText(user.superuser) %> </b-col>
+                <b-modal v-bind:id="'modal'+index" size="lg" centered title="User Management"
+                  hide-backdrop content-class="shadow" v-on:ok="onUserUpdate(index, 1)"
+                  v-on:cancel="onUserUpdate(index, 0)" v-on:close="onUserUpdate(index, 0)"
+                >
+                  <b-container fluid>
+                    <b-row class="divide-bottom">
+                      <b-col>Privilege</b-col>
+                      <custom-sel
+                        v-if="privilege===2"
+                        v-bind:options="userlvls"
+                        v-bind:select="user.superuser"
+                        v-on:update-option="onSelectUserLvl($event, index)"
+                        class="select-privilege"
+                      ></custom-sel>
+                      <span v-else><% lvlToText(user.superuser) %></span>
+                    </b-row>
+                    <b-row class="divide-top"> 
+                      <b-col>Accessible CBs</b-col>
+                      <b-form-checkbox-group
+                        class="custom-checkbox" size="sm"
+                        v-bind:options="projects.optionProjects" 
+                        v-model="accessibleProjects"
+                      ></b-form-checkbox-group>
+                    </b-row>
+                  </b-container>
+                </b-modal>
+              </b-row>
+
+              <b-row class="text-left divide-top divide-bottom"
+                v-for="(project, index) in projects.optionProjects" v-if="!managePage"
+              >
+                <b-col><% project.text %></b-col>
+                <b-col>
+                  <b-link v-b-modal="'deleteCB'+index" size="sm" variant="outline-primary" class="mr-3">Delete CB</b-link>
+                  <b-link v-b-modal="'cbIcon'+index" size="sm" variant="outline-primary">Icons</b-link>
+
+                  <b-modal v-bind:id="'deleteCB'+index" size="lg" centered title="Delete ControlBoard"
+                    hide-backdrop content-class="shadow" v-on:ok="onCBDelete(project.value, 1)" 
+                    v-on:cancel="onCBDelete(project.value, 0)" v-on:close="onCBDelete(project.value, 0)"
+                  >
+                    Are you sure to delete ControlBoard <b><% project.text %></b>
+                  </b-modal>
+
+                  <b-modal v-bind:id="'cbIcon'+index" size="lg" centered title="User Management"
+                    hide-backdrop content-class="shadow" v-on:ok="onIconUpload(project.value, 1)"
+                    v-on:cancel="onIconUpload(project.value, 0)" v-on:close="onIconUpload(project.value, 0)"
+                  >
+                    <b-container fluid>
+                      <b-form-file
+                        v-model="newCBIcon"
+                        placeholder="Choose a file or drop it here"
+                        accept="image/png, image/svg+xml"
+                      ></b-form-file>
+                      <div class="mt-3">Selected file: <%newCBIcon? newCBIcon.name: ''%></div>
+                    </b-container>
+                  </b-modal>
+                </b-col>
+              </b-row>
+            </div>
+          </b-card-body>
+        </b-card>
+
+        <!-- Confirm/Reset all buttons -->
+        <b-container fluid class="fixed-bottom mb-1" v-if="!manageMode && currentField > 0">
+          <b-row class="text-center">
+            <b-col><b-button size="lg" variant="primary" v-on:click="onSAConfirm">Confirm</b-button></b-col>
+            <b-col><b-button size="lg" variant="secondary" v-on:click="onSAReset">Reset All</b-button></b-col>
+          </b-row>
+        </b-container>
+      </div>
+      <script type="text/javascript" src="/static/components.js"></script>
+      <script type="text/javascript" src="/static/main.js"></script>
+    </body>
+</html>

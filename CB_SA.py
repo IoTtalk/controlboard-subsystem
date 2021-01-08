@@ -5,7 +5,10 @@ import os
 import math
 import requests
 
-from collections import deque
+# from collections import deque
+
+
+import zmq
 
 
 import zmq
@@ -23,16 +26,13 @@ class AG_SA():
         Initialization of a CB_SA
 
         Args:
-            cb_id: ID of this CB_SA from Database.
-            mappings: Mapping of actuator to sensors.
+            sa_id: ID of this CB_SA from Database.
+            sa_name: Name of this CB_SA.
+            mac_addr: Mac address of this SA.
             config: Infomation for connecting to Subsystem, should contain IP, port, username, password.
 
         Instance variables:
-            mappings: A dictionary of the following format.
-            {{
-                'actuator_alias': (sensor_alias, DF order on IoTTalk GUI)
-            }}
-            cb_id: ID for this SA, used in Database querying.
+            sa_id: ID for this SA, used in Database querying.
             df_hist_val: History values of sensors manipulated by this SA.
             config: Database config containing the following information.
                 host: IP address of the database.
@@ -47,9 +47,8 @@ class AG_SA():
         Returns:
             None
         '''
-        self.mappings = dict()
         self.df_hist_val = dict()
-        self.cb_id = cb_id
+        self.sa_id = int(sa_id)
         self.config = config
         self.cb_db = orm.Database()
 
@@ -66,14 +65,17 @@ class AG_SA():
         else:
             self.mac_addr = str(uuid.uuid4())
 
-        self.default_rule = {{
-            'rule_type': 'sensor',
-            'threshold_open': 0.,
-            'threshold_close': 0,
-            'comparison_open': 'notset',
-            'comparison_close': 'notset',
-            'mode': 'auto',
-            'period': 0
+        self.default_rules = {{
+            "threshold_open": 0.,
+            "threshold_close": 0,
+            "comparison_open": "notset",
+            "comparison_close": "notset",
+            "time_open": datetime.time(0, 0, 0),
+            "time_close": datetime.time(0, 0, 0),
+            "sensor_index": 0,
+            "duty_pos": 0,
+            "duty_neg": 0,
+            "weekday": ""
         }}
 
         self.condition_handler = {{
@@ -84,17 +86,22 @@ class AG_SA():
         }}
 
         ctlboard_profile = {{
-            'd_name': str(cb_id) + '.Controlboard',
-            'dm_name': 'ControlBoard',
-            'u_name': 'yb',
-            'is_sim': False,
-            'df_list': ['Threshold-O1', 'Trigger-I1', 'Threshold-O2', 'Trigger-I2',
-                        'Threshold-O3', 'Trigger-I3', 'Threshold-O4', 'Trigger-I4',
-                        'Threshold-O5', 'Trigger-I5']
+            "d_name": str(sa_id) + "-" + sa_name + ".Controlboard",
+            "dm_name": "ControlBoard",
+            "u_name": "yb",
+            "is_sim": False,
+            "df_list": ["Threshold-O1", "Trigger-I1", "Threshold-O2", "Trigger-I2",
+                        "Threshold-O3", "Trigger-I3", "Threshold-O4", "Trigger-I4",
+                        "Threshold-O5", "Trigger-I5"]
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
+<<<<<<< HEAD
         self.socket.connect("tcp://140.113.215.12:7790")
+=======
+        print(f"tcp://{{config['host_zmq']}}:{{config['port_zmq']}}")
+        self.socket.connect(f"tcp://{{config['host_zmq']}}:{{config['port_zmq']}}")
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
         self.socket.send(b"hello world")
 
         DAN.profile = ctlboard_profile
@@ -102,25 +109,38 @@ class AG_SA():
 
         class UserRule(self.cb_db.Entity):
             rule_id = orm.PrimaryKey(int, auto=True)  # For AG_SA to write status.
+<<<<<<< HEAD
             rule_type = orm.Required(str)  # Sensor / Timer.
             actuator_alias = orm.Required(str)  # Alias of the actuator in this rule.
             sensor_alias = orm.Required(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
+=======
+            actuator_alias = orm.Required(str)  # Alias of the actuator in this rule
+            actuator_df = orm.Required(str)  # Device Feature Name of the actuator in this rule.
+            sensor_alias = orm.Optional(str)  # Alias of the actuator in this rule, required if rule_type is 'sensor'.
+            sensor_df = orm.Optional(str)  # Device Feature Name of sensors in this rule.
+            sensor_index = orm.Optional(int)  # Which Sensor this rule is using currently.
+            df_order = orm.Required(int)  # Which IDF/ODF pair to pull/push data.
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
             threshold_open = orm.Optional(float)  # Sensor value to decide trigger actuator or not.
             threshold_close = orm.Optional(float)  # Sensor value to decide close actuator or not.
             comparison_open = orm.Optional(str)  # Comparison method to decide trigger actuator or not.
             comparison_close = orm.Optional(str)  # Comparison method to decide close actuator or not.
             time_open = orm.Optional(datetime.time)  # Trigger actuator every when current time exceeds time_open.
             time_close = orm.Optional(datetime.time)  # Close actuator every when current time exceeds time_open.
-            exetime = orm.Optional(int)  # execution time for periodically execution
-            period = orm.Required(int)  # Period functionality.
             mode = orm.Required(str)
+            weekday = orm.Optional(str)  # Weekdays this rule should be executed.
+            duty_pos = orm.Optional(int)  # Positive edge of Duty Cycle.
+            duty_neg = orm.Optional(int)  # Negative edge of Duty Cycle.
             sa = orm.Required("CB_SA")  # which SA it belongs to
 
         class CB(self.cb_db.Entity):
             cb_id = orm.PrimaryKey(int, auto=True)
             cb_name = orm.Required(str)
             sa_set = orm.Set("CB_SA", cascade_delete=True)
+<<<<<<< HEAD
             shared = orm.Required(bool)
+=======
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
             account_set = orm.Set("CB_Account")  # accounts that can access this SA.
             icon = orm.Required(str)
 
@@ -139,6 +159,7 @@ class AG_SA():
             account = orm.Required(str)  # Account of this user.
             privilege = orm.Required(int)  # User level of this user.
             cb_set = orm.Set("CB")  # CBs this user can see.
+<<<<<<< HEAD
 
 
         class Outlier(self.cb_db.Entity):
@@ -153,6 +174,8 @@ class AG_SA():
             sensor = orm.Required(str)
             time_on = orm.Required(float)
             said = orm.Required(int)
+=======
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
 
     def connect_db(self):
         '''
@@ -170,6 +193,7 @@ class AG_SA():
             subsystem_db: connected db session of the database recorded in self.
         '''
         retry_times = 0
+<<<<<<< HEAD
         
         if self.config['database'] == 'sqlite':
             path = os.path.join(os.getcwd(), 'cb_db.sqlite')
@@ -177,16 +201,30 @@ class AG_SA():
             self.cb_db.bind(
                 provider='sqlite',
                 filename=path,
+=======
+        if self.config['database'] == 'sqlite':
+            self.cb_db.bind(
+                provider='sqlite',
+                filename='cb_db.sqlite',
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
                 create_db=True
             )
         else:
             self.cb_db.bind(
                 provider='mysql',
+<<<<<<< HEAD
                 host=self.config['host'],
                 user=self.config['user'],
                 passwd=self.config['pwd'],
                 db=self.config['dbname'],
                 port=int(self.config['port'])
+=======
+                host=self.config['host_db'],
+                user=self.config['user'],
+                passwd=self.config['pwd'],
+                db=self.config['dbname'],
+                port=int(self.config['port_db'])
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
             )
 
         while (retry_times < 3):
@@ -196,7 +234,6 @@ class AG_SA():
             except orm.dbapiprovider.InternalError:
                 self.cb_db.disconnect()
                 retry_times += 1
-
         return
 
     @orm.db_session
@@ -211,8 +248,10 @@ class AG_SA():
             True: Recover succeeded.
             False: Recover failed.
         '''
-        # Pulling Alias
+        self.status = dict()
+        self.rules = dict()
         DAN.state = "RESUME"
+<<<<<<< HEAD
         self.status = dict()
         while len(self.mappings) == 0:
             alias_in = DAN.get_alias('Threshold-O' + str(1))
@@ -256,13 +295,26 @@ class AG_SA():
                     sa=sa
                 )
                 self.cb_db.commit()
+=======
+        print("print sa's rules")
+        for rule in self.cb_db.CB_SA[self.sa_id].rule_set:
+            self.status[rule.rule_id] = {{
+                "prev_trigger": -10000,  # An apparently impossible number.
+                "status": "GREEN",  # RED / YELLOW / GREEN
+                "value": 0,  # Current value of the selected sensor.
+                "rule_id": rule.rule_id  # rule_id of this status recorder.
+            }}
+            self.rules[rule.df_order] = rule.to_dict()
+            DAN.push("Trigger-I" + str(rule.df_order), 0)
+        print("recovered rules:", self.rules)
+        print("status recorder: ", self.status)
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
         return
 
-    @orm.db_session
     def check_rules(self):
         '''
-        Rule checker for all rules set for this SA.
-        Called by Subsystem every check period.
+        Rule checker for all rules of this SA.
+        Iteratively executed to generate status and open / close actuators.
 
         Args:
             None
@@ -270,6 +322,7 @@ class AG_SA():
         Returns:
             None
         '''
+<<<<<<< HEAD
         sa = self.cb_db.CB_SA[self.cb_id]
         for rule in sa.rule_set:
             print(rule)
@@ -300,6 +353,34 @@ class AG_SA():
                 print('Calibrating ', rule.sensor_alias)
             else:
                 print('Not Calibrating ', rule.sensor_alias)
+=======
+        for df_order, rule in self.rules.items():
+            status = self.status[rule["rule_id"]]
+            actuator_df = "Trigger-I" + str(df_order)
+            if rule["mode"] == "ON":
+                if status["status"] != "RED":
+                    status["status"] = "RED"
+                    DAN.push(actuator_df, 1)
+            elif rule["mode"] == "OFF":
+                if status["status"] == "RED":
+                    status["status"] = "GREEN"
+                    DAN.push(actuator_df, 0)
+            # auto mode
+            else:
+                weekdays = [int(x) for x in rule["weekday"].split(",")] \
+                    if len(rule["weekday"]) else list()
+                if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
+                    if rule["mode"] == "Sensor":
+                        self.sensor_checker(df_order)
+                    else:
+                        self.timer_checker(df_order)
+                else:
+                    if status["status"] == "RED":
+                        status["status"] = "GREEN"
+                        DAN.push(actuator_df, 0)
+            self.socket.send_json(status)
+
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
         return
     
     @orm.db_session
@@ -533,31 +614,36 @@ class AG_SA():
         return
     
 
-    @orm.db_session
-    def timer_checker(self, rule_id, mapping):
+    def timer_checker(self, df_order):
         """
         Timer-type rule checking handler. Push to IoTTalk server accordingly.
 
         Args:
-            rule_id: The id of the rule to be checked.
-            mapping: Tuple of format (sensor_alias, order of Device Feature).
+            df_order: The IDF/ODF pair of ControlBoard to pull/push data.
 
         Returns:
             None
         """
+<<<<<<< HEAD
         rule = self.cb_db.UserRule[rule_id]
         status = self.status[rule.sensor_alias]
+=======
+        rule = self.rules[df_order]
+        status = self.status[rule["rule_id"]]
+
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
         current = datetime.datetime.now()
-        actuator_df = 'Trigger' + '-I' + str(mapping[1])
-        time_open = datetime.datetime.combine(datetime.date.today(), rule.time_open)
-        time_close = datetime.datetime.combine(datetime.date.today(), rule.time_close)
-        exetime = rule.exetime
+        current_epoch = time.time()
+        actuator_df = "Trigger-I" + str(df_order)
+        time_open = datetime.datetime.combine(datetime.date.today(), rule["time_open"])
+        time_close = datetime.datetime.combine(datetime.date.today(), rule["time_close"])
 
         if time_open > time_close:
             time_close = time_close + datetime.timedelta(days=1)
 
         satisfied = (current > time_open and current < time_close)
         about2trigger = (abs((time_open - current).total_seconds()) < 600 and time_open > current)
+<<<<<<< HEAD
         expired = time.time() > (status['prev_trigger'] + rule.period)
 
         try:
@@ -602,24 +688,62 @@ class AG_SA():
         except Exception as err:
             print(err)
         self.socket.send_json(status)
+=======
+        duty = current_epoch < (status["prev_trigger"] + rule["duty_pos"]) \
+            or current_epoch > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"])  # Pos -> True, Neg -> False
+        print(rule, satisfied, about2trigger, duty)
+        try:
+            if duty:
+                if status["status"] == "RED":
+                    if satisfied:
+                        pass
+                    else:
+                        DAN.push(actuator_df, 0)
+                        status["status"] = "GREEN"
+                elif status["status"] == "YELLOW":
+                    if satisfied:
+                        DAN.push(actuator_df, 1)
+                        status["status"] = "RED"
+                        status["prev_trigger"] = current_epoch
+                    elif about2trigger:
+                        status["status"] = "YELLOW"
+                    else:
+                        status["status"] = "GREEN"
+                elif status["status"] == "GREEN":
+                    if satisfied:
+                        DAN.push(actuator_df, 1)
+                        status["status"] = "RED"
+                        status["prev_trigger"] = current_epoch
+                    elif about2trigger:
+                        status["status"] = "YELLOW"
+                    else:
+                        status["status"] = "GREEN"
+            else:
+                if status["status"] == "RED":
+                    DAN.push(actuator_df, 0)
+                status["status"] = "GREEN"
+        except Exception as err:
+            print(err)
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
         return
 
-    @orm.db_session
-    def sensor_checker(self, rule_id, mapping):
+    def sensor_checker(self, df_order):
         """
         Sensor-type rule checking handler. Push to IoTTalk server accordingly.
 
         Args:
-            rule_id: The id of the rule to be checked.
-            mapping: Tuple of format (sensor_alias, order of Device Feature).
+            df_order: The IDF/ODF pair of ControlBoard to pull/push data.
 
         Returns:
             None
         """
-        sensor_df = 'Threshold-O' + str(mapping[1])
+        sensor_df = "Threshold-O" + str(df_order)
+        rule = self.rules[df_order]
         data = DAN.pull(sensor_df)
         if data is None:
+            print("No sensor data pulled")
             return
+<<<<<<< HEAD
 
         data = data[0]
         rule = self.cb_db.UserRule[rule_id]
@@ -634,17 +758,39 @@ class AG_SA():
                 if status['status'] == 'RED':
                     DAN.push(actuator_df, 0)
                 status['status'] = 'GREEN'
+=======
+        candidate_sensors = rule["sensor_alias"].split(",")
+        if len(candidate_sensors) == 1:
+            data = data[0]
+        else:
+            data = data[0][self.rules[df_order]["sensor_index"]]
+        print("Data received:", data)
+        sensor_alias = rule["sensor_alias"].split(",")[rule["sensor_index"]]
+        status = self.status[rule["rule_id"]]
+        status["value"] = data
+        if sensor_alias not in self.df_hist_val:
+            self.df_hist_val[sensor_alias] = list()
+        self.df_hist_val[sensor_alias].append(data)
+        actuator_df = "Trigger-I" + str(df_order)
+        try:
+            avg = sum(self.df_hist_val[sensor_alias]) / len(self.df_hist_val[sensor_alias])
+            if "notset" in rule["comparison_open"] and "notset" in rule["comparison_close"]:
+                if status["status"] == "RED":
+                    DAN.push(actuator_df, 0)
+                status["status"] = "GREEN"
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
                 return
-            elif 'notset' in rule.comparison_open:
-                action = 'CLOSE'
-                satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close, avg)
-            elif 'notset' in rule.comparison_close:
-                action = 'OPEN'
-                satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open, avg)
+            elif "notset" in rule["comparison_open"]:
+                action = "CLOSE"
+                satisfied, next_action = self.condition_handler[rule["comparison_close"]](data, rule["threshold_close"], avg)
+            elif "notset" in rule["comparison_close"]:
+                action = "OPEN"
+                satisfied, next_action = self.condition_handler[rule["comparison_open"]](data, rule["threshold_open"], avg)
             else:
-                satisfied, next_action = self.condition_handler[rule.comparison_open](data, rule.threshold_open, avg)
-                action = 'OPEN'
+                satisfied, next_action = self.condition_handler[rule["comparison_open"]](data, rule["threshold_open"], avg)
+                action = "OPEN"
                 if not satisfied:
+<<<<<<< HEAD
                     action = 'CLOSE'
                     satisfied, next_action = self.condition_handler[rule.comparison_close](data, rule.threshold_close, avg)
 
@@ -667,10 +813,40 @@ class AG_SA():
                         else:
                             if next_action == 'YELLOW':
                                 status['status'] = 'YELLOW'
-                else:
-                    if action == 'OPEN':
+=======
+                    action = "CLOSE"
+                    satisfied, next_action = self.condition_handler[rule["comparison_close"]](data, rule["threshold_close"], avg)
+            current = time.time()
+            has_duty = rule["duty_pos"] != 0
+            if has_duty:
+                duty = (current < (status["prev_trigger"] + rule["duty_pos"])) or (current > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"]))  # Pos -> True, Neg -> False
+            else:
+                duty = True
+            print(rule, data, duty, satisfied, next_action)
+            if duty:
+                if status["status"] == "RED":
+                    if action == "CLOSE":
+                        if satisfied:
+                            DAN.push(actuator_df, 0)
+                            if next_action == "YELLOW":
+                                status["status"] = "YELLOW"
+                            else:
+                                status["status"] = "GREEN"
+                elif status["status"] == "GREEN":
+                    if action == "OPEN":
                         if satisfied:
                             DAN.push(actuator_df, 1)
+                            status["status"] = "RED"
+                            status["prev_trigger"] = current
+                        else:
+                            if next_action == "YELLOW":
+                                status["status"] = "YELLOW"
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
+                else:
+                    if action == "OPEN":
+                        if satisfied:
+                            DAN.push(actuator_df, 1)
+<<<<<<< HEAD
                             status['status'] = 'RED'
                             status['prev_trigger'] = time.time() + rule.exetime
                         else:
@@ -686,6 +862,20 @@ class AG_SA():
                 else:
                     status['status'] = 'GREEN'
 
+=======
+                            status["status"] = "RED"
+                            status["prev_trigger"] = current
+                        else:
+                            if next_action != "YELLOW":
+                                status["status"] = "GREEN"
+                    else:
+                        if next_action != "YELLOW":
+                            status["status"] = "GREEN"
+            else:
+                if status["status"] == "RED":
+                    DAN.push(actuator_df, 0)
+                status["status"] = "GREEN"
+>>>>>>> afc283b2f620ac6c0733caa335a18081b87201f4
             return
         except Exception as err:
             print(err)
@@ -701,16 +891,16 @@ class AG_SA():
             avg: the average of history data stored in memory.
 
         Returns:
-            satisfied: whether the rule is satisfied by arg data
-            status: Card status in UI.
+            satisfied: True/False, whether the rule is satisfied by arg data
+            status: RED/YELLOW/UNCHANGED, Card status in UI.
         """
         if data > threshold:
             satisfied = True
             status = 'RED'
         else:
             satisfied = False
-            print('bigger', 0.5 * (threshold - avg) + avg)
-            if data > 0.5 * (threshold - avg) + avg:
+            print('bigger', 0.78 * (threshold - avg) + avg)
+            if data > 0.78 * (threshold - avg) + avg:
                 status = 'YELLOW'
             else:
                 status = 'UNCHANGED'
@@ -795,7 +985,7 @@ class AG_SA():
         return satisfied, status
 
 
-sa = AG_SA('{cb_id}', {config}, '{mac_addr}')
+sa = AG_SA('{sa_id}', {config}, '{mac_addr}', '{sa_name}')
 
 sa.connect_db()
 sa.recover()
