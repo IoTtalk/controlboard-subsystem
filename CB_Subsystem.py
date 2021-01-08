@@ -86,6 +86,8 @@ if __name__ == "__main__":
         if 0 == len(CB_Account.select()):
             admin = CB_Account(account=env_config["env"]["admin"], privilege=2)
             system_logger.info(f"Init Admin with account {admin.account}")
+            CB_Account(account="Superuser", privilege=1)
+            CB_Account(account="luk1684tw", privilege=0)
 
     app.run(
         host=env_config['env']['host'],

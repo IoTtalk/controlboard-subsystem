@@ -139,7 +139,9 @@ def connect_db(logger, cb_db):
             port=int(env_config['db']['port'])
         )
     cb_db.generate_mapping(check_tables=False)
-    # cb_db.drop_all_tables(with_all_data=True)  # used to clean testcase
+    if env_config["db"]["reset"] == "1":
+        logger.info("Reset Database")
+        cb_db.drop_all_tables(with_all_data=True)  # used to clean testcase
     while (retry_times < 3):
         try:
             cb_db.create_tables()

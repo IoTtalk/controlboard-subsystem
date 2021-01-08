@@ -45,7 +45,7 @@ def requires_login(f):
             # next_url = request.path
             # TODO: redirect to AAA to login
             session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
-            session["user"] = "yb"  # dummy account
+            session["user"] = "admin"  # dummy account
             return redirect("/")
     return decorated_function
 
