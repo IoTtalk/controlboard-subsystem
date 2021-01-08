@@ -55,7 +55,7 @@ default_rules = {
 }
 
 
-def _post(url, data):
+def _post(url, data, logger):
     '''
     AG post request worker
 
@@ -65,18 +65,22 @@ def _post(url, data):
     Returns:
         res: response from AG.
     '''
-    response = json.loads(
-        requests.post(
-            f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/{url}/',
-            json=data
-        ).text
-    )
+    try:
+        response = json.loads(
+            requests.post(
+                f'http://{env_config["env"]["host_ag"]}:{env_config["env"]["port_ag"]}/{url}/',
+                json=data
+            ).text
+        )
+        state = (response["state"] == "ok")
+        return state, response
+    except Exception as err:
+        logger.exception(err)
+        return False, "failed at sending request to AG"
     # if url == "ccm_api":
     #     print(data, response)
     # else:
     #     print(url, response)
-    state = (response["state"] == "ok")
-    return state, response
 
 
 def make_logger(log_name, log_file):
@@ -287,7 +291,7 @@ def get_iottalk_info(logger):
                 'dm': 'ControlBoard'
             }
         }
-        state, response = _post('ccm_api', data)
+        state, response = _post('ccm_api', data, logger)
         if not state:
             raise CCMAPIFailError
         response = response["result"]
@@ -322,7 +326,9 @@ def create_proj_ag(sa, logger):
         }
     }
     try:
-        state, response = _post('ccm_api', data)
+        state, response = _post('ccm_api', data, logger)
+        if not state:
+            raise CCMAPIFailError
         logger.info('\tCreate Project\t......done')
         return state, int(response["result"])
     except Exception as err:
@@ -348,7 +354,9 @@ def delete_proj_ag(p_id, logger):
         }
     }
     try:
-        status, response = _post('ccm_api', data)
+        status, response = _post('ccm_api', data, logger)
+        if not status:
+            raise CCMAPIFailError
         return status, response
     except Exception as err:
         logger.exception(err)
@@ -376,7 +384,9 @@ def create_do_ag(p_id, logger):
         }
     }
     try:
-        status, response = _post('ccm_api', data)
+        status, response = _post('ccm_api', data, logger)
+        if not status:
+            raise CCMAPIFailError
         logger.info('\tCreate DO\t......done')
         return status, response["result"]
     except Exception as err:
@@ -404,7 +414,9 @@ def register_ag(sa, logger):
             "code": new_sa
         }
 
-        state, response = _post('create_device', data)
+        state, response = _post('create_device', data, logger)
+        if not state:
+            raise CCMAPIFailError
         return state, response["token"]
     except KeyError:
         logger.exception('CB_SA.py Key Error, check parameter passed in or brackets in the code')
@@ -430,7 +442,10 @@ def deregister_ag(sa, logger):
         data = {
             'token': sa.ag_token
         }
-        _post('delete_device', data)
+        status, res = _post('delete_device', data, logger)
+        if not status:
+            logger.exception(res)
+            raise CCMAPIFailError
         return True
     except Exception as err:
         logger.exception(err)
@@ -460,7 +475,7 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                     "do_id": do_id[0]
                 }
             }
-            status, response = _post('ccm_api', data)
+            status, response = _post('ccm_api', data, logger)
             if not status:
                 raise CCMAPIFailError
             response = response["result"]
@@ -482,7 +497,9 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                         "d_id": device["d_id"]
                     }
                 }
-                status, response = _post("ccm_api", data)
+                status, response = _post("ccm_api", data, logger)
+                if not status:
+                    raise CCMAPIFailError
             logger.info("\tBind device\t......done")
             return status, response["result"]
     except CCMAPIFailError:
@@ -513,7 +530,7 @@ def get_na_ag(p_id, na_id, logger):
         }
     }
     try:
-        state, res = _post("ccm_api", data)
+        state, res = _post("ccm_api", data, logger)
         if not state:
             raise CCMAPIFailError
         return state, res["result"]

@@ -457,6 +457,7 @@ def refresh_sa(sa_id):
         status, ag_token = register_ag(sa, api_logger)
         if not status:
             sa.delete()
+            cb_db.commit()
             abort(400, "Create SA failed at registering device, check api log files")
         sa.ag_token = ag_token
 
@@ -467,6 +468,7 @@ def refresh_sa(sa_id):
         if not status:
             deregister_ag(sa, api_logger)
             sa.delete()
+            cb_db.commit()
             abort(400, "Create SA failed at auto binding, check api log files")
         running_sa[sa.sa_id] = sa
         for rule in sa.rule_set:
@@ -511,16 +513,15 @@ def create_sa():
     # Create Project
     status, p_id = create_proj_ag(sa, api_logger)
     if not status:
-        deregister_ag(sa, api_logger)
         sa.delete()
+        cb_db.commit()
         abort(400, "Create SA failed at creating project, check api log files")
     sa.p_id = p_id
-
     # Create Device Object
     status, do_id = create_do_ag(p_id, api_logger)
     if not status:
-        deregister_ag(sa, api_logger)
         sa.delete()
+        cb_db.commit()
         abort(400, "Create SA failed at creating DO, check api log files")
     if use_v1:
         sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
