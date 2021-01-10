@@ -271,7 +271,7 @@ def get_rules(sa_id):
         return jsonify(list()), 200
     except Exception as err:
         api_logger.exception(err)
-        return abort(500, "Internal server error")
+        abort(500, "Internal server error")
 
 
 @apis.route('/sa/<int:sa_id>/current_data', methods=['GET'])
@@ -285,7 +285,7 @@ def get_datum(sa_id):
         sa_id: ID of the requester SA.
 
     Returns:
-        Status code: 200.
+        Status code: 200 / 500.
         record_list: A json object containing the lastest data of each sensor and trigger status.
     '''
     res_dict = dict()
@@ -298,17 +298,16 @@ def get_datum(sa_id):
             status = running_status[rule.rule_id]
             status["time"] = datetime.datetime.now().strftime("%H:%M")
             res_dict[rule.rule_id] = status
+        return jsonify(res_dict), 200
     except NotFoundError:
         api_logger.exception("Error getting SA's current data, Specified SA not running")
-        return "Specified SA not running", 400
+        return "Specified SA not running", 200
     except Exception as err:
         api_logger.exception(err)
-        return abort(500, err)
-
-    return jsonify(res_dict), 200
+        abort(500, err)
 
 
-@apis.route('/subsystem/refresh_sa/<int:sa_id>', methods=['GET'])
+@apis.route('/sa/refresh_sa/<int:sa_id>', methods=['GET'])
 @requires_login
 @orm.db_session
 def refresh_sa(sa_id):
@@ -319,7 +318,7 @@ def refresh_sa(sa_id):
         sa_id: ID of the SA to get p_id.
 
     Returns:
-        Status code: 200 / 400 / 502
+        Status code: 200 / 400 / 500
         Msg: Corresponding execution result.
     '''
     try:
@@ -332,6 +331,7 @@ def refresh_sa(sa_id):
             NAs = json.loads(NAs.text)["join"]
         else:
             NAs = ["testV2"]
+            raise NotImplementedError
         print(NAs)
         if not len(NAs):
             raise NotFoundError
@@ -420,14 +420,14 @@ def refresh_sa(sa_id):
             status = deregister_ag(sa, api_logger)
             if not status:
                 api_logger.exception("Deregister Sa failed")
-                abort(500, "Deregister SA failed")
+                abort(500, "Deregister AG SA failed, check api log and AG")
 
         # Register device
         status, ag_token = register_ag(sa, api_logger)
         if not status:
             sa.delete()
             cb_db.commit()
-            abort(400, "Create SA failed at registering device, check api log files")
+            abort(500, "Create SA failed at registering device, check api log and AG")
         sa.ag_token = ag_token
 
         # Bind device to DO
@@ -441,25 +441,26 @@ def refresh_sa(sa_id):
             abort(400, "Create SA failed at auto binding, check api log files")
         running_sa[sa.sa_id] = sa
         for rule in sa.rule_set:
-            running_status[rule.rule_id] = default_status
+            if rule.rule_id not in running_status:
+                running_status[rule.rule_id] = default_status
 
         api_logger.info(f"Create New SA, DM Name: {dm_name}")
         return f"Create New SA, DM Name: {dm_name}", 200
     except NotFoundError:
         api_logger.exception("No NAs found, remind user to create NAs")
         sa = CB_SA[sa_id]
-        return abort(400, f"No detected, please create Join point in Project {str(sa_id) + '-' + sa.sa_name}")
+        abort(400, f"No NA detected, please create Join point in Project {sa.sa_name}")
     except Exception as err:
         api_logger.exception(err)
-        return abort(502, "Internal Server Error")
+        abort(500, "Internal Server Error")
 
 
-@apis.route('/subsystem/create_sa', methods=['POST'])
+@apis.route('/sa/create_sa', methods=['POST'])
 @requires_login
 @orm.db_session
 def create_sa():
     '''
-    Creates an empty SA. Further steps must be triggered by refresh_sa after
+    Creates an empty SA. Further steps are to be triggered by refresh_sa event after
         User has setup GUI connections(NAs).
 
     Args:
@@ -467,8 +468,8 @@ def create_sa():
         sa_name: Name of this SA given by the user.
 
     Returns:
-        Status code: 200 / 400.
-        proj_name: Project name for user to choose input sensors and output actuators.
+        Status code: 200 / 400 / 500.
+        msg: Corresponding execution result.
     '''
     sa_spec = request.json
     if not CB.exists(cb_id=sa_spec["cb_id"]):
@@ -484,14 +485,14 @@ def create_sa():
     if not status:
         sa.delete()
         cb_db.commit()
-        abort(400, "Create SA failed at creating project, check api log files")
+        abort(400, "Create SA failed at creating project, project with the same name already exists.")
     sa.p_id = p_id
     # Create Device Object
     status, do_id = create_do_ag(p_id, api_logger)
     if not status:
         sa.delete()
         cb_db.commit()
-        abort(400, "Create SA failed at creating DO, check api log files")
+        abort(500, "Create SA failed at creating DO, check api log files and IoTtalk CCM.")
     if use_v1:
         sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
     else:
@@ -499,7 +500,7 @@ def create_sa():
     return "Create SA succeeded", 200
 
 
-@apis.route('/subsystem/delete_sa', methods=['POST'])
+@apis.route('/sa/delete_sa', methods=['POST'])
 @requires_login
 @orm.db_session
 def delete_sa(sa_id=None):
@@ -534,14 +535,17 @@ def delete_sa(sa_id=None):
     except KeyError:
         api_logger.exception('Specified ControlBoard not running')
         return "Specified SA not found", 400
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)
 
 
-@apis.route('/subsystem/get_sa/<int:cb_id>', methods=['GET'])
+@apis.route('/sa/get_sa/<int:cb_id>', methods=['GET'])
 @requires_login
 @orm.db_session()
 def get_sa(cb_id):
     '''
-    Get accessible sa_ids and sa_names of the specified user. Called when rendering SAs available to the user.
+    Get SA infos in the specified CB. Called when rendering available SAs to the user.
 
     Args:
         cb_id: The ID of the requested CB.
@@ -643,14 +647,14 @@ def set_pinned_field():
 @orm.db_session
 def manage_icon(cb_id):
     '''
-    Change specified CB's icon client given `cb_id` and `file` from request.
+    Change specified CB's icon given `cb_id` and `file` from request.
 
     Args:
         cb_id: Specified CB's unique id.
         file: Image body to change.
 
     Returns:
-        Status code: 200 / 400 / 401 / 403 / 502
+        Status code: 200 / 400 / 401 / 403 / 500
         Message: Corresponding execution result.
     '''
     print(icon_extensions)
@@ -681,7 +685,7 @@ def manage_icon(cb_id):
     except Exception as err:
         api_logger.exception("Unknown Error in Changing Icon.")
         api_logger.exception(err)
-        abort(502, "Internal Server Error")
+        abort(500, "Internal Server Error")
 
 
 @apis.route('/subsystem/create_cb', methods=['POST'])
@@ -714,7 +718,7 @@ def create_cb():
         abort(400, "Non-existed User!")
     except Exception as err:
         api_logger.exception(err)
-        abort(502, "Unknown Error occurred, contact subsystem-admin to check error log!")
+        abort(500, "Unknown Error occurred, contact subsystem-admin to check error log!")
     return "Success", 200
 
 
@@ -751,7 +755,7 @@ def delete_cb():
     except Exception as err:
         api_logger.exception("Unknown error occurred, error message as belows")
         api_logger.exception(err)
-        abort(502, "Internal error occurred")
+        abort(500, "Internal error occurred")
 
 
 @apis.route('/subsystem/get_cb/<string:usr_account>', methods=['GET'])
@@ -759,7 +763,7 @@ def delete_cb():
 @orm.db_session
 def get_cb(usr_account):
     '''
-    Returns all accessible CB list given user account
+    Returns a list containing all accessible ControlBoards of the specified user given user account
 
     Args: None
 
@@ -769,7 +773,7 @@ def get_cb(usr_account):
             accessibleProjects: A list containing all `CB_id`s owned/shared to this user.
             optionProjects: A list of CBs including all CBs shared to this user.
 
-            If user is not a superuser, that `accessibleProjects` will be exactly the same as `optionProjects`.
+            If user is not a admin user, that `accessibleProjects` will be exactly the same as `optionProjects`.
             Otherwise `optionProjects` would contains all CBs.
     '''
     try:
