@@ -88,16 +88,27 @@ def set_rules(sa_id):
     Args:
         sa_id: ID of the requester SA.
         request: A list of rule settings in json format.
+            each rule setting will contain the following fields
+                `actuator_alias`
+                `mode`
+                `sensor_index`
+                `threshold_open`
+                `threshold_close`
+                `comparison_open`
+                `comparison_close`
+                `time_open`
+                `time_close`
+                `weekday`
+                `duty_pos`
+                `duty_neg`
+            Refer to models.py for each fields' meaning.
 
     Returns:
-        Status code:
-            200: Successfully setup rules.
-            400: Invalid rule settings detected.
-            502: Internal Error occured.
+        Status code: 200 / 400 / 500
         msg: Depends on status code.
             200: "Configuration Saved".
             400: a string containing invalid actuators.
-            502: "Internal Server Error".
+            500: "Internal Server Error".
     '''
     api_logger.info(f'Start setting new rules of SA NO. {sa_id}')
     invalid_list = list()
@@ -162,7 +173,7 @@ def set_rules(sa_id):
 
         if not status:
             api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
-            return "Internal Server Error", 502
+            return "Internal Server Error", 500
 
         return 'Configuration Saved', 200
     except WrongSettingError:
@@ -173,53 +184,13 @@ def set_rules(sa_id):
         abort(400, f"Abnormal threshold setting of {invalid_actuators} detected, aborting all")
     except orm.RowNotFound:
         api_logger.exception("Specified rule not found")
-        abort(400)
+        abort(400, "Specified SA not found")
     except orm.MultipleRowsFound:
         api_logger.exception("Multiple Rule found for the same actuator")
-        abort(500)
+        abort(400, "Multiple Rules for the same actuator detected")
     except Exception as err:
         api_logger.exception(err)
         abort(500)
-
-
-@apis.route('/sa/<int:sa_id>/stop', methods=['GET'])
-@orm.db_session
-def stop_SA(sa_id):
-    '''
-    Stop all actuator execution and pends the SA with specified sa_id.
-
-    Args:
-        sa_id: ID of the requester SA.
-
-    Returns:
-        Status code:
-            200: All procedure succeeded.
-            502: Some procedure failed, check API log files.
-        msg: Depends on Status code.
-            200: 'Stop Done'.
-            502: 'Internal Server Error'.
-    '''
-    try:
-        sa = running_sa[sa_id]
-        rules = sa.rule_set
-
-        for rule in rules:
-            rule.set(**default_rules)
-
-        if not deregister_ag(sa, api_logger):
-            return f"stop SA {sa_id} failed at deregistering, check API log files", 502
-
-        status, ag_token = register_ag(sa, api_logger)
-        if not status:
-            return f"stop SA {sa_id} failed at registering, check API log files", 502
-        sa.ag_token = ag_token
-
-        if not bind_device_ag(sa.mac_addr, sa.p_id, sa.do_id, api_logger):
-            return f"stop SA {sa_id} failed at re-binding, check API log files", 502
-
-        return 'Stop Done', 200
-    except KeyError:
-        return "Specified SA is not running", 400
 
 
 @apis.route('/sa/<int:sa_id>/rules', methods=['GET'])
@@ -406,7 +377,6 @@ def refresh_sa(sa_id):
                         actuator_alias=actuator[0][1],
                         actuator_df=actuator[0][0],
                         df_order=order,
-                        mode="Timer",
                     )
                 else:
                     sa.rule_set.add(
@@ -427,7 +397,6 @@ def refresh_sa(sa_id):
                         sensor_alias=",".join([row[1] for row in src[order]]),
                         sensor_df=",".join([row[0] for row in src[order]]),
                         df_order=order,
-                        mode="Sensor",
                     )
                 else:
                     sa.rule_set.add(
