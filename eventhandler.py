@@ -208,8 +208,8 @@ def get_rules(sa_id):
         rule_list: A list containing rules of the specific SA. Each element of this list is a rule in dictionary format.
             Each rule will contain the following information
                 `ruleID`: integer, primary key of the rule in database table `UserRule`.
-                `actuator`: string, indicating user-defined df-alias on IoTtalk GUI.
-                `sensors`: list of strings, indicating user-defined df-alias on IoTtalk GUI.
+                `actuator`: string, indicating user-defined actuator df-alias on IoTtalk GUI.
+                `sensors`: list of strings, indicating user-defined sensor df-alias on IoTtalk GUI.
                 `mode`: string, indicating manual on/off or sensor/timer.
                 `content`: dictionary, the rule's content. including the following fields.
                     `openSensor`: string, should be one of bigger/smaller/null.
