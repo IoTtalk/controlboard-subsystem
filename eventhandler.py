@@ -216,8 +216,8 @@ def get_rules(sa_id):
                     `openSensorVal`: integer, the threshold value to trigger the actuator.
                     `closeSensor`: string, should be one of bigger/smaller/null.
                     `closeSensorVal`: integer, the threshold value to close the actuator.
-                    `openTimer`: datetime string, represent the timing allowed to trigger the actuator.
-                    `closeTimer`: datetime string, represent the timing allowed to close the actuator.
+                    `openTimer`: list of length 3, represent the timing allowed to trigger the actuator.
+                    `closeTimer`: list of length 3, represent the timing allowed to close the actuator.
                     `dutyPos`: integer, time in seconds representing the positive cycle length of one Duty cycle.
                     `dutyNeg`: integer, time in seconds representing the negative cycle length of one Duty cycle.
                     `weekdays`: list of integers representing weekdays. Mon <=> 0, Sun <=> 6, All <=> 7.
