@@ -286,7 +286,7 @@ def get_datum(sa_id):
 
     Returns:
         Status code: 200 / 500.
-        record_list: A json object containing the lastest data of each sensor and trigger status.
+        res_dict: A json object containing the lastest data of each sensor and trigger status.
     '''
     res_dict = dict()
     try:
@@ -533,7 +533,7 @@ def delete_sa(sa_id=None):
         api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
         return "Delete SA succeed", 200
     except KeyError:
-        api_logger.exception('Specified ControlBoard not running')
+        api_logger.exception('Specified Field not running')
         return "Specified SA not found", 400
     except Exception as err:
         api_logger.exception(err)
@@ -551,7 +551,7 @@ def get_sa(cb_id):
         cb_id: The ID of the requested CB.
 
     Returns:
-        Status code: 200 / 401 / 403
+        Status code: 200 / 403
         available_sa: A list of CB SAs, each element is composed of sa_id and sa_name of the corresponging SA.
     '''
     available_sa = list()
@@ -568,9 +568,6 @@ def get_sa(cb_id):
                 "pin": sa.pinned
             })
         return jsonify(available_sa), 200
-    except KeyError:
-        api_logger.exception("Error getting SA, User not logined!")
-        abort(401, "Non-existed User!")
     except NotAuthorizedError:
         api_logger.exception("Error getting SA, Requested CB is not shared with this user.")
         abort(403, "Not a superuser!")
@@ -636,7 +633,7 @@ def set_pinned_field():
         return "okay", 200
     except NotFoundError:
         api_logger.exception("Unrelated SA involved, abort request")
-        abort(400)
+        abort(400, "Unrelated SA involved, abort request")
     except Exception as err:
         api_logger.exception(err)
         abort(500)
@@ -765,7 +762,8 @@ def get_cb(usr_account):
     '''
     Returns a list containing all accessible ControlBoards of the specified user given user account
 
-    Args: None
+    Args:
+        usr_account: Account of the requester user.
 
     Returns:
         Status code: 200 / 401 / 403
@@ -807,12 +805,12 @@ def get_cb(usr_account):
             "optionProjects": option_cb
         }), 200
     except NotAuthorizedError:
-        api_logger.exception("Error Getting ControlBoard, No such user.")
+        api_logger.exception("Error Getting ControlBoard, Permission denied.")
         # TODO: redirect to AAA login page.
-        abort(401, "No such User")
+        abort(403, "Permission denied")
     except NotFoundError:
         api_logger.exception("No such user")
-        abort(403, "No such user")
+        abort(401, "No such user")
     except Exception as err:
         api_logger.exception(err)
         abort(500, err)
@@ -860,7 +858,7 @@ def get_users():
         None
 
     Returns:
-        Status code: 200 / 403 / 500.
+        Status code: 200 / 401 / 403 / 500.
         users: A list of dictionary, each dict contains two keys `superuser` and `username`.
     '''
     try:
@@ -878,7 +876,7 @@ def get_users():
         return jsonify(users), 200
     except NotFoundError:
         api_logger.exception("No such user")
-        abort(403, "No such user")
+        abort(401, "No such user")
     except NotAuthorizedError:
         api_logger.exception("User not authorized to access this api")
         abort(403, "User not authorized")
@@ -898,15 +896,17 @@ def adjust_privilege(usr_name):
         usr_name: String, account of the specified user.
         usr_profile: Dictionary containing two fields `privilege` and `accessible_cb`
             privilege: Int, ranging from 0~2, indicating user/superuser/admin individually.
-            accessible_cb: List, cb_ids this user should be granted to access.
+            accessible_cb: List, cb_ids this user is granted to access.
 
     Returns:
-        Status code: 200 / 400 / 500
+        Status code: 200 / 401 / 403 / 500
         Msg: Corresponding execution result.
     '''
     try:
         data = request.json
-        print(data)
+        current_user = CB_Account.get(account=session["user"])
+        if current_user.privilege <= data["privilege"]:
+            raise NotAuthorizedError
         account = CB_Account.get(account=usr_name)
         if None is account:
             raise NotFoundError
@@ -916,8 +916,10 @@ def adjust_privilege(usr_name):
             account.cb_set.add(CB[cb_id])
         return "setup done", 200
     except NotFoundError:
-        api_logger.exception("No Such Account")
-        abort(400)
+        api_logger.exception("No Such User")
+        abort(401, "No Such User")
+    except NotAuthorizedError:
+        abort(403, "Permission denied")
     except Exception as err:
         api_logger.exception(err)
         abort(500)
