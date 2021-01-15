@@ -51,6 +51,27 @@ def requires_login(f):
     return decorated_function
 
 
+def notify_user(title, rules, users):
+    '''
+    Notify Users when a UserRule has been changed
+
+    Args:
+        title: String, Title of the email.
+        rules: List of dictionarys, rules to record in the email content.
+        users: List of Strings, the target email addresses to send notifier email. 
+
+    Returns:
+        None
+    '''
+    title += "=================================================\n"
+    for rule in rules:
+        title += email_notifier.rule2msg(rule)
+        title += "=================================================\n"
+    email_notifier.send(users, title)
+
+    return
+
+
 @apis.route('/', methods=["GET"])
 @requires_login
 @orm.db_session
@@ -113,8 +134,9 @@ def set_rules(sa_id):
     '''
     api_logger.info(f'Start setting new rules of SA NO. {sa_id}')
     invalid_list = list()
+    rules = request.json
     try:
-        for rule_setting in request.json:
+        for rule_setting in rules:
             invalid = False
             # Sensor threshold setup < 0
             if rule_setting["mode"] == "Sensor":
@@ -134,15 +156,10 @@ def set_rules(sa_id):
 
         api_logger.info('\tStart setting rules')
         sa = CB_SA[sa_id]
-        accessible_users = list()
-        for account in sa.cb.account_set:
-            accessible_users.append(account.account)
-        print(accessible_users)
-        msg = (
-            f"ControlBoard {sa.cb.cb_name} has UserRule changed\n"
-            "=================================================\n"
-        )
-        for rule_setting in request.json:
+        accessible_users = [user.account for user in sa.cb.account_set]
+        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} has UserRules changed as follows\n\n"
+
+        for rule_setting in rules:
             actuator = rule_setting["actuator_alias"]
             rule_setting["weekday"] = ",".join([str(weekday) for weekday in rule_setting["weekday"]])
             if rule_setting["time_open"] is not None:
@@ -165,9 +182,7 @@ def set_rules(sa_id):
             rule.set(**rule_setting)
             if rule_setting["mode"] == "Sensor":
                 rule_setting["sensor_alias"] = rule.sensor_alias.split(',')[rule_setting["sensor_index"]]
-            msg += email_notifier.rule2msg(rule_setting, sa.sa_name)
-            msg += "=================================================\n"
-        print(msg)
+        notify_user(title, rules, accessible_users)
         if sa_id in running_sa:
             status = deregister_ag(running_sa[sa_id], api_logger)
             if not status:
@@ -187,7 +202,6 @@ def set_rules(sa_id):
         if not status:
             api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
             return "Internal Server Error", 500
-        email_notifier.send(accessible_users, msg)
 
         return 'Configuration Saved', 200
     except WrongSettingError:
@@ -459,6 +473,11 @@ def refresh_sa(sa_id):
                 running_status[rule.rule_id] = default_status
 
         api_logger.info(f"Create New SA, DM Name: {dm_name}")
+
+        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} is refreshed, new UserRules as follows\n\n"
+        rules = [rule.to_dict() for rule in sa.rule_set]
+        users = [user.account for user in sa.cb.account_set]
+        notify_user(title, rules, users)
         return f"Create New SA, DM Name: {dm_name}", 200
     except NotFoundError:
         api_logger.exception("No NAs found, remind user to create NAs")

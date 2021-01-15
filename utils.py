@@ -532,9 +532,3 @@ def get_na_ag(p_id, na_id, logger):
     except Exception as err:
         logger.exception(err)
         return False, "Send request to query NA failed, check API log."
-
-
-def notify_user():
-    '''
-    Notify Users when a UserRule has been changed
-    '''

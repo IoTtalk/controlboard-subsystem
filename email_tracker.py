@@ -22,10 +22,10 @@ class EmailNotifier():
         return
 
     @staticmethod
-    def rule2msg(rule, field):
+    def rule2msg(rule):
         if rule["mode"] == "Sensor":
             msg = (
-                f"Actuator {rule['actuator_alias']} of Field {field} switched to Sensor Mode\n"
+                f"Actuator {rule['actuator_alias']} switched to Sensor Mode\n"
                 f"Sensor : {rule['sensor_alias']}\n"
                 f"Open Threshold : {rule['comparison_open']}"
                 f" than {rule['threshold_open']}\n" if rule["comparison_open"] is not "notset" else "\n"
@@ -34,13 +34,13 @@ class EmailNotifier():
             )
         elif rule["mode"] == "Timer":
             msg = (
-                f"Actuator {rule['actuator_alias']} of Field {field} switched to Timer Mode\n"
+                f"Actuator {rule['actuator_alias']} switched to Timer Mode\n"
                 f"Open Timing : {rule['time_open'].strftime('%H:%M:%S')}\n"
                 f"Close Timing : {rule['time_close'].strftime('%H:%M:%S')}\n"
             )
         else:
             msg = (
-                f"Actuator {rule['actuator_alias']} of Field {field} switched to {rule['mode']} manually\n"
+                f"Actuator {rule['actuator_alias']} switched to {rule['mode']} manually\n"
             )
         if rule["mode"] is not "ON" and rule["mode"] is not "OFF":
             if len(rule["weekday"]):

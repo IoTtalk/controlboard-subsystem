@@ -184,6 +184,7 @@
                   <b-form-input size="sm" class="custom-input"
                     v-model="setting.content.openSensorVal"
                     v-bind:disabled="setting.content.openSensor==='notset'"
+                    v-on:input="setting.dirty=true"
                   ></b-form-input>
                   <span class="setting-text-mid">ON.</span>
                   <custom-sel
@@ -194,6 +195,7 @@
                   <b-form-input size="sm" class="custom-input"
                     v-model="setting.content.closeSensorVal"
                     v-bind:disabled="setting.content.closeSensor==='notset'"
+                    v-on:input="setting.dirty=true"
                   ></b-form-input>
                   <span class="setting-text">OFF.</span>
                 </div>
