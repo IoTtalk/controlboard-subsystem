@@ -18,6 +18,11 @@ from werkzeug.utils import secure_filename
 from pony import orm
 
 
+from config import default_rules, default_status
+from config import env_config
+from config import icon_extensions
+from config import use_v1
+from email_tracker import email_notifier
 from exceptions import NotAuthorizedError, NotFoundError, WrongSettingError
 from utils import running_sa, running_status
 from utils import make_logger
@@ -26,10 +31,6 @@ from utils import create_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag, get_na_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB
-from config import default_rules, default_status
-from config import env_config
-from config import icon_extensions
-from config import use_v1
 
 
 api_logger = make_logger('API', 'API')
@@ -87,8 +88,8 @@ def set_rules(sa_id):
 
     Args:
         sa_id: ID of the requester SA.
-        request: A list of rule settings in json format.
-            each rule setting will contain the following fields
+        request: A list of UserRules in json format.
+            each UserRule will contain the following fields
                 `actuator_alias`
                 `mode`
                 `sensor_index`
@@ -101,7 +102,7 @@ def set_rules(sa_id):
                 `weekday`
                 `duty_pos`
                 `duty_neg`
-            Refer to models.py for each fields' meaning.
+            Refer to models.py for each field's meaning.
 
     Returns:
         Status code: 200 / 400 / 500
@@ -133,6 +134,14 @@ def set_rules(sa_id):
 
         api_logger.info('\tStart setting rules')
         sa = CB_SA[sa_id]
+        accessible_users = list()
+        for account in sa.cb.account_set:
+            accessible_users.append(account.account)
+        print(accessible_users)
+        msg = (
+            f"ControlBoard {sa.cb.cb_name} has UserRule changed\n"
+            "=================================================\n"
+        )
         for rule_setting in request.json:
             actuator = rule_setting["actuator_alias"]
             rule_setting["weekday"] = ",".join([str(weekday) for weekday in rule_setting["weekday"]])
@@ -154,7 +163,11 @@ def set_rules(sa_id):
 
             rule = UserRule.get(sa=sa, actuator_alias=actuator)
             rule.set(**rule_setting)
-
+            if rule_setting["mode"] == "Sensor":
+                rule_setting["sensor_alias"] = rule.sensor_alias.split(',')[rule_setting["sensor_index"]]
+            msg += email_notifier.rule2msg(rule_setting, sa.sa_name)
+            msg += "=================================================\n"
+        print(msg)
         if sa_id in running_sa:
             status = deregister_ag(running_sa[sa_id], api_logger)
             if not status:
@@ -174,6 +187,7 @@ def set_rules(sa_id):
         if not status:
             api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
             return "Internal Server Error", 500
+        email_notifier.send(accessible_users, msg)
 
         return 'Configuration Saved', 200
     except WrongSettingError:

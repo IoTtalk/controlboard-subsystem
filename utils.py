@@ -97,18 +97,12 @@ def make_logger(log_name, log_file):
     logger = logging.getLogger(f'[{log_name}]')
     logger.setLevel(logging.INFO)
 
-    sh = logging.StreamHandler()
-    sh.setLevel(logging.INFO)
-
     log_file_path = os.path.join(log_root, log_file + '.log')
     fh = logging.FileHandler(log_file_path)
     fh.setLevel(logging.INFO)
 
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(module)s - \t%(lineno)s - \t%(message)s')
-    sh.setFormatter(formatter)
     fh.setFormatter(formatter)
-
-    logger.addHandler(sh)
     logger.addHandler(fh)
 
     return logger
@@ -243,8 +237,6 @@ def status_receiver(msgs):
         try:
             rule_id = status["rule_id"]
             running_status[rule_id] = status
-            status_logger.info(f"Receive status from Rule {rule_id}")
-            status_logger.info(status)
         except KeyError:
             status_logger.exception("Receive status error")
 
@@ -540,3 +532,9 @@ def get_na_ag(p_id, na_id, logger):
     except Exception as err:
         logger.exception(err)
         return False, "Send request to query NA failed, check API log."
+
+
+def notify_user():
+    '''
+    Notify Users when a UserRule has been changed
+    '''

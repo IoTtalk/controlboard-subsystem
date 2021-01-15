@@ -2,6 +2,7 @@ import datetime
 
 
 from pony.orm import Database
+from pony.orm import db_session
 from pony.orm import Required
 from pony.orm import PrimaryKey
 from pony.orm import Optional
