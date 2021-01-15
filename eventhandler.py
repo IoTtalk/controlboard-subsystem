@@ -58,7 +58,7 @@ def notify_user(title, rules, users):
     Args:
         title: String, Title of the email.
         rules: List of dictionarys, rules to record in the email content.
-        users: List of Strings, the target email addresses to send notifier email. 
+        users: List of Strings, the target email addresses to send notifier email.
 
     Returns:
         None
@@ -66,7 +66,7 @@ def notify_user(title, rules, users):
     title += "=================================================\n"
     for rule in rules:
         title += email_notifier.rule2msg(rule)
-        title += "=================================================\n"
+        title += "\n=================================================\n"
     email_notifier.send(users, title)
 
     return
@@ -157,7 +157,7 @@ def set_rules(sa_id):
         api_logger.info('\tStart setting rules')
         sa = CB_SA[sa_id]
         accessible_users = [user.account for user in sa.cb.account_set]
-        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} has UserRules changed as follows\n\n"
+        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} has UserRules changed as follows\n"
 
         for rule_setting in rules:
             actuator = rule_setting["actuator_alias"]
@@ -474,7 +474,7 @@ def refresh_sa(sa_id):
 
         api_logger.info(f"Create New SA, DM Name: {dm_name}")
 
-        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} is refreshed, new UserRules as follows\n\n"
+        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} is refreshed, new UserRules as follows\n"
         rules = [rule.to_dict() for rule in sa.rule_set]
         users = [user.account for user in sa.cb.account_set]
         notify_user(title, rules, users)

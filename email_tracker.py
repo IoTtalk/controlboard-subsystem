@@ -1,5 +1,4 @@
 import smtplib
-import logging
 
 # Import the email modules we'll need
 from email.mime.text import MIMEText
@@ -14,8 +13,8 @@ weeks = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 class EmailNotifier():
     def __init__(self):
-        self.subject = "Manual operation notification"
-        self.sender = "ControlBoard@iottalk.tw"
+        self.subject = env_config["env"]["title"]
+        self.sender = env_config["env"]["sender"]
 
         self.logger = make_logger("EmailNotifier", "email")
 
@@ -28,9 +27,9 @@ class EmailNotifier():
                 f"Actuator {rule['actuator_alias']} switched to Sensor Mode\n"
                 f"Sensor : {rule['sensor_alias']}\n"
                 f"Open Threshold : {rule['comparison_open']}"
-                f" than {rule['threshold_open']}\n" if rule["comparison_open"] is not "notset" else "\n"
+                f" than {rule['threshold_open']}\n" if rule["comparison_open"] != "notset" else "\n"
                 f"Close Threshold : {rule['comparison_close']}"
-                f" than {rule['threshold_close']}\n" if rule["comparison_close"] is not "notset" else "\n"
+                f" than {rule['threshold_close']}\n" if rule["comparison_close"] != "notset" else "\n"
             )
         elif rule["mode"] == "Timer":
             msg = (
@@ -42,7 +41,7 @@ class EmailNotifier():
             msg = (
                 f"Actuator {rule['actuator_alias']} switched to {rule['mode']} manually\n"
             )
-        if rule["mode"] is not "ON" and rule["mode"] is not "OFF":
+        if rule["mode"] != "ON" and rule["mode"] != "OFF":
             if len(rule["weekday"]):
                 msg += f"Weekdays : {EmailNotifier.weekday2msg(rule['weekday'])}\n"
             else:
@@ -57,7 +56,7 @@ class EmailNotifier():
     @staticmethod
     def weekday2msg(weekdays):
         days = [int(x) for x in weekdays.split(",")]
-        if 7 in days:
+        if 7 in days or len(days) == 7:
             return "Every day"
         else:
             msg = ""
