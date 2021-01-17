@@ -76,7 +76,7 @@ Vue.component('actuator-row', {
     props: ['mode', 'actuator', 'dirty', 'sensors'],
     data: function() {
         return {
-            state: false
+            state: (this.mode==="ON")? true: false
         }
     },
     methods: {

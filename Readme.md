@@ -73,6 +73,12 @@ The following commands assume your OS is Linux.
 
     # Default Admin account. Can be retained
     admin = admin
+    
+    # Email Notifier Sender
+    sender = ControlBoard@iottalk.tw
+
+    # Email Title
+    title = Manual operation notification
 
     [db]
     # use MySQL or SQLlite
