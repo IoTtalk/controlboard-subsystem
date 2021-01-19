@@ -567,7 +567,7 @@ def delete_sa(sa_id=None):
         return "Specified SA not found", 400
 
 
-@apis.route('/subsystem/get_sa/<int:cb_id>', methods=['GET'])
+@apis.route('/sa/get_sa/<int:cb_id>', methods=['GET'])
 @requires_login
 @orm.db_session()
 def get_sa(cb_id):

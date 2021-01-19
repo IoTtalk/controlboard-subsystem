@@ -228,6 +228,7 @@ class AG_SA():
             DAN.push("Trigger-I" + str(rule.df_order), 0)
         print("recovered rules:", self.rules)
         print("status recorder: ", self.status)
+        self.p_id = self.cb_db.CB_SA[self.sa_id].p_id
         return
 
     def check_rules(self):
@@ -245,6 +246,18 @@ class AG_SA():
         for df_order, rule in self.rules.items():
             status = self.status[rule["rule_id"]]
             actuator_df = "Trigger-I" + str(df_order)
+            sensor_df = "Threshold-O" + str(df_order)
+            data = DAN.pull(sensor_df)
+            if data is None:
+                print("No sensor data pulled")
+            else:
+                candidate_sensors = rule["sensor_alias"].split(",")
+                if len(candidate_sensors) == 1:
+                    data = data[0]
+                else:
+                    data = data[0][self.rules[df_order]["sensor_index"]]
+            status["value"] = data if data is not None else 0
+
             if rule["mode"] == "ON":
                 if status["status"] != "RED":
                     status["status"] = "RED"
@@ -259,7 +272,7 @@ class AG_SA():
                     if len(rule["weekday"]) else list()
                 if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
                     if rule["mode"] == "Sensor":
-                        self.sensor_checker(df_order)
+                        self.sensor_checker(df_order, data)
                     else:
                         self.timer_checker(df_order)
                 else:
@@ -267,7 +280,7 @@ class AG_SA():
                         status["status"] = "GREEN"
                         DAN.push(actuator_df, 0)
             self.calibration_checker(
-                rule.sensor_alias, rule["mode"], status["status"], df_order, self.sa_id
+                rule["sensor_alias"], rule["mode"], status["status"], df_order, self.sa_id
             )
             self.socket.send_json(status)
 
@@ -277,7 +290,7 @@ class AG_SA():
     def calibration_checker(self, sensor, mode, status, df_order, sa_id):
         #outlier based
         sensor_df = 'Threshold-O' + str(df_order)
-        if status == 'RED' and mode == 'auto' or mode == 'on':
+        if status == 'RED':
             if sensor not in self.checking:
                 data = DAN.pull(sensor_df)
                 if data is not None:
@@ -361,57 +374,61 @@ class AG_SA():
                 self.cb_db.Time_Threshold[min(data_order)].delete()
                 self.cb_db.commit()
                 pass
-            histogram_bins = dict()
-            find_medium = 0
-            medium = -1
-            for act in actime:
-                act = math.floor(act / 60 / 2)
-                if act not in histogram_bins:
-                    histogram_bins[act] = 1
-                else:
-                    histogram_bins[act] += 1
-            for bins in histogram_bins:
-                histogram_bins[bins] = histogram_bins[bins] / len(actime)
-                find_medium += histogram_bins[bins]
-                if(find_medium >= 0.5 and medium == -1): medium = float(bins)*2+1
-            # find the erlang distribution function that fits this histogram find lambda and n
-            # y = rate = histogram bins output, act = time(t)
-            # E[t] is the middle value in this histogram
-            # save the time which has error of < 0.001 into threshold_time[sensor]
-            least_error = 0
-            for n in range(3,6):
-                error = 0
-                for lam in range(0, 10):
-                    l = float(lam)/10
-                    for bins in histogram_bins:
-                        t = float(bins)*2+1
-                        ft = ((l**n) * t**(n-1) * math.exp((-1)*l*t)) / math.factorial(n-1) 
-                        error += abs(ft - histogram_bins[bins])
-                    if least_error == 0: 
-                        least_error = error
-                        erlang[sensor] = (l, n)
-                    elif least_error > error:
-                        least_error = error
-                        erlang[sensor] = (l, n)
-            # found best lambda and n
-            # erlang[sensor][0] = lambda   erlang[sensor][1] = n
-            l = self.erlang[sensor][0]
-            n = self.erlang[sensor][1]
-            for t in range(int(medium), 60):
-                pr = 0
-                for i in range(1, n):
-                    pr += (l**i * t**i * math.exp((-1)*l*t))/math.factorial(i)
-                if pr <= 0.001:
-                    threshold_time[sensor] = t
-                    break
-            if sensor not in threshold_time: threshold_time[sensor] = 60
+            try:
+                histogram_bins = dict()
+                find_medium = 0
+                medium = -1
+                for act in actime:
+                    act = math.floor(act / 60 / 2)
+                    if act not in histogram_bins:
+                        histogram_bins[act] = 1
+                    else:
+                        histogram_bins[act] += 1
+                for bins in histogram_bins:
+                    histogram_bins[bins] = histogram_bins[bins] / len(actime)
+                    find_medium += histogram_bins[bins]
+                    if(find_medium >= 0.5 and medium == -1): medium = float(bins)*2+1
+                # find the erlang distribution function that fits this histogram find lambda and n
+                # y = rate = histogram bins output, act = time(t)
+                # E[t] is the middle value in this histogram
+                # save the time which has error of < 0.001 into threshold_time[sensor]
+                least_error = 0
+                for n in range(3,7):
+                    error = 0
+                    for lam in range(0, 100):
+                        l = float(lam)/100
+                        for bins in histogram_bins:
+                            t = float(bins)*2+1
+                            ft = ((l**n) * t**(n-1) * math.exp((-1)*l*t)) / math.factorial(n-1) 
+                            error += abs(ft - histogram_bins[bins])
+                        if least_error == 0: 
+                            least_error = error
+                            self.erlang[sensor] = (l, n)
+                        elif least_error > error:
+                            least_error = error
+                            self.erlang[sensor] = (l, n)
+                # found best lambda and n
+                # erlang[sensor][0] = lambda   erlang[sensor][1] = n
+                l = self.erlang[sensor][0]
+                n = self.erlang[sensor][1]
+                for t in range(int(medium), 60):
+                    pr = 0
+                    for i in range(1, n):
+                        pr += (l**i * t**i * math.exp((-1)*l*t))/math.factorial(i)
+                    if pr <= 0.001:
+                        self.threshold_time[sensor] = t
+                        break
+                if sensor not in self.threshold_time: self.threshold_time[sensor] = 60
+            except Exception as e:
+                print('arithmatic error')
+                print(e)
         if sensor in threshold_time:
-            if time_diff > threshold_time[sensor]: 
+            if time_diff > self.threshold_time[sensor]: 
                 self.calib_request(sensor)
                 self.calibrate = True
         return 
     
-    def outlier_test(self, sensor, initial_data, ascent):
+    def outlier_test(self, sensor, initial_data, ascent, sa_id):
         # do calculation for MSE here
         sensor_data = self.cb_db.Outlier.select(lambda r: r.sensor == sensor and r.said == sa_id)[:]
         X = list()
@@ -436,21 +453,26 @@ class AG_SA():
             self.cb_db.commit()
             sample_size = len(X)
             # calculate the regression model and calculate m first
-            m = xy_mse / x_mse
-            b = y_avg - m * x_avg
-            error = ascent - m * initial_data + b
-            # for testing
-            sigma_square = ( y_mse - m * xy_mse ) / (sample_size - 2)
-            if(sigma_square < 0): sigma_square = (-1) * sigma_square
-            sigma = math.sqrt ( sigma_square )
+            rate = 0
+            try:
+                m = xy_mse / x_mse
+                b = y_avg - m * x_avg
+                error = ascent - m * initial_data - b
+                # for testing
+                sigma_square = ( y_mse - m * xy_mse ) / (sample_size - 2)
+                # if(sigma_square < 0): sigma_square = (-1) * sigma_square
+                sigma = math.sqrt ( sigma_square )
 
-            rate_denom = ( 1 - 1/sample_size - (initial_data - x_avg)**2 / x_mse)
-            if(rate_denom < 0): rate_denom = (-1) * rate_denom
-            rate = ( error / sigma ) / math.sqrt( rate_denom )
+                rate_denom = ( 1 - 1/sample_size - (initial_data - x_avg)**2 / x_mse)
+                # if(rate_denom < 0): rate_denom = (-1) * rate_denom
+                rate = ( error / sigma ) / math.sqrt( rate_denom )
 
-            rate_change = (sample_size-3)/(sample_size-2-rate**2)
-            if(rate_change < 0): rate_change = (-1) * rate_change
-            rate = rate * math.sqrt(rate_change)
+                rate_change = (sample_size-3)/(sample_size-2-rate**2)
+                # if(rate_change < 0): rate_change = (-1) * rate_change
+                rate = rate * math.sqrt(rate_change)
+            except Exception as e:
+                print('arithmatic error')
+                print(e)
             
             if abs(rate) > 2: 
                 self.calib_request(sensor) # error detected
@@ -466,10 +488,11 @@ class AG_SA():
         try:
             # DAN.calibrate(self.cb_db.CB_SA[self.cb_id].p_id)
             r = requests.Session().post(
-                f'http://{{config["iottalk_server"]}}:9999/calibrate_sensor',
-                json=[{'p_id': p_id,'sensor': sensor, 'state': None}], 
-                timeout=TIMEOUT
+                'http://140.113.215.10:9999/calibrate_sensor',
+                json={{'sensor': sensor, 'p_id': self.p_id, 'state': None}}, 
+                timeout=10
             )
+            pass
         except Exception as e:
             print("calibration request error: ")
             print(e)
@@ -479,7 +502,7 @@ class AG_SA():
         # under calibration mode, keep checking for DA's return message
         try:
             msg = DAN.pull('__Ctl_O__')
-            if msg is not None:
+            if msg != []:
                 msg = msg[0][1]
                 if len(msg) == 3:
                     if msg[2] is 'done':
@@ -561,7 +584,7 @@ class AG_SA():
             print(err)
         return
 
-    def sensor_checker(self, df_order):
+    def sensor_checker(self, df_order, data):
         """
         Sensor-type rule checking handler. Push to IoTTalk server accordingly.
 
@@ -571,17 +594,8 @@ class AG_SA():
         Returns:
             None
         """
-        sensor_df = "Threshold-O" + str(df_order)
         rule = self.rules[df_order]
-        data = DAN.pull(sensor_df)
-        if data is None:
-            print("No sensor data pulled")
-            return
-        candidate_sensors = rule["sensor_alias"].split(",")
-        if len(candidate_sensors) == 1:
-            data = data[0]
-        else:
-            data = data[0][self.rules[df_order]["sensor_index"]]
+        
         print("Data received:", data)
         sensor_alias = rule["sensor_alias"].split(",")[rule["sensor_index"]]
         status = self.status[rule["rule_id"]]

@@ -1,4 +1,4 @@
-// Vue.config.devtools = true;
+Vue.config.devtools = true;
 var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
@@ -144,7 +144,7 @@ var app = new Vue({
     getAvailableSAs: function(projectID) {
       return new Promise(function (resolve, reject) {
         axios
-          .get("/subsystem/get_sa/" + projectID.toString())
+          .get("/sa/get_sa/" + projectID.toString())
           .then(function(res) {
             resolve(res.data);
           })
