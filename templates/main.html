@@ -12,9 +12,9 @@
 
         <!-- Load Vue followed by BootstrapVue -->
         <!-- Develop version -->
-        <!-- <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script> -->
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
         <!-- Production version -->
-        <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script>
+        <!-- <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script> -->
         <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.js"></script>
 
         <!-- Load the following for BootstrapVueIcons support -->
@@ -153,7 +153,7 @@
               <!-- sensor List and sensor value -->
               <sensor-row
                 v-bind:sensors="setting.sensors"
-                v-bind:value="setting.mode==='Sensor'? setting.value: setting.time"
+                v-bind:value="setting.mode==='Timer'? setting.time: setting.value"
                 v-bind:status="setting.status"
                 v-bind:mode="setting.mode"
                 v-bind:selected="setting.selectedSensor"
@@ -184,6 +184,7 @@
                   <b-form-input size="sm" class="custom-input"
                     v-model="setting.content.openSensorVal"
                     v-bind:disabled="setting.content.openSensor==='notset'"
+                    v-on:input="setting.dirty=true"
                   ></b-form-input>
                   <span class="setting-text-mid">ON.</span>
                   <custom-sel
@@ -194,6 +195,7 @@
                   <b-form-input size="sm" class="custom-input"
                     v-model="setting.content.closeSensorVal"
                     v-bind:disabled="setting.content.closeSensor==='notset'"
+                    v-on:input="setting.dirty=true"
                   ></b-form-input>
                   <span class="setting-text">OFF.</span>
                 </div>

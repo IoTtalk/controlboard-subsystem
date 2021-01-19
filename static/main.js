@@ -1,4 +1,4 @@
-// Vue.config.devtools = true;
+Vue.config.devtools = true;
 var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
@@ -146,7 +146,7 @@ var app = new Vue({
     getAvailableSAs: function(projectID) {
       return new Promise(function (resolve, reject) {
         axios
-          .get("/subsystem/get_sa/" + projectID.toString())
+          .get("/sa/get_sa/" + projectID.toString())
           .then(function(res) {
             resolve(res.data);
           })
@@ -405,7 +405,7 @@ var app = new Vue({
           "cb_id": this.currentProject
         }
         axios
-          .post("/subsystem/create_sa", data)
+          .post("/sa/create_sa", data)
           .then( (res) => {
             console.log(res);
             this.refreshSAWorker();
@@ -425,7 +425,7 @@ var app = new Vue({
       if (1 === action) {
         window.clearInterval(this.statusTrackWorker);
         axios
-          .post("subsystem/delete_sa", this.currentField)
+          .post("sa/delete_sa", this.currentField)
           .then( (res) => {
             console.log(res);
             this.refreshSAWorker();
@@ -503,7 +503,7 @@ var app = new Vue({
     onRefreshSA: function() {
       window.clearInterval(this.statusTrackWorker);
       axios
-        .get("/subsystem/refresh_sa/" + this.currentField.toString())
+        .get("/sa/refresh_sa/" + this.currentField.toString())
         .then( (res)=> {
           console.log(res);
           this.refreshRuleWorker();

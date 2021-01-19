@@ -97,18 +97,12 @@ def make_logger(log_name, log_file):
     logger = logging.getLogger(f'[{log_name}]')
     logger.setLevel(logging.INFO)
 
-    sh = logging.StreamHandler()
-    sh.setLevel(logging.INFO)
-
     log_file_path = os.path.join(log_root, log_file + '.log')
     fh = logging.FileHandler(log_file_path)
     fh.setLevel(logging.INFO)
 
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(module)s - \t%(lineno)s - \t%(message)s')
-    sh.setFormatter(formatter)
     fh.setFormatter(formatter)
-
-    logger.addHandler(sh)
     logger.addHandler(fh)
 
     return logger
@@ -242,11 +236,22 @@ def status_receiver(msgs):
         status = json.loads(msg.decode("utf-8"))
         try:
             rule_id = status["rule_id"]
+            if rule_id in running_status:
+                if running_status[rule_id]["status"] != status["status"]:
+                    msg = (
+                        f"UserRule NO.{rule_id}'s status changed to {status['status']}\n"
+                        f"Value: {status['value']}, Previous Triggered Epoch Time: {status['prev_trigger']}"
+                    )
+                    status_logger.info(msg)
+            else:
+                msg = {
+                    f"UserRule NO.{rule_id}'s first status log: {status['status']}\n"
+                    f"Value: {status['value']}, Previous Triggered Epoch Time: {status['prev_trigger']}"
+                }
+                status_logger.info(msg)
             running_status[rule_id] = status
-            status_logger.info(f"Receive status from Rule {rule_id}")
-            status_logger.info(status)
-        except KeyError:
-            status_logger.exception("Receive status error")
+        except Exception as err:
+            status_logger.exception(err)
 
 
 def connect_zmq(logger):

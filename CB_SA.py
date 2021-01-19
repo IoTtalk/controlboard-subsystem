@@ -3,9 +3,6 @@ import uuid
 import datetime
 
 
-# from collections import deque
-
-
 import zmq
 
 
@@ -82,7 +79,6 @@ class AG_SA():
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
-        print(f"tcp://{{config['host_zmq']}}:{{config['port_zmq']}}")
         self.socket.connect(f"tcp://{{config['host_zmq']}}:{{config['port_zmq']}}")
         self.socket.send(b"hello world")
 
@@ -216,6 +212,17 @@ class AG_SA():
         for df_order, rule in self.rules.items():
             status = self.status[rule["rule_id"]]
             actuator_df = "Trigger-I" + str(df_order)
+            sensor_df = "Threshold-O" + str(df_order)
+            data = DAN.pull(sensor_df)
+            if data is None:
+                print("No sensor data pulled")
+            else:
+                candidate_sensors = rule["sensor_alias"].split(",")
+                if len(candidate_sensors) == 1:
+                    data = data[0]
+                else:
+                    data = data[0][self.rules[df_order]["sensor_index"]]
+            status["value"] = data if data is not None else 0
             if rule["mode"] == "ON":
                 if status["status"] != "RED":
                     status["status"] = "RED"
@@ -229,8 +236,8 @@ class AG_SA():
                 weekdays = [int(x) for x in rule["weekday"].split(",")] \
                     if len(rule["weekday"]) else list()
                 if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
-                    if rule["mode"] == "Sensor":
-                        self.sensor_checker(df_order)
+                    if rule["mode"] == "Sensor" and data is not None:
+                        self.sensor_checker(df_order, data)
                     else:
                         self.timer_checker(df_order)
                 else:
@@ -267,7 +274,6 @@ class AG_SA():
         about2trigger = (abs((time_open - current).total_seconds()) < 600 and time_open > current)
         duty = current_epoch < (status["prev_trigger"] + rule["duty_pos"]) \
             or current_epoch > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"])  # Pos -> True, Neg -> False
-        print(rule, satisfied, about2trigger, duty)
         try:
             if duty:
                 if status["status"] == "RED":
@@ -302,27 +308,18 @@ class AG_SA():
             print(err)
         return
 
-    def sensor_checker(self, df_order):
+    def sensor_checker(self, df_order, data):
         """
         Sensor-type rule checking handler. Push to IoTTalk server accordingly.
 
         Args:
             df_order: The IDF/ODF pair of ControlBoard to pull/push data.
+            data: Pulled data.
 
         Returns:
             None
         """
-        sensor_df = "Threshold-O" + str(df_order)
         rule = self.rules[df_order]
-        data = DAN.pull(sensor_df)
-        if data is None:
-            print("No sensor data pulled")
-            return
-        candidate_sensors = rule["sensor_alias"].split(",")
-        if len(candidate_sensors) == 1:
-            data = data[0]
-        else:
-            data = data[0][self.rules[df_order]["sensor_index"]]
         print("Data received:", data)
         sensor_alias = rule["sensor_alias"].split(",")[rule["sensor_index"]]
         status = self.status[rule["rule_id"]]
@@ -356,7 +353,6 @@ class AG_SA():
                 duty = (current < (status["prev_trigger"] + rule["duty_pos"])) or (current > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"]))  # Pos -> True, Neg -> False
             else:
                 duty = True
-            print(rule, data, duty, satisfied, next_action)
             if duty:
                 if status["status"] == "RED":
                     if action == "CLOSE":
