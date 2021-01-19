@@ -45,7 +45,7 @@ html, body {
 
 .custom-card-body {
   overflow-y:scroll;
-  max-height: 700px;
+  max-height: 110vh;
 }
 
 .custom-input {

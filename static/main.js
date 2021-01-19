@@ -80,7 +80,9 @@ var app = new Vue({
           this.users = users;
         })
         .catch( (err) => {
-          console.log(err);
+          if (err.response) {
+            alert(err.response.data);
+          }
         });
     }
     return;
@@ -137,7 +139,7 @@ var app = new Vue({
             resolve(res.data);
           })
           .catch(function(err) {
-            reject();
+            reject(err);
           });
       });
     },
@@ -149,7 +151,7 @@ var app = new Vue({
             resolve(res.data);
           })
           .catch(function(err) {
-            reject();
+            reject(err);
           });
       });
     },
@@ -225,7 +227,9 @@ var app = new Vue({
           this.refreshSAWorker();
         })
         .catch( (err) => {
-          console.log(err);
+          if (err.response) {
+            alert(err.response.data);
+          }
         })
     },
     refreshSAWorker: function() {
@@ -235,7 +239,9 @@ var app = new Vue({
           this.refreshRuleWorker();
         })
         .catch( (err) => {
-          console.log(err);
+          if (err.response) {
+            alert(err.response.data);
+          }
         })
     },
     refreshRuleWorker: function() {
@@ -246,7 +252,9 @@ var app = new Vue({
           this.refreshStatusWorker();
         })
         .catch( (err) => {
-          console.log(err);
+          if (err.response) {
+            alert(err.response.data);
+          }
         })
     },
     refreshStatusWorker: function() {
@@ -256,7 +264,9 @@ var app = new Vue({
             this.setupRuleStatus(status);
           })
           .catch( (err) => {
-            console.log(err);
+            if (err.response) {
+              alert(err.response.data);
+            }
           });
       }
       return;
@@ -334,8 +344,10 @@ var app = new Vue({
             console.log("Response of creating CB", res);
             this.refreshCBWorker();
           })
-          .catch(function(error) {
-            console.log(error)
+          .catch(function(err) {
+            if (err.response) {
+              alert(err.response.data);
+            }
           });
       }
       this.newCB = "";
@@ -349,8 +361,10 @@ var app = new Vue({
           console.log(res);
           this.refreshCBWorker();
         })
-        .catch(function(error) {
-          console.log(error);
+        .catch(function(err) {
+          if (err.response) {
+            alert(err.response.data);
+          }
         });
       }
     },
@@ -368,11 +382,15 @@ var app = new Vue({
                 this.setupFields(fields);
               })
               .catch( (err) => {
-                console.log(err);
+                if (err.response) {
+                  alert(err.response.data);
+                }
               })
           })
           .catch( (err) => {
-            console.log(err);
+            if (err.response) {
+              alert(err.response.data);
+            }
           })
       }
     },
@@ -381,19 +399,20 @@ var app = new Vue({
     */
     onSACreate: function(action) {
       if (1 === action) {
+        window.clearInterval(this.statusTrackWorker);
         data = {
           "sa": this.newSA,
           "cb_id": this.currentProject
         }
         axios
-          .post("/subsystem/create_sa", data)
+          .post("/sa/create_sa", data)
           .then( (res) => {
             console.log(res);
             this.refreshSAWorker();
-            
+            this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
           })
           .catch( (err) => {
-            alert(err);
+            alert(err.response.data);
           })
       }
       this.newSA = {
@@ -404,18 +423,23 @@ var app = new Vue({
     },
     onSADelete: function(action) {
       if (1 === action) {
+        window.clearInterval(this.statusTrackWorker);
         axios
-          .post("subsystem/delete_sa", this.currentField)
+          .post("sa/delete_sa", this.currentField)
           .then( (res) => {
             console.log(res);
             this.refreshSAWorker();
+            this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
           })
           .catch( (err) => {
-            console.log(err);
+            if (err.response) {
+              alert(err.response.data);
+            }
           })
       }
     },
     onSAConfirm: function() {
+      window.clearInterval(this.statusTrackWorker);
       ruleIDs = [];
       this.settings.forEach((setting, index) => {
         if (setting["dirty"]) {
@@ -424,9 +448,11 @@ var app = new Vue({
       });
       console.log(ruleIDs);
       this.onSettingSaveChange(ruleIDs);
+      this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       return;
     },
     onSAReset: function() {
+      window.clearInterval(this.statusTrackWorker);
       ruleIDs = [];
       this.settings.forEach((setting, index) => {
         ruleIDs.push(index);
@@ -434,6 +460,7 @@ var app = new Vue({
       });
       console.log(ruleIDs);
       this.onSettingSaveChange(ruleIDs);
+      this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       return;
     },
     onSettingSaveChange: function(ruleIdx) {
@@ -467,21 +494,25 @@ var app = new Vue({
           this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
         })
         .catch( (err) => {
-          console.log(err);
+          if (err.response) {
+            alert(err.response.data);
+          }
         })
       return;
     },
     onRefreshSA: function() {
       window.clearInterval(this.statusTrackWorker);
       axios
-        .get("/subsystem/refresh_sa/" + this.currentField.toString())
+        .get("/sa/refresh_sa/" + this.currentField.toString())
         .then( (res)=> {
           console.log(res);
           this.refreshRuleWorker();
           this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
         })
         .catch( (err) => {
-          console.log(err);
+          if (err.response) {
+            alert(err.response.data);
+          }
         })
         return;
     },
@@ -626,12 +657,16 @@ var app = new Vue({
                 this.users = usrs;
               })
               .catch( (err) => {
-                console.log(err);
+                if (err.response) {
+                  alert(err.response.data);
+                }
               });
             this.refreshCBWorker();
           })
           .catch( (err) => {
-            console.log(err);
+            if (err.response) {
+              alert(err.response.data);
+            }
           });
       }
     },
@@ -652,7 +687,9 @@ var app = new Vue({
             this.refreshCBWorker();
           })
           .catch(function(error) {
-            console.log(error);
+            if (err.response) {
+              alert(err.response.data);
+            }
           });
       }
       this.newCBIcon = null;
@@ -663,7 +700,9 @@ var app = new Vue({
           this.accessibleProjects = projs;
         })
         .catch( (err) => {
-          console.log(err);
+          if (err.response) {
+            alert(err.response.data);
+          }
         })
     }
   }

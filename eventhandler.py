@@ -18,6 +18,11 @@ from werkzeug.utils import secure_filename
 from pony import orm
 
 
+from config import default_rules, default_status
+from config import env_config
+from config import icon_extensions
+from config import use_v1
+from email_tracker import email_notifier
 from exceptions import NotAuthorizedError, NotFoundError, WrongSettingError
 from utils import running_sa, running_status
 from utils import make_logger
@@ -26,10 +31,6 @@ from utils import create_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag, get_na_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB
-from config import default_rules, default_status
-from config import env_config
-from config import icon_extensions
-from config import use_v1
 
 
 api_logger = make_logger('API', 'API')
@@ -46,9 +47,30 @@ def requires_login(f):
             # next_url = request.path
             # TODO: redirect to AAA to login
             session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
-            session["user"] = "admin"  # dummy account
+            session["user"] = env_config["env"]["admin"]  # dummy account
             return redirect("/")
     return decorated_function
+
+
+def notify_user(title, rules, users):
+    '''
+    Notify Users when a UserRule has been changed
+
+    Args:
+        title: String, Title of the email.
+        rules: List of dictionarys, rules to record in the email content.
+        users: List of Strings, the target email addresses to send notifier email.
+
+    Returns:
+        None
+    '''
+    title += "=================================================\n"
+    for rule in rules:
+        title += email_notifier.rule2msg(rule)
+        title += "\n=================================================\n"
+    email_notifier.send(users, title)
+
+    return
 
 
 @apis.route('/', methods=["GET"])
@@ -88,22 +110,34 @@ def set_rules(sa_id):
 
     Args:
         sa_id: ID of the requester SA.
-        request: A list of rule settings in json format.
+        request: A list of UserRules in json format.
+            each UserRule will contain the following fields
+                `actuator_alias`
+                `mode`
+                `sensor_index`
+                `threshold_open`
+                `threshold_close`
+                `comparison_open`
+                `comparison_close`
+                `time_open`
+                `time_close`
+                `weekday`
+                `duty_pos`
+                `duty_neg`
+            Refer to models.py for each field's meaning.
 
     Returns:
-        Status code:
-            200: Successfully setup rules.
-            400: Invalid rule settings detected.
-            502: Internal Error occured.
+        Status code: 200 / 400 / 500
         msg: Depends on status code.
             200: "Configuration Saved".
             400: a string containing invalid actuators.
-            502: "Internal Server Error".
+            500: "Internal Server Error".
     '''
     api_logger.info(f'Start setting new rules of SA NO. {sa_id}')
     invalid_list = list()
+    rules = request.json
     try:
-        for rule_setting in request.json:
+        for rule_setting in rules:
             invalid = False
             # Sensor threshold setup < 0
             if rule_setting["mode"] == "Sensor":
@@ -123,7 +157,10 @@ def set_rules(sa_id):
 
         api_logger.info('\tStart setting rules')
         sa = CB_SA[sa_id]
-        for rule_setting in request.json:
+        accessible_users = [user.account for user in sa.cb.account_set]
+        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} has UserRules changed as follows\n"
+
+        for rule_setting in rules:
             actuator = rule_setting["actuator_alias"]
             rule_setting["weekday"] = ",".join([str(weekday) for weekday in rule_setting["weekday"]])
             if rule_setting["time_open"] is not None:
@@ -144,7 +181,9 @@ def set_rules(sa_id):
 
             rule = UserRule.get(sa=sa, actuator_alias=actuator)
             rule.set(**rule_setting)
-
+            if rule_setting["mode"] == "Sensor":
+                rule_setting["sensor_alias"] = rule.sensor_alias.split(',')[rule_setting["sensor_index"]]
+        notify_user(title, rules, accessible_users)
         if sa_id in running_sa:
             status = deregister_ag(running_sa[sa_id], api_logger)
             if not status:
@@ -163,7 +202,7 @@ def set_rules(sa_id):
 
         if not status:
             api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
-            return "Internal Server Error", 502
+            return "Internal Server Error", 500
 
         return 'Configuration Saved', 200
     except WrongSettingError:
@@ -174,53 +213,13 @@ def set_rules(sa_id):
         abort(400, f"Abnormal threshold setting of {invalid_actuators} detected, aborting all")
     except orm.RowNotFound:
         api_logger.exception("Specified rule not found")
-        abort(400)
+        abort(400, "Specified SA not found")
     except orm.MultipleRowsFound:
         api_logger.exception("Multiple Rule found for the same actuator")
-        abort(500)
+        abort(400, "Multiple Rules for the same actuator detected")
     except Exception as err:
         api_logger.exception(err)
         abort(500)
-
-
-@apis.route('/sa/<int:sa_id>/stop', methods=['GET'])
-@orm.db_session
-def stop_SA(sa_id):
-    '''
-    Stop all actuator execution and pends the SA with specified sa_id.
-
-    Args:
-        sa_id: ID of the requester SA.
-
-    Returns:
-        Status code:
-            200: All procedure succeeded.
-            502: Some procedure failed, check API log files.
-        msg: Depends on Status code.
-            200: 'Stop Done'.
-            502: 'Internal Server Error'.
-    '''
-    try:
-        sa = running_sa[sa_id]
-        rules = sa.rule_set
-
-        for rule in rules:
-            rule.set(**default_rules)
-
-        if not deregister_ag(sa, api_logger):
-            return f"stop SA {sa_id} failed at deregistering, check API log files", 502
-
-        status, ag_token = register_ag(sa, api_logger)
-        if not status:
-            return f"stop SA {sa_id} failed at registering, check API log files", 502
-        sa.ag_token = ag_token
-
-        if not bind_device_ag(sa.mac_addr, sa.p_id, sa.do_id, api_logger):
-            return f"stop SA {sa_id} failed at re-binding, check API log files", 502
-
-        return 'Stop Done', 200
-    except KeyError:
-        return "Specified SA is not running", 400
 
 
 @apis.route('/sa/<int:sa_id>/rules', methods=['GET'])
@@ -238,16 +237,16 @@ def get_rules(sa_id):
         rule_list: A list containing rules of the specific SA. Each element of this list is a rule in dictionary format.
             Each rule will contain the following information
                 `ruleID`: integer, primary key of the rule in database table `UserRule`.
-                `actuator`: string, indicating user-defined df-alias on IoTtalk GUI.
-                `sensors`: list of strings, indicating user-defined df-alias on IoTtalk GUI.
+                `actuator`: string, indicating user-defined actuator df-alias on IoTtalk GUI.
+                `sensors`: list of strings, indicating user-defined sensor df-alias on IoTtalk GUI.
                 `mode`: string, indicating manual on/off or sensor/timer.
                 `content`: dictionary, the rule's content. including the following fields.
                     `openSensor`: string, should be one of bigger/smaller/null.
                     `openSensorVal`: integer, the threshold value to trigger the actuator.
                     `closeSensor`: string, should be one of bigger/smaller/null.
                     `closeSensorVal`: integer, the threshold value to close the actuator.
-                    `openTimer`: datetime string, represent the timing allowed to trigger the actuator.
-                    `closeTimer`: datetime string, represent the timing allowed to close the actuator.
+                    `openTimer`: list of length 3, represent the timing allowed to trigger the actuator.
+                    `closeTimer`: list of length 3, represent the timing allowed to close the actuator.
                     `dutyPos`: integer, time in seconds representing the positive cycle length of one Duty cycle.
                     `dutyNeg`: integer, time in seconds representing the negative cycle length of one Duty cycle.
                     `weekdays`: list of integers representing weekdays. Mon <=> 0, Sun <=> 6, All <=> 7.
@@ -301,7 +300,7 @@ def get_rules(sa_id):
         return jsonify(list()), 200
     except Exception as err:
         api_logger.exception(err)
-        return abort(500, "Internal server error")
+        abort(500, "Internal server error")
 
 
 @apis.route('/sa/<int:sa_id>/current_data', methods=['GET'])
@@ -315,8 +314,8 @@ def get_datum(sa_id):
         sa_id: ID of the requester SA.
 
     Returns:
-        Status code: 200.
-        record_list: A json object containing the lastest data of each sensor and trigger status.
+        Status code: 200 / 500.
+        res_dict: A json object containing the lastest data of each sensor and trigger status.
     '''
     res_dict = dict()
     try:
@@ -328,17 +327,16 @@ def get_datum(sa_id):
             status = running_status[rule.rule_id]
             status["time"] = datetime.datetime.now().strftime("%H:%M")
             res_dict[rule.rule_id] = status
+        return jsonify(res_dict), 200
     except NotFoundError:
         api_logger.exception("Error getting SA's current data, Specified SA not running")
-        return "Specified SA not running", 400
+        return "Specified SA not running", 200
     except Exception as err:
         api_logger.exception(err)
-        return abort(500, err)
-
-    return jsonify(res_dict), 200
+        abort(500, err)
 
 
-@apis.route('/subsystem/refresh_sa/<int:sa_id>', methods=['GET'])
+@apis.route('/sa/refresh_sa/<int:sa_id>', methods=['GET'])
 @requires_login
 @orm.db_session
 def refresh_sa(sa_id):
@@ -349,7 +347,7 @@ def refresh_sa(sa_id):
         sa_id: ID of the SA to get p_id.
 
     Returns:
-        Status code: 200 / 400 / 502
+        Status code: 200 / 400 / 500
         Msg: Corresponding execution result.
     '''
     try:
@@ -362,6 +360,7 @@ def refresh_sa(sa_id):
             NAs = json.loads(NAs.text)["join"]
         else:
             NAs = ["testV2"]
+            raise NotImplementedError
         print(NAs)
         if not len(NAs):
             raise NotFoundError
@@ -407,7 +406,6 @@ def refresh_sa(sa_id):
                         actuator_alias=actuator[0][1],
                         actuator_df=actuator[0][0],
                         df_order=order,
-                        mode="Timer",
                     )
                 else:
                     sa.rule_set.add(
@@ -428,7 +426,6 @@ def refresh_sa(sa_id):
                         sensor_alias=",".join([row[1] for row in src[order]]),
                         sensor_df=",".join([row[0] for row in src[order]]),
                         df_order=order,
-                        mode="Sensor",
                     )
                 else:
                     sa.rule_set.add(
@@ -452,13 +449,14 @@ def refresh_sa(sa_id):
             status = deregister_ag(sa, api_logger)
             if not status:
                 api_logger.exception("Deregister Sa failed")
-                abort(500, "Deregister SA failed")
+                abort(500, "Deregister AG SA failed, check api log and AG")
 
         # Register device
         status, ag_token = register_ag(sa, api_logger)
         if not status:
             sa.delete()
-            abort(400, "Create SA failed at registering device, check api log files")
+            cb_db.commit()
+            abort(500, "Create SA failed at registering device, check api log and AG")
         sa.ag_token = ag_token
 
         # Bind device to DO
@@ -468,28 +466,35 @@ def refresh_sa(sa_id):
         if not status:
             deregister_ag(sa, api_logger)
             sa.delete()
+            cb_db.commit()
             abort(400, "Create SA failed at auto binding, check api log files")
         running_sa[sa.sa_id] = sa
         for rule in sa.rule_set:
-            running_status[rule.rule_id] = default_status
+            if rule.rule_id not in running_status:
+                running_status[rule.rule_id] = default_status
 
         api_logger.info(f"Create New SA, DM Name: {dm_name}")
+
+        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} is refreshed, new UserRules as follows\n"
+        rules = [rule.to_dict() for rule in sa.rule_set]
+        users = [user.account for user in sa.cb.account_set]
+        notify_user(title, rules, users)
         return f"Create New SA, DM Name: {dm_name}", 200
     except NotFoundError:
         api_logger.exception("No NAs found, remind user to create NAs")
         sa = CB_SA[sa_id]
-        return abort(400, f"No detected, please create Join point in Project {str(sa_id) + '-' + sa.sa_name}")
+        abort(400, f"No NA detected, please create Join point in Project {sa.sa_name}")
     except Exception as err:
         api_logger.exception(err)
-        return abort(502, "Internal Server Error")
+        abort(500, "Internal Server Error")
 
 
-@apis.route('/subsystem/create_sa', methods=['POST'])
+@apis.route('/sa/create_sa', methods=['POST'])
 @requires_login
 @orm.db_session
 def create_sa():
     '''
-    Creates an empty SA. Further steps must be triggered by refresh_sa after
+    Creates an empty SA. Further steps are to be triggered by refresh_sa event after
         User has setup GUI connections(NAs).
 
     Args:
@@ -497,8 +502,8 @@ def create_sa():
         sa_name: Name of this SA given by the user.
 
     Returns:
-        Status code: 200 / 400.
-        proj_name: Project name for user to choose input sensors and output actuators.
+        Status code: 200 / 400 / 500.
+        msg: Corresponding execution result.
     '''
     sa_spec = request.json
     if not CB.exists(cb_id=sa_spec["cb_id"]):
@@ -512,17 +517,16 @@ def create_sa():
     # Create Project
     status, p_id = create_proj_ag(sa, api_logger)
     if not status:
-        deregister_ag(sa, api_logger)
         sa.delete()
-        abort(400, "Create SA failed at creating project, check api log files")
+        cb_db.commit()
+        abort(400, "Create SA failed at creating project, project with the same name already exists.")
     sa.p_id = p_id
-
     # Create Device Object
     status, do_id = create_do_ag(p_id, api_logger)
     if not status:
-        deregister_ag(sa, api_logger)
         sa.delete()
-        abort(400, "Create SA failed at creating DO, check api log files")
+        cb_db.commit()
+        abort(500, "Create SA failed at creating DO, check api log files and IoTtalk CCM.")
     if use_v1:
         sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
     else:
@@ -530,7 +534,7 @@ def create_sa():
     return "Create SA succeeded", 200
 
 
-@apis.route('/subsystem/delete_sa', methods=['POST'])
+@apis.route('/sa/delete_sa', methods=['POST'])
 @requires_login
 @orm.db_session
 def delete_sa(sa_id=None):
@@ -563,8 +567,11 @@ def delete_sa(sa_id=None):
         api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
         return "Delete SA succeed", 200
     except KeyError:
-        api_logger.exception('Specified ControlBoard not running')
+        api_logger.exception('Specified Field not running')
         return "Specified SA not found", 400
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)
 
 
 @apis.route('/sa/get_sa/<int:cb_id>', methods=['GET'])
@@ -572,13 +579,13 @@ def delete_sa(sa_id=None):
 @orm.db_session()
 def get_sa(cb_id):
     '''
-    Get accessible sa_ids and sa_names of the specified user. Called when rendering SAs available to the user.
+    Get SA infos in the specified CB. Called when rendering available SAs to the user.
 
     Args:
         cb_id: The ID of the requested CB.
 
     Returns:
-        Status code: 200 / 401 / 403
+        Status code: 200 / 403
         available_sa: A list of CB SAs, each element is composed of sa_id and sa_name of the corresponging SA.
     '''
     available_sa = list()
@@ -595,9 +602,6 @@ def get_sa(cb_id):
                 "pin": sa.pinned
             })
         return jsonify(available_sa), 200
-    except KeyError:
-        api_logger.exception("Error getting SA, User not logined!")
-        abort(401, "Non-existed User!")
     except NotAuthorizedError:
         api_logger.exception("Error getting SA, Requested CB is not shared with this user.")
         abort(403, "Not a superuser!")
@@ -663,7 +667,7 @@ def set_pinned_field():
         return "okay", 200
     except NotFoundError:
         api_logger.exception("Unrelated SA involved, abort request")
-        abort(400)
+        abort(400, "Unrelated SA involved, abort request")
     except Exception as err:
         api_logger.exception(err)
         abort(500)
@@ -674,14 +678,14 @@ def set_pinned_field():
 @orm.db_session
 def manage_icon(cb_id):
     '''
-    Change specified CB's icon client given `cb_id` and `file` from request.
+    Change specified CB's icon given `cb_id` and `file` from request.
 
     Args:
         cb_id: Specified CB's unique id.
         file: Image body to change.
 
     Returns:
-        Status code: 200 / 400 / 401 / 403 / 502
+        Status code: 200 / 400 / 401 / 403 / 500
         Message: Corresponding execution result.
     '''
     print(icon_extensions)
@@ -712,7 +716,7 @@ def manage_icon(cb_id):
     except Exception as err:
         api_logger.exception("Unknown Error in Changing Icon.")
         api_logger.exception(err)
-        abort(502, "Internal Server Error")
+        abort(500, "Internal Server Error")
 
 
 @apis.route('/subsystem/create_cb', methods=['POST'])
@@ -745,7 +749,7 @@ def create_cb():
         abort(400, "Non-existed User!")
     except Exception as err:
         api_logger.exception(err)
-        abort(502, "Unknown Error occurred, contact subsystem-admin to check error log!")
+        abort(500, "Unknown Error occurred, contact subsystem-admin to check error log!")
     return "Success", 200
 
 
@@ -782,7 +786,7 @@ def delete_cb():
     except Exception as err:
         api_logger.exception("Unknown error occurred, error message as belows")
         api_logger.exception(err)
-        abort(502, "Internal error occurred")
+        abort(500, "Internal error occurred")
 
 
 @apis.route('/subsystem/get_cb/<string:usr_account>', methods=['GET'])
@@ -790,9 +794,10 @@ def delete_cb():
 @orm.db_session
 def get_cb(usr_account):
     '''
-    Returns all accessible CB list given user account
+    Returns a list containing all accessible ControlBoards of the specified user given user account
 
-    Args: None
+    Args:
+        usr_account: Account of the requester user.
 
     Returns:
         Status code: 200 / 401 / 403
@@ -800,7 +805,7 @@ def get_cb(usr_account):
             accessibleProjects: A list containing all `CB_id`s owned/shared to this user.
             optionProjects: A list of CBs including all CBs shared to this user.
 
-            If user is not a superuser, that `accessibleProjects` will be exactly the same as `optionProjects`.
+            If user is not a admin user, that `accessibleProjects` will be exactly the same as `optionProjects`.
             Otherwise `optionProjects` would contains all CBs.
     '''
     try:
@@ -834,12 +839,12 @@ def get_cb(usr_account):
             "optionProjects": option_cb
         }), 200
     except NotAuthorizedError:
-        api_logger.exception("Error Getting ControlBoard, No such user.")
+        api_logger.exception("Error Getting ControlBoard, Permission denied.")
         # TODO: redirect to AAA login page.
-        abort(401, "No such User")
+        abort(403, "Permission denied")
     except NotFoundError:
         api_logger.exception("No such user")
-        abort(403, "No such user")
+        abort(401, "No such user")
     except Exception as err:
         api_logger.exception(err)
         abort(500, err)
@@ -887,7 +892,7 @@ def get_users():
         None
 
     Returns:
-        Status code: 200 / 403 / 500.
+        Status code: 200 / 401 / 403 / 500.
         users: A list of dictionary, each dict contains two keys `superuser` and `username`.
     '''
     try:
@@ -905,7 +910,7 @@ def get_users():
         return jsonify(users), 200
     except NotFoundError:
         api_logger.exception("No such user")
-        abort(403, "No such user")
+        abort(401, "No such user")
     except NotAuthorizedError:
         api_logger.exception("User not authorized to access this api")
         abort(403, "User not authorized")
@@ -925,15 +930,17 @@ def adjust_privilege(usr_name):
         usr_name: String, account of the specified user.
         usr_profile: Dictionary containing two fields `privilege` and `accessible_cb`
             privilege: Int, ranging from 0~2, indicating user/superuser/admin individually.
-            accessible_cb: List, cb_ids this user should be granted to access.
+            accessible_cb: List, cb_ids this user is granted to access.
 
     Returns:
-        Status code: 200 / 400 / 500
+        Status code: 200 / 401 / 403 / 500
         Msg: Corresponding execution result.
     '''
     try:
         data = request.json
-        print(data)
+        current_user = CB_Account.get(account=session["user"])
+        if current_user.privilege <= data["privilege"]:
+            raise NotAuthorizedError
         account = CB_Account.get(account=usr_name)
         if None is account:
             raise NotFoundError
@@ -943,8 +950,10 @@ def adjust_privilege(usr_name):
             account.cb_set.add(CB[cb_id])
         return "setup done", 200
     except NotFoundError:
-        api_logger.exception("No Such Account")
-        abort(400)
+        api_logger.exception("No Such User")
+        abort(401, "No Such User")
+    except NotAuthorizedError:
+        abort(403, "Permission denied")
     except Exception as err:
         api_logger.exception(err)
         abort(500)
