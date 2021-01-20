@@ -26,14 +26,12 @@ running_sa = dict()
 '''
 used to record AG SA's rule status. In format
     {
-        sa_id1: {
-            sensor_alias1: {
-                value: sensor value,
-                prev_trigger: -10000 or an epoch time, -10000 means no need to use this field data.
-                status: 'GREEN'/'RED'/'YELLOW',
-                calibrate: True/False,
-                success: True/False
-            },
+        rule_id: {
+            value: sensor value,
+            prev_trigger: -10000 or an epoch time, -10000 means no need to use this field data.
+            status: 'GREEN'/'RED'/'YELLOW',
+            calibrate: True/False,
+            success: True/False
         },
     }
 '''
@@ -236,8 +234,8 @@ def status_receiver(msgs):
     Returns: None
     '''
     for msg in msgs:
-        status = json.loads(msg.decode("utf-8"))
         try:
+            status = json.loads(msg.decode("utf-8"))
             rule_id = status["rule_id"]
             if rule_id in running_status:
                 if running_status[rule_id]["status"] != status["status"]:
@@ -429,8 +427,11 @@ def register_ag(sa, logger):
         ag_token: Token retrived from AG.
     '''
     try:
+        rules = dict()
+        for rule in sa.rule_set:
+            rules[rule.df_order] = rule.to_dict()
         new_sa = open('./CB_SA.py', 'r').read().format(
-            sa_id=sa.sa_id, config=reg_config, mac_addr=sa.mac_addr, sa_name=sa.sa_name)
+            sa_id=sa.sa_id, config=reg_config, mac_addr=sa.mac_addr, sa_name=sa.sa_name, rules=rules, p_id=sa.p_id)
         data = {
             "version": int(env_config["IoTtalk"]["version"]),
             "code": new_sa
