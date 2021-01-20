@@ -34,12 +34,6 @@ if not use_v1:
 icon_extensions = env_config["env"]["icon_extensions"].split(",")
 
 reg_config = {
-    "database": env_config["db"]["database"],
-    "host_db": env_config["db"]["host"],
-    "port_db": env_config["db"]["port"],
-    "user": env_config["db"]["user"],
-    "pwd": env_config["db"]["pwd"],
-    "dbname": env_config["db"]["dbname"],
     "iottalk_server": env_config["IoTtalk"]["ServerIP"],
     "host_zmq": env_config["env"]["host"],
     "port_zmq": env_config["env"]["port_zmq"]
