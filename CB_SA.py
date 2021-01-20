@@ -4,6 +4,7 @@ import datetime
 import os
 import math
 import requests
+from collections import deque
 
 import zmq
 
@@ -51,11 +52,16 @@ class AG_SA():
 
         self.checking = dict()
         self.initial = dict()
+        self.ascent = dict()
+        self.time_on = dict()
         self.prev_time = dict()
         self.prev_status = dict()
         self.erlang = dict()
         self.threshold_time = dict()
-        self.calibrate = False;
+        self.lasttimestamp = ' '
+        
+        
+        self.calibrate = False
 
         if mac_addr != 'None':
             self.mac_addr = mac_addr
@@ -274,49 +280,50 @@ class AG_SA():
                     if status["status"] == "RED":
                         status["status"] = "GREEN"
                         DAN.push(actuator_df, 0)
+            self.success = None
             self.calibration_checker(
-                rule["sensor_alias"], rule["mode"], status["status"], df_order, self.sa_id
+                rule["sensor_alias"], rule["mode"], status["status"], df_order, self.sa_id, data
             )
+            if self.calibrate is True:
+                status["calibrate"] = True
+            else:
+                status["calibrate"] = False
+            status["success"] = self.success
             self.socket.send_json(status)
 
         return
     
     @orm.db_session
-    def calibration_checker(self, sensor, mode, status, df_order, sa_id):
+    def calibration_checker(self, sensor, mode, status, df_order, sa_id, data):
         #outlier based
-        sensor_df = 'Threshold-O' + str(df_order)
         if status == 'RED':
             if sensor not in self.checking:
-                data = DAN.pull(sensor_df)
                 if data is not None:
                     # print('SAVE SENSOR DATA FOR CHECKING')
-                    data = data[0]
                     self.checking[sensor] = datetime.datetime.now()
-                    self.initial[sensor] = data
+                    if sensor not in self.initial:
+                        self.initial[sensor] = deque(maxlen=50)
+                    self.initial[sensor].append(data)
             else:
                 if self.checking[sensor] == 0:
-                    data = DAN.pull(sensor_df)
                     if data is not None:
-                        data = data[0]
                         self.checking[sensor] = datetime.datetime.now()
-                        self.initial[sensor] = data
+                        if sensor not in self.initial:
+                            self.initial[sensor] = deque(maxlen=50)
+                        self.initial[sensor].append(data)
         
         if sensor in self.checking:
             if self.checking[sensor] != 0:
                 time = datetime.datetime.now() - self.checking[sensor] 
-                if time.total_seconds() > 15:
+                if time.total_seconds() > 14:
                     # print('SAVE DATA TO DATABASE')
-                    data = DAN.pull(sensor_df)
                     if data is not None:
-                        data = data[0]
-                        ascent = data-self.initial[sensor]
+                        ascents = round( (data-self.initial[sensor][-1]), 3)
                         if self.calibrate == False:
-                            self.cb_db.Outlier(
-                                sensor = sensor, initial_data = self.initial[sensor], 
-                                ascent = ascent, said = sa_id
-                            )
-                            self.cb_db.commit()
-                            self.outlier_test(sensor, self.initial[sensor], ascent, sa_id)
+                            if sensor not in self.ascent:
+                                self.ascent[sensor] = deque(maxlen=50)
+                            self.ascent[sensor].append(ascents)
+                            self.outlier_test(sensor, self.initial[sensor][-1], ascents, sa_id)
                         self.checking[sensor] = 0
                     else:
                         pass
@@ -340,13 +347,12 @@ class AG_SA():
                 if self.prev_status[sensor] == 1:
                     time_diff = datetime.datetime.now() - self.prev_time[sensor]
                     time_diff = time_diff.total_seconds()
+                    if sensor not in self.time_on:
+                        self.time_on[sensor] = deque(maxlen=50)
+                    self.time_on[sensor].append(time_diff)
                     self.prev_status[sensor] = 0
                     
                     if self.calibrate == False:
-                        self.cb_db.Time_Threshold(
-                            sensor = sensor, time_on = time_diff, said = sa_id
-                        )
-                        self.cb_db.commit() 
                         self.threshold_test(sensor, time_diff, sa_id)
         else:
             self.prev_status[sensor] = 0
@@ -356,23 +362,12 @@ class AG_SA():
     
     def threshold_test(self, sensor, time_diff, sa_id):
         # do the calculation with given data
-        if sensor not in self.erlang:
-            time_data = self.cb_db.Time_Threshold.select(lambda r: r.sensor == sensor and r.said == sa_id)[:]
-            actime = list()
-            data_order = list()
-            for data in time_data:
-                data = data.to_dict()
-                actime.append(data['time_on'])
-                data_order.append(data['data_prio'])
-            if(len(actime) < 50): pass
-            else:  # delete the oldest time data 
-                self.cb_db.Time_Threshold[min(data_order)].delete()
-                self.cb_db.commit()
-                pass
+        if sensor not in self.threshold_time:
             try:
                 histogram_bins = dict()
                 find_medium = 0
                 medium = -1
+                actime = self.time_on[sensor]
                 for act in actime:
                     act = math.floor(act / 60 / 2)
                     if act not in histogram_bins:
@@ -417,53 +412,43 @@ class AG_SA():
             except Exception as e:
                 print('arithmatic error')
                 print(e)
-        if sensor in threshold_time:
-            if time_diff > self.threshold_time[sensor]: 
+        if sensor in self.threshold_time:
+            if time_diff > self.threshold_time[sensor]*60: 
                 self.calib_request(sensor)
+                print('begin sensor calibration (from time)')
                 self.calibrate = True
+            else:
+                print('sensor normal (from time)')
         return 
     
     def outlier_test(self, sensor, initial_data, ascent, sa_id):
         # do calculation for MSE here
-        sensor_data = self.cb_db.Outlier.select(lambda r: r.sensor == sensor and r.said == sa_id)[:]
-        X = list()
-        Y = list()
-        order = list()
-        for d in sensor_data:
-            d = d.to_dict()
-            order.append(d["data_prio"])
-            X.append(d["initial_data"])
-            Y.append(d["ascent"])
-        if( len(X) > 10):
-            x_avg = sum(X) / len(X)
-            y_avg = sum(Y) / len(Y)
+        if( len(self.initial[sensor]) == 50):
+            x_avg = sum(self.initial[sensor]) / len(self.initial[sensor])
+            y_avg = sum(self.ascent[sensor]) / len(self.ascent[sensor])
             x_mse = 0
             y_mse = 0
             xy_mse = 0
-            for i in range(len(X)):
-                x_mse += (X[i] - x_avg)**2
-                y_mse += (Y[i] - y_avg)**2
-                xy_mse += (X[i] - x_avg) * (Y[i] - y_avg)
-            self.cb_db.Outlier[min(order)].delete()
-            self.cb_db.commit()
-            sample_size = len(X)
+            for i in range(len(self.initial[sensor])):
+                x_mse += (self.initial[sensor][i] - x_avg) ** 2
+                y_mse += (self.ascent[sensor][i] - y_avg) ** 2
+                xy_mse += (self.initial[sensor][i] - x_avg) * (self.ascent[sensor][i] - y_avg)
+
+            sample_size = len(self.initial[sensor])
             # calculate the regression model and calculate m first
             rate = 0
             try:
                 m = xy_mse / x_mse
                 b = y_avg - m * x_avg
                 error = ascent - m * initial_data - b
-                # for testing
+
                 sigma_square = ( y_mse - m * xy_mse ) / (sample_size - 2)
-                # if(sigma_square < 0): sigma_square = (-1) * sigma_square
                 sigma = math.sqrt ( sigma_square )
 
                 rate_denom = ( 1 - 1/sample_size - (initial_data - x_avg)**2 / x_mse)
-                # if(rate_denom < 0): rate_denom = (-1) * rate_denom
                 rate = ( error / sigma ) / math.sqrt( rate_denom )
 
                 rate_change = (sample_size-3)/(sample_size-2-rate**2)
-                # if(rate_change < 0): rate_change = (-1) * rate_change
                 rate = rate * math.sqrt(rate_change)
             except Exception as e:
                 print('arithmatic error')
@@ -471,7 +456,7 @@ class AG_SA():
             
             if abs(rate) > 2: 
                 self.calib_request(sensor) # error detected
-                print('sensor in need of calibration')
+                print('begin sensor calibration')
                 self.calibrate = True
             else:
                 print('sensor normal')
@@ -483,7 +468,7 @@ class AG_SA():
         try:
             # DAN.calibrate(self.cb_db.CB_SA[self.cb_id].p_id)
             r = requests.Session().post(
-                'http://140.113.215.10:9999/calibrate_sensor',
+                f'http://{{self.config["iottalk_server"]}}:9999/calibrate_sensor',
                 json={{'sensor': sensor, 'p_id': self.p_id, 'state': None}}, 
                 timeout=10
             )
@@ -498,17 +483,21 @@ class AG_SA():
         try:
             msg = DAN.pull('__Ctl_O__')
             if msg != []:
+                if self.lasttimestamp == msg[0][0]: continue
+                self.lasttimestamp = msg[0][0]
                 msg = msg[0][1]
                 if len(msg) == 3:
                     if msg[2] is 'done':
                         # report to user calibration done
                         self.checking[sensor] = 0
                         self.calibrate = False
+                        self.success = True
                         pass
                     elif msg[2] is 'failed':
                         # report to user calibration failed
                         self.checking[sensor] = 0
                         self.calibrate = False
+                        self.success = False
                         pass
                     else:
                         pass

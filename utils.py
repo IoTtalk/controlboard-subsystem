@@ -29,7 +29,9 @@ used to record AG SA's rule status. In format
             sensor_alias1: {
                 value: sensor value,
                 prev_trigger: -10000 or an epoch time, -10000 means no need to use this field data.
-                status: 'GREEN'/'RED'/'YELLOW'
+                status: 'GREEN'/'RED'/'YELLOW',
+                calibrate: 'True/False',
+                success: 'True/False'
             },
         },
     }
@@ -243,6 +245,20 @@ def status_receiver(msgs):
                         f"Value: {status['value']}, Previous Triggered Epoch Time: {status['prev_trigger']}"
                     )
                     status_logger.info(msg)
+                if running_status[rule_id]["calibrate"] != status["calibrate"]:
+                    if status["calibrate"] is True:
+                        msg = (
+                            f"UserRule NO.{rule_id} start calibrating"
+                        )
+                    else:
+                        if status["success"] is True:
+                            msg = (
+                                f"UserRule NO.{rule_id} calibration done"
+                            )
+                        elif status["success"] is False:
+                            msg = (
+                                f"UserRule NO.{rule_id} calibration failed"
+                            )
             else:
                 msg = {
                     f"UserRule NO.{rule_id}'s first status log: {status['status']}\n"
