@@ -17,6 +17,7 @@ from zmq.eventloop.zmqstream import ZMQStream
 from config import env_config, reg_config, use_v1
 from exceptions import CCMAPIFailError
 from models import UserRule, CB_Account, CB_SA, CB
+from email_tracker import email_notifier
 
 
 # used to record AG SA. In format {sa_id: CB_SA entity}
@@ -30,8 +31,8 @@ used to record AG SA's rule status. In format
                 value: sensor value,
                 prev_trigger: -10000 or an epoch time, -10000 means no need to use this field data.
                 status: 'GREEN'/'RED'/'YELLOW',
-                calibrate: 'True/False',
-                success: 'True/False'
+                calibrate: True/False,
+                success: True/False
             },
         },
     }

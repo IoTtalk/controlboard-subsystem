@@ -42,6 +42,16 @@ class AG_SA():
             mac_addr: Mac address of this SA.
             default_rule: basic default rule settings.
 
+            checking: timestamp of when sensor value is acquired during outlier-based test
+            initial: a list of initial sensor value (during each outlier-based test)
+            ascent: a list of changes of sensor value (during each outlier-based test)
+            time_on: a list of the duration of actuator being turned on (during each time-threshold test)
+            prev_time: the most recent timestamp of turning on actuator (during each time-threshold test)
+            prev_status: the previous status of sensor
+            erlang: (lambda, n), parameters of an erlang distribution
+            threshold_time: the threshold time of the sensor
+            last_timestamp: the timestamp of control channel message
+
         Returns:
             None
         '''
@@ -58,7 +68,7 @@ class AG_SA():
         self.prev_status = dict()
         self.erlang = dict()
         self.threshold_time = dict()
-        self.lasttimestamp = ' '
+        self.last_timestamp = ' '
         
         
         self.calibrate = False
@@ -295,6 +305,21 @@ class AG_SA():
     
     @orm.db_session
     def calibration_checker(self, sensor, mode, status, df_order, sa_id, data):
+        '''
+        Calibration checker for all sensors of this SA.
+        Detects sensor failure with outlier-based test and time-threshold-based test.
+
+        Args:
+            sensor: sensor name
+            mode: Sensor or Timer
+            status: the status of the actuator corresponding to the sensor
+            df_order: the mapping order of sensor and actuator
+            sa_id: the id of this SA
+            data: data of this sensor
+
+        Returns:
+            None
+        '''
         #outlier based
         if status == 'RED':
             if sensor not in self.checking:
@@ -483,8 +508,8 @@ class AG_SA():
         try:
             msg = DAN.pull('__Ctl_O__')
             if msg != []:
-                if self.lasttimestamp == msg[0][0]: continue
-                self.lasttimestamp = msg[0][0]
+                if self.last_timestamp == msg[0][0]: continue
+                self.last_timestamp = msg[0][0]
                 msg = msg[0][1]
                 if len(msg) == 3:
                     if msg[2] is 'done':
