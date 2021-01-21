@@ -23,13 +23,21 @@ class EmailNotifier():
     @staticmethod
     def rule2msg(rule):
         if rule["mode"] == "Sensor":
+            if rule["comparison_open"] != "notset":
+                open_str = f" than {rule['threshold_open']}\n" 
+            else:
+                open_str = "\n"
+            if rule["comparison_close"] != "notset":
+                close_str = f" than {rule['threshold_close']}\n" 
+            else:
+                close_str = "\n"
             msg = (
                 f"Actuator {rule['actuator_alias']} switched to Sensor Mode\n"
                 f"Sensor : {rule['sensor_alias']}\n"
                 f"Open Threshold : {rule['comparison_open']}"
-                f" than {rule['threshold_open']}\n" if rule["comparison_open"] != "notset" else "\n"
+                f"{open_str}"
                 f"Close Threshold : {rule['comparison_close']}"
-                f" than {rule['threshold_close']}\n" if rule["comparison_close"] != "notset" else "\n"
+                f"{close_str}"
             )
         elif rule["mode"] == "Timer":
             msg = (
@@ -50,7 +58,6 @@ class EmailNotifier():
                 msg += f"Duty Cycle : Positive Period: {rule['duty_pos']}, Negative Period: {rule['duty_neg']}\n"
             else:
                 msg += "Duty Cycle : None\n"
-        print(msg)
         return msg
 
     @staticmethod
