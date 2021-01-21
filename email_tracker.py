@@ -24,11 +24,11 @@ class EmailNotifier():
     def rule2msg(rule):
         if rule["mode"] == "Sensor":
             if rule["comparison_open"] != "notset":
-                open_str = f" than {rule['threshold_open']}\n" 
+                open_str = f" than {rule['threshold_open']}\n"
             else:
                 open_str = "\n"
             if rule["comparison_close"] != "notset":
-                close_str = f" than {rule['threshold_close']}\n" 
+                close_str = f" than {rule['threshold_close']}\n"
             else:
                 close_str = "\n"
             msg = (
