@@ -404,6 +404,8 @@ def refresh_sa(sa_id):
                     old_rule.set(
                         actuator_alias=actuator[0][1],
                         actuator_df=actuator[0][0],
+                        sensor_alias="",
+                        mode="Timer",
                         df_order=order,
                     )
                 else:
