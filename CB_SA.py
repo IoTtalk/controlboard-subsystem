@@ -74,14 +74,13 @@ class AG_SA():
 
         Args: None.
 
-        Returns: True or False
-            True: Recover succeeded.
-            False: Recover failed.
+        Returns: None
         '''
         self.status = dict()
         DAN.state = "RESUME"
         print("print sa's rules")
-        for (rule_id, rule) in self.rules.items():
+        for (df_order, rule) in self.rules.items():
+            rule_id = rule["rule_id"]
             self.status[rule_id] = {{
                 "prev_trigger": -10000,  # An apparently impossible number.
                 "status": "GREEN",  # RED / YELLOW / GREEN
@@ -98,11 +97,9 @@ class AG_SA():
         Rule checker for all rules of this SA.
         Iteratively executed to generate status and open / close actuators.
 
-        Args:
-            None
+        Args: None
 
-        Returns:
-            None
+        Returns: None
         '''
         try:
             for df_order, rule in self.rules.items():
@@ -142,7 +139,7 @@ class AG_SA():
                             DAN.push(actuator_df, 0)
                 self.socket.send_json(status)
         except Exception as err:
-            print(err)
+            print("Checking UserRule failed", err)
         return
 
     def timer_checker(self, df_order):
@@ -202,7 +199,7 @@ class AG_SA():
                     DAN.push(actuator_df, 0)
                 status["status"] = "GREEN"
         except Exception as err:
-            print(err)
+            print("Check Timer UserRule failed", err)
         return
 
     def sensor_checker(self, df_order, data):
@@ -286,7 +283,7 @@ class AG_SA():
                 status["status"] = "GREEN"
             return
         except Exception as err:
-            print(err)
+            print("check Sensor UserRule failed", err)
 
     @staticmethod
     def bigger(data, threshold, avg):

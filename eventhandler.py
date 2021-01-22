@@ -328,7 +328,7 @@ def get_datum(sa_id):
             res_dict[rule.rule_id] = status
         return jsonify(res_dict), 200
     except NotFoundError:
-        api_logger.exception("Error getting SA's current data, Specified SA not running")
+        api_logger.exception(f"Error getting SA's current data, Specified SA {sa_id} not running")
         return "Specified SA not running", 200
     except Exception as err:
         api_logger.exception(err)
