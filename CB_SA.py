@@ -395,6 +395,6 @@ sa.recover()
 
 
 while True:
-    print('start checking rules')
+    print('start checking rules of', sa.sa_id)
     sa.check_rules()
     time.sleep(5)

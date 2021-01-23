@@ -21,6 +21,27 @@ class EmailNotifier():
         return
 
     @staticmethod
+    def notify_user(title, rules, users):
+        '''
+        Notify Users when a UserRule has been changed
+
+        Args:
+            title: String, Title of the email.
+            rules: List of dictionarys, rules to record in the email content.
+            users: List of Strings, the target email addresses to send notifier email.
+
+        Returns:
+            None
+        '''
+        title += "=================================================\n"
+        for rule in rules:
+            title += email_notifier.rule2msg(rule)
+            title += "\n=================================================\n"
+        email_notifier.send(users, title)
+
+        return
+
+    @staticmethod
     def rule2msg(rule):
         if rule["mode"] == "Sensor":
             if rule["comparison_open"] != "notset":

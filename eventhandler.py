@@ -51,27 +51,6 @@ def requires_login(f):
     return decorated_function
 
 
-def notify_user(title, rules, users):
-    '''
-    Notify Users when a UserRule has been changed
-
-    Args:
-        title: String, Title of the email.
-        rules: List of dictionarys, rules to record in the email content.
-        users: List of Strings, the target email addresses to send notifier email.
-
-    Returns:
-        None
-    '''
-    title += "=================================================\n"
-    for rule in rules:
-        title += email_notifier.rule2msg(rule)
-        title += "\n=================================================\n"
-    email_notifier.send(users, title)
-
-    return
-
-
 @apis.route('/', methods=["GET"])
 @requires_login
 @orm.db_session
@@ -182,7 +161,7 @@ def set_rules(sa_id):
             rule.set(**rule_setting)
             if rule_setting["mode"] == "Sensor":
                 rule_setting["sensor_alias"] = rule.sensor_alias.split(',')[rule_setting["sensor_index"]]
-        notify_user(title, rules, accessible_users)
+        email_notifier.notify_user(title, rules, accessible_users)
         if sa_id in running_sa:
             status = deregister_ag(running_sa[sa_id], api_logger)
             if not status:
@@ -328,7 +307,6 @@ def get_datum(sa_id):
             res_dict[rule.rule_id] = status
         return jsonify(res_dict), 200
     except NotFoundError:
-        api_logger.exception(f"Error getting SA's current data, Specified SA {sa_id} not running")
         return "Specified SA not running", 200
     except Exception as err:
         api_logger.exception(err)
@@ -479,7 +457,7 @@ def refresh_sa(sa_id):
         title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} is refreshed, new UserRules as follows\n"
         rules = [rule.to_dict() for rule in sa.rule_set]
         users = [user.account for user in sa.cb.account_set]
-        notify_user(title, rules, users)
+        email_notifier.notify_user(title, rules, users)
         return f"Create New SA, DM Name: {dm_name}", 200
     except NotFoundError:
         api_logger.exception("No NAs found, remind user to create NAs")
@@ -553,18 +531,19 @@ def delete_sa(sa_id=None):
         if None is sa_id:
             sa_id = int(request.get_data().decode("utf-8"))
         sa = CB_SA[sa_id]
-        if sa.ag_token != "NotCreated":
-            status = deregister_ag(sa, api_logger)
-            if not status:
-                api_logger.exception("Error delete SA, Deregister SA failed, check api log file")
-                return "Delete SA failed, check api log files", 500
         status, message = delete_proj_ag(sa.p_id, api_logger)
         if not status:
             api_logger.exception("Error delete SA, Delete project failed, check api log file")
             api_logger.exception(f"Error msg from AG: {message}")
             return "Delete SA failed, check api log files", 500
+        if sa.ag_token != "NotCreated":
+            status = deregister_ag(sa, api_logger)
+            if not status:
+                api_logger.exception("Error delete SA, Deregister SA failed, check api log file")
+                return "Delete SA failed, check api log files", 500
         sa.delete()
-        del running_sa[sa_id]
+        if sa_id in running_sa:
+            del running_sa[sa_id]
         api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
         return "Delete SA succeed", 200
     except KeyError:
