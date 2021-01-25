@@ -138,7 +138,7 @@ def set_rules(sa_id):
         api_logger.info('\tStart setting rules')
         sa = CB_SA[sa_id]
         accessible_users = [user.account for user in sa.cb.account_set]
-        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} has UserRules changed as follows\n"
+        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} has UserRules changed by {session['user']}, detail as follows\n"
 
         for rule_setting in rules:
             actuator = rule_setting["actuator_alias"]
@@ -456,7 +456,7 @@ def refresh_sa(sa_id):
 
         api_logger.info(f"Create New SA, DM Name: {dm_name}")
 
-        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} is refreshed, new UserRules as follows\n"
+        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} is refreshed by {session['user']}, new UserRules as follows\n"
         rules = [rule.to_dict() for rule in sa.rule_set]
         users = [user.account for user in sa.cb.account_set]
         email_notifier.notify_user(title, rules, users)
