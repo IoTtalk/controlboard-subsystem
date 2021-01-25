@@ -128,7 +128,7 @@
                   > <%field.text%> </b-dropdown-item>
                 </b-dropdown-group>
               </b-nav-item-dropdown>
-              <span v-if="!manageMode && currentField<1" style="font-weight: bolder;">Please create a field</span>
+              <span v-if="!manageMode && currentField<1" style="font-weight: bolder;">Please create a Field</span>
               <b-nav-item
                 v-for="(field, index) in fields.pinnedFields"
                 v-if="!manageMode && index < maxPinnedFields && currentField > 0"

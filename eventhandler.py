@@ -46,7 +46,9 @@ def requires_login(f):
             # next_url = request.path
             # TODO: redirect to AAA to login
             session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
-            session["user"] = env_config["env"]["admin"]  # dummy account
+            session["user"] = env_config["env"]["admin"]
+            # session["user"] = "pcs54784@gmail.com"
+            # session["user"] = "example@gmail.com"
             return redirect("/")
     return decorated_function
 
@@ -919,7 +921,7 @@ def adjust_privilege(usr_name):
     try:
         data = request.json
         current_user = CB_Account.get(account=session["user"])
-        if current_user.privilege <= data["privilege"]:
+        if current_user.privilege <= data["privilege"] and current_user.privilege < 2:
             raise NotAuthorizedError
         account = CB_Account.get(account=usr_name)
         if None is account:
