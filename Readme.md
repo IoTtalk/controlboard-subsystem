@@ -1,6 +1,6 @@
 # ControlBoard Subsystem User Manual
 ###### tags: `IoT` `Remote Control` 
-Cyber objects are the visual representations that map to physical devices that exist in real world. Users can interact with these physical devices through their cyber representations.
+Cyber objects are the visual representations that map to physical devices existing in the real world. Users can interact with these physical devices through their cyber representations.
 
 A typical example of such usage is to relate one cyber object to another, creating an **Network Application**(NA) that can automatically take user-defined actions as the cyber representaions of these physical devices update.
 
