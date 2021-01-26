@@ -301,6 +301,8 @@ There are 3 operations supported for CB management.
 ##### **ControlBoard Creation**
 Refer to **Step 2. Create an empty ControlBoard** of ControlBoard usage.
 
+---
+
 ##### **ControlBoard Deletion**
 ControlBoard supports cascade-delete, meaning that when you delete a ControlBoard, all the Fields inside will also be destoryed.
 
@@ -312,6 +314,8 @@ ControlBoard supports cascade-delete, meaning that when you delete a ControlBoar
 
 ![](https://i.imgur.com/PnoXrf2.png)
 *Figure 10. ControlBoard Deletion*
+
+---
 
 ##### **Custom ControlBoard Icon**
 CB Subsystem supports custom icon(*Figure 11-a*) of created CBs, the uploaded icons will be saved in the backend, users can check *Config.ini* for supported file extensions.
@@ -340,6 +344,8 @@ There are two operations supported for user privilege management
 - User privilege adjustment.
 - CB accessibility adjustment.
 
+---
+
 ##### **User privilege adjustment**
 1. Click the account of the target user(*Figure 13-a*)
 
@@ -352,6 +358,7 @@ There are two operations supported for user privilege management
 
 *Figure 13. User Permission Adjustment*
 
+---
 
 ##### **CB accessibility adjustment**
 1. Click the account of the target user(*Figure 13-a*)
