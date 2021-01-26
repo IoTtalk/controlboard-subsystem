@@ -1,11 +1,26 @@
-# ControlBoard Subsystem
-###### tags: `IoTtalk` `python` `flask` `Workflow`
+# ControlBoard Subsystem User Manual
+###### tags: `IoT` `Remote Control` 
+Cyber objects are the visual representations that map to physical devices that exist in real world. Users can interact with these physical devices through their cyber representations.
+
+A typical example of such usage is to relate one cyber object to another, creating an **Network Application**(NA) that can automatically take user-defined actions as the cyber representaions of these physical devices update.
+
+But as the number of NAs grow, it would cost huge efforts to the management and visualization of those NAs. Besides, it's difficult to set up the custom actions one by one should there be a plenty of NAs needed.
+
+Here we propose **ControlBoard Subsystem**(CB Subsystem), a subsystem of the IoTtalk ecosystem. CB Subsystem provides an user-friendly GUI for users to control and manage their NAs quickly and easily by applying the **ControlBoards**.
+
+A **ControlBoard** is consisted of **Fields**, and is viewed as an **logical Field** that may contain many different types of devices installed in different Fields. 
+
+A **Field** is the basic managing unit in CB Subsystem, representing an IoTtalk project. Users create NAs at the IoTtalk Project GUI, and these just-created NAs will be automatically visualized in the CB Subsystem GUI.
+
+Users can decide how to manage their NAs using Fields at their convenience. For example, users can place cyber objects into the same Fields according to their geographical locations or the functionalities of the mapped physical devices.
+
+With CB Subsystem, users can directly develop or configure their IoT applications quickly in an easy manner through our GUI without any extra coding owing to the deep integration with the IoTtalk ecosystem. 
 
 ## Installation
 
 ### System Requirements
 - `python >= 3.6`
-- Two ports for Flask Server/ZMQ respectively (default 7789, 7790)
+- Two ports for Flask Server and ZMQ Status Collector respectively (default 7789, 7790)
 - AG Subsystem with the following packages installed
     - PonyORM
     - pymysql
@@ -14,8 +29,9 @@
 - IoTtalk Server compatible with CCM API
 - (optional) MySQL server
 
-The following commands assume your OS is Linux.
+---
 
+The following commands are based on assuming your OS is Linux.
 ### Setup Environment
 1. Create virtual environment 
     ```
@@ -27,9 +43,11 @@ The following commands assume your OS is Linux.
     pip install -r requirements.txt
     (optional)pip install -r test-requirements.txt
     ```
+---
 
 ### Setup ControlBoard Subsystem
 1. Enter to ControlBoard Subsystem directory
+
 2. Modify the settings in `Config.ini`
     Below's code is an example of Config.ini, **settings that can be retained will be mentioned in its' above comment correspondingly.**
     ```ini
@@ -71,13 +89,13 @@ The following commands assume your OS is Linux.
     # Accepted icon extensions. Can be retained
     icon_extensions = png,svg
 
-    # Default Admin account. Can be retained
-    admin = admin
+    # Default Admin account. Must be an AAA-compatible account
+    admin = luk1684tw@gmail.com
     
-    # Email Notifier Sender
+    # Email Notifier Sender. Can be retained
     sender = ControlBoard@iottalk.tw
 
-    # Email Title
+    # Email Title. Can be retained
     title = Manual operation notification
 
     [db]
@@ -107,811 +125,237 @@ The following commands assume your OS is Linux.
     python CB_Subsystem.py Config.ini
     ```
 
+---
 
-## Usage [Not Done Yet]
+## How to use
+There two main features in ControlBoard Subsystem.
+- ControlBoard
+- Management system
+
+In the following sections we'll illustrate how to use these two features.
+
+---
 
 ### ControlBoard
-ControlBoard Subsystem uses **Field** as it's basic control unit.
 
-A Field represents an IoTtalk project and contains several *NA*s that are created in the IoTtalk GUI. One can decide how to manage his/her sensors/actuators using Fields at their convenience.
-
-For example, one can put sensors/actuators that are geographically close to each other into same Fields, or place sensor/actuators with the same functionalities into one Field.
-
-A **ControlBoard** is consisted of Fields and is viewed as an **logical Field** that may contain many different types of sensors/actuators installed at different places.
+#### **Step 1. Open the browser**
+1. Enter the URL of CB Subsystem, you'll be redirected to AAA login page first
+![](https://i.imgur.com/5mdHNwR.png)
 
 
-### Management
-The management of ControlBoard Subsystem is consisted of two parts, ControlBoard management and User privilege management.
+2. Login with the admin account filled in *Config.ini*
+
+3. The browser will be redirect to CB GUI automatically
+    ![](https://i.imgur.com/5DPxZzC.png)
+    *Figure 1. CB GUI when no CB is accessible.*
+
+4. Switch to management page by clicking *System* button(*Figure 1-b*)
+
+---
+
+#### **Step 2. Create an empty ControlBoard**
+1. Click the *plus* button(*Figure 2-a*) in management page.
+
+2. Enter the name of this CB in the corresponding modal(*Figure 2-b*)
+
+3. Press the "OK" button
+![](https://i.imgur.com/Y6edm3h.png)
+*Figure 2. ControlBoard Creation*
+
+---
+
+#### **Step 3. Create a empty Field**
+1. Return to GUI by clicking the *System* button(*Figure 1-b*) again
+
+2. Click "New Field" (*Figure 3-a*)
+
+3. Fill the name of this Field in the poped up modal(*Figure 3-b*), note that the name can not be repeated with existed Fields.
+
+4. Click the *pinned* checkbox(*Figure 3-c*)
+
+5. Press the "OK" button
+![](https://i.imgur.com/Pd7Xx3b.png)
+*Figure 3. Field Creation*
+
+---
+
+#### **Step 4. Configure the IoTtalk project**
+1. Go to the IoTtalk Server GUI
+
+2. Choose the project with the same title as the Field created in **Step 3.** The ControlBoard Device Model will be placed in the project in advance 
+
+3. Select the device model objects needed for your application.
+    Connect the Sensor's IDF(*Figure 4-a*) to ControlBoard's ODF(*Figure 4-c*), and then connect the **corresponding** IDF(*Figure 4-d*) of ControlBoard to Actuator's ODF(*Figure 4-e*)
+
+    ![](https://i.imgur.com/JOfW5gm.png)
+    *Figure 4. Example Configuration for ControlBoard*
+    
+    Take *Figure 4.* for example, we want to use *Temperature* to control the *switch* of the fan, then the IDF *Temperature*(*Figure 4-b*) and the ODF *Switch*(*Figure 4-f*) must be connect to the same pair of ControlBoard's DF.
+
+4. If a NA has multiple data resource, we need to right click the join circle(*Figure 4-g*) to edit it's join function(*Figure 4-h*) to transfer all resource data through the join circle.
+
+    Example Join function as follows
+    ```python=
+    def run(args*):
+        return args
+    ```
+
+---
+
+#### **Step 5. Refresh the Field to visualize the created NAs**
+1. After finishing NA configuration, go back to CB GUI and click refresh(*Figure 5-a*)
+
+2. The NAs created will be visualized as below(*Figure 5-b, 5-c*)
+![](https://i.imgur.com/RzT0Hid.png)
+*Figure 5. NA setup GUI*
+
+3. If there is any modification on the IoTtalk GUI(i.e. alias, NA), just click Refresh again and the GUI will be automatically updated.
+
+4. Once a Field is refreshed, all the users that has access control to this Field will receive a email notifying that someone has refreshed the Field.
+![](https://i.imgur.com/d9YTdUD.png)
+*Figure 6. Email notifying the Field is refreshed*
+
+---
+
+#### **Step 6. Configure the NAs in CB Subsystem GUI**
+*Figure 7.* illustrates what can be configured in an NA to automatically control the devices.
+
+
+![](https://i.imgur.com/xHrRIIu.png)
+*Figure 7. NA setup GUI(cont.)*
+
+- *Sensor Name* (*Figure 7-a*)
+    The name of the currently connected sensor. Can be modified via IoTtalk project GUI
+    If the mode of this NA is set to *Timer*, shows "Timer" (*Figure 7-h*) instead.
+    
+    If there are multiple resource sensors, a dropdown will be placed for users to select which to use.
+
+- *Actuator Name* (*Figure 7-d*)
+    The name of the connected actuator.
+
+- *Current Sensor Value* (*Figure 7-b, 7-i*)
+    Current value received from the cyber representation of the physical sensory device. If the mode of this NA is set to *Timer*, shows current time (*Figure 7-i*) instead.
+    
+- *Current Status* (*Figure 7-k*)
+    Current Status of the actuator, green represents that the actuator is closed, red means the actuator is opened.
+
+- *Trigger Mode* (*Figure 7-c*)
+    Mode of this NA. Currently CB Subsystem supports the following modes
+    - *Manual Close / Manual Open*： User's manual operation.
+    - *Sensor*：Actuator is automatically controlled by the connected sensor.
+    - *Timer*：Actuator is automatically controlled by current time.
+
+- *Threshold Setup* (*Figure 7-e, 7-j*)
+    Conditions to trigger or close the actuator, can be further divided into Sensor mode (*Figure 7-e*) or Timer mode (*Figure 7-j*) depending on the NA's mode.
+
+    - *Sensor mode*： user can setup two threshold conditions to automatically control the actuator. The actuator will be opened if both open/close threshold conditions are satisfied.
+    - *Timer mode*： user can setup two timing on the GUI in "%H%M%S" format, the actuator will be triggered during this period of time and closed otherwise.
+
+- *Working days* (*Figure 7-f*)
+    Users can specify weekdays for this NA to work. The NA will close the actuator when the weekday changes to weekdays that it's not allowed to execute.
+    
+- *Duty Cycle* (*Figure 7-g*)
+    Users can specify the duty cycle length when the actuator is triggered. It's useful should the actuator be the type that can't be continuously triggered, i.e. Drips or Fertilizers.
+    
+Once the configurations of NAs in a Field is changed, all the users that has access control to this Field will receive a email notifying that someone has changed the configurations.
+![](https://i.imgur.com/40KWqtd.png)
+*Figure 8. Email notifying the configurations is modified*
+
+
+---
+
+### Management system
+
+The management of ControlBoard Subsystem is consisted of two parts.
+- ControlBoard management：CB-related operations
+- User privilege management
+    - User privilege level management
+        - *`User`*：Normal user, cannot access the management system.
+        - *`Superuser`*：In charge of CB accessibilities of users.
+        - *`Administrator`*：In charge of user privileges.
+
+    - CB accessibility management
+        - All users except *`Administrators`* can only control CBs that are accessible to them.
+        - An *`Administrator`* can access all CBs created.
+        - *`Administrators`* and *`Superusers`* can further authorize other users to access CBs that they can access.
+
+---
+
+In the following sections we'll explain these operations mentioned with step-by-step tutorials and illustrations.
 
 #### ControlBoard Management
-ControlBoard management supports the following operations
 
-* ControlBoard Creation
-* ControlBoard Deletion
-* Change ControlBoard Icon
+All accessible CBs of the logined user will be listed here(*Figure 9-b*)
+Users can switch to User privilege management page by click "User" (*Figure 9-a*)
 
-ControlBoards can have the same naming
+There are 3 operations supported for CB management.
+- ControlBoard Creation (*Figure 9-c*)
+- ControlBoard Deletion (*Figure 9-d*)
+- Custom ControlBoard Icon (*Figure 9-e*)
+    
+![](https://i.imgur.com/wqnsPW7.png)
+*Figure 9. CB Management Overview*
 
-ControlBoard supports cascade-delete, namely when you delete a ControlBoard, the Fields inside will also be destoryed.
+---
+
+##### **ControlBoard Creation**
+Refer to **Step 2. Create an empty ControlBoard** of ControlBoard usage.
+
+##### **ControlBoard Deletion**
+ControlBoard supports cascade-delete, meaning that when you delete a ControlBoard, all the Fields inside will also be destoryed.
+
+1. Login as *`Superuser`* or above.
+
+2. Switch to management page.
+
+3. Find the CB to be deleted, click the corresponding "Delete CB"(*Figure 10-a*) and then click "OK"(*Figure 10-b*)
+
+![](https://i.imgur.com/PnoXrf2.png)
+*Figure 10. ControlBoard Deletion*
+
+##### **Custom ControlBoard Icon**
+CB Subsystem supports custom icon(*Figure 11-a*) of created CBs, the uploaded icons will be saved in the backend, users can check *Config.ini* for supported file extensions.
+1. Login as *`Superuser`* or above.
+
+2. Switch to management page.
+
+3. Find the desired CB, and click the corresponding "Icons"(*Figure 11-b*). Click "Browse"(*Figure 11-c*) and select files to upload.
+
+4. The selected file's filename will be displayed in the modal(*Figure 11-d*)
+5. Click "OK" and the icon should be replaced with the uploaded image.
+![](https://i.imgur.com/zDs7Yor.png)
+*Figure 11. CB Icon Setup*
+
+---
 
 #### User Privilege Management
 
+All users and their privilege level will be listed here(*Figure 12-b, 12-c*)
+Users can switch to CB management page by click "ControlBoard" (*Figure 12-a*)
 
-Users are divided into three groups, *`User`*, *`Superuser`* and *`Admin`*.
+![](https://i.imgur.com/cfoHK1n.png)
+*Figure 12. User Management Overview*
 
-A *`User`* level user can only view ControlBoards that a *`Superuser`* or *`Admin`* user granted him/her to control, and is not allowed to enter the Management page of CB Subsystem.
+There are two operations supported for user privilege management
+- User privilege adjustment.
+- CB accessibility adjustment.
 
+##### **User privilege adjustment**
+1. Click the account of the target user(*Figure 13-a*)
 
-## API List
-List of ControlBoard Subsystem APIs.
+2. Select the privilege level to assign to this user in the popped-up modal(*Figure 13-b*)
 
-### **Field Related**
+3. Note that users cannot assign privileges higher than that of them.
+    For example, a *`Superuser`* cannot assign others to be *`Administrator`*
 
-#### *[POST] /sa/<sa_id>/new_rules*
-**Description**：
+![](https://i.imgur.com/PXQnTa6.png)
 
-*Login Required*
-Configure that in what situation should the specified actuator be opened or closed.
+*Figure 13. User Permission Adjustment*
 
-**Parameters**：
 
-| Name | Data type | Description |
-|-|-|-|
-| sa_id | Integer | The ID of the field to save UserRules, passed through url |
-| rule_setting | List of Json | The UserRules' content, passed through request body |
+##### **CB accessibility adjustment**
+1. Click the account of the target user(*Figure 13-a*)
 
-The following table illustrates the content of *rule_settings*
+2. Select CBs to be shared to this user in the popped-up modal(*Figure 13-c*) by click the corresponding checkbox of these CBs.
 
-| Name | Data type | Description |
-|-|-|-|
-| actuator_alias | String | The alias on IoTTalk GUI of a actuator device feature | "FAN" | required |
- mode | String | Type of this UserRule. Should be one of  ON/OFF/Sensor/Timer | required if type="sensor" |
-| sensor_index | Integer | Index of usable sensors in this UserRule |
-| threshold_open | Integer | Threshold value to open the corresponding actuator |
-| threshold_close | Integer | Threshold value to close the corresponding actuator |
-| comparison_open | String | Comparison method for a condition to open actuator |
-| comparison_close | String | Comparison method for a condition to close actuator |
-| time_open | List containing three Integers | Starting time in "%H:%M:%S" 24-h format for a timer type condition |
-| time_close | List of length three | Ending time in "%H:%M:%S" 24-h format for a timer type condition |
-| duty_pos | Integer | PosEdge frequency of the Duty Cycle module |
-| duty_neg | Integer | NegEdge frequency of the Duty Cycle module |
-| weekday | List of Integers | Weekdays that this UserRule is allowed to execute. |
-
-
-**Request body example**
-```json=
-[
-    {
-        "actuator_alias": "Dummy_Control",
-        "mode": "Sensor",
-        "sensor_index": 1,
-        "threshold_open": 6,
-        "threshold_close": 3,
-        "comparison_open": "bigger",
-        "comparison_close": "smaller",
-        "time_open": [0, 0, 0],
-        "time_close": [0, 0, 0],
-        "duty_pos": 1800,
-        "duty_neg": 30,
-        "weekday": [4, 5]
-    },
-    {
-        "actuator_alias": "Dummy_Control",
-        "mode": "Timer",
-        "sensor_index": 1,
-        "threshold_open": 6,
-        "threshold_close": 3,
-        "comparison_open": "bigger",
-        "comparison_close": "smaller",
-        "time_open": [8, 30, 0],
-        "time_close": [17, 0, 0],
-        "duty_pos": 1800,
-        "duty_neg": 30,
-        "weekday": [4, 5]
-    }
-]
-```
-
-**Response**：
-
-| Field | Data type | description | 
-|-|-|-|
-| msg | String | Detailed setup status |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "msg": "Configuration Saved."
-}
-
-// Invalid UserRule detected
-{
-    "status": 400,
-    "msg": A string containing detected actuators
-}
-
-// Failed at registering another AG-SA
-{
-    "status": 500,
-    "msg": "Internal Server Error"
-}
-```
-
----
-
-
-#### *[GET] /sa/<sa_id>/rules*
-**Description**
-
-*Login Required*
-Get the rules contained in the specified Field.
-
-**Parameter**
-
-| Name | Data type | Description |
-|-|-|-|
-| sa_id | Integer | The ID of the field to get UserRules, passed through url |
-
-
-**Response**：
-
-| Field | Data type | description | 
-|-|-|-|
-| rule_list | List of Jsons | UserRules saved in this Field |
-
-
-
-##### The following table illustrates the content of each element in *rule_list*
-| Field | Data type | description | 
-|-|-|-|
-| ruleID | Integer | Unique ID of this UserRule |
-| actuator | String | User-defined actuator df-alias on IoTtalk GUI |
-| sensors | List of Strings | User-defined sensor df-alias on IoTtalk GUI |
-| mode | String | Indicating the mode of this UserRule, should be one of ON/OFF/Sensor/Timer |
-| content | Json | The UserRule's content, fields explained in the next table  |
-| dirty | boolean | Indicating if this UserRule is modified but not saved. Dummy data for frontend rendering here |
-| prevTrigger | Integer | Previous triggered epoch time of the actuator controlled by this UserRule. Dummy data for frontend rendering here |
-| status | boolean | Indicating the status of the actuator controlled by this UserRule. Dummy data for frontend rendering here |
-| time | String in format "HH:MM" | Standard Time of the AG Server. Dummy data for frontend rendering here |
-| value | Integer | Current selected sensor value of this UserRule. Dummy data for frontend rendering here |
-
-##### The following table illustrates the *content* field in each element of *rule_list*
-| Field | Data type | description | 
-|-|-|-|
-| openSensor | String | One of bigger/smaller/null |
-| openSensorVal | Integer | Threshold value to trigger the actuator |
-| closeSensor | String | One of bigger/smaller/null |
-| closeSensorVal | Integer |  Threshold value to close the actuator |
-| openTimer | List of length 3 | The timing allowed to trigger the actuator |
-| closeTimer | List of length 3 | The timing allowed to close the actuator |
-| dutyPos | Integer | Seconds representing the positive cycle length of one Duty cycle.
-| dutyNeg | Integer | seconds representing the negative cycle length of one Duty cycle.
-| weekdays | List of Integers | Integers representing weekdays. Mon <=> 0, Sun <=> 6, All <=> 7
-
-
-**Return example**
-```json=
-[
-  {
-    "ruleID": 1
-    "actuator": "Dummy_Control"
-    "sensors": ["Drip", "Humid"],
-    "mode": "Sensor",
-    "dirty": False,
-    "prevTrigger": -10000,
-    "status": False,
-    "time": "00:00",
-    "value": 0
-    "content": {
-        "openSensor": "bigger", 
-        "openSensorVal": 0,
-        "closeSensor": "smaller",
-        "closeSensorVal": 10,
-        "openTimer": [0,0,0],
-        "closeTimer": [0,0,0],
-        "dutyPos": 15,
-        "dutyNeg": 15,
-        "weekdays": [0, 1, 3]
-    }
-  }
-]
-```
-
----
-
-#### *[GET] /sa/<sa_id>/current_data*
-
-**Description**
-
-*Login Required*
-Get the current data(actuatos's status, sensor value, previous triggered time-stamp) of UserRules contained in the specifed Field.
-
-**Parameters**
-| Field | Data type | description | 
-|-|-|-|
-| sa_id | Integer | The ID of the field to get UserRules' execution status, passed through url |
-
-**Response**：
-
-| Field | Data type | description | 
-|-|-|-|
-| res_dict | Dictionary of Jsons | Execution status of UserRules in this Field |
-
-
-##### The following table illustrates the content of each element in *res_dict*
-| Field | Data type | description | 
-|-|-|-|
-| rule_id | Integer | Unique ID of this rule |
-| status | String | Status of this UserRule, should be one of "RED"(Triggered)/"Green"(Closed)/"Yellow"(About to be triggered)
-| prev_trigger | Float | Epoch time that this UserRule triggered last time |
-| value | Float | Value received from IoTtalk Server |
-
-**Response Example**
-```json=
-{
-    1: {
-        "rule_id": 1,
-        "status": "RED",
-        "prev_trigger": 123.456789,
-        "value": 123.4
-    },
-    4: {
-        "rule_id": 4,
-        "status": "GREEN",
-        "prev_trigger": 4567,
-        "value": 81000
-    }
-}
-```
-
----
-
-#### *[GET] /sa/refresh_sa/<sa_id>*
-
-**Description**
-Refetch the actuators and sensors and update the UserRules according to those sensors/actuators.
-
-*comment the `time.sleep` in this function if your IoTtalk Server can handle continous requests*
-
-**Parameters**
-| Field | Data type | description | 
-|-|-|-|
-| sa_id | Integer | The ID of the field to be refreshed, passed through url |
-
-**Response**：
-
-| Field | Data type | description | 
-|-|-|-|
-| msg | String | Detailed refresh status |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "msg": "Create New SA, DM Name: <dm_name>"
-}
-// No NA detected
-{
-    "status": 400,
-    "msg": "No NA detected, please create Join point in Project <sa_name>"
-}
-// Failed at registering AG-SA
-{
-    "status": 500,
-    "msg": "Internal Server Error"
-}
-```
-
----
-
-#### *[POST] /sa/create_sa*
-**Description**
-Creates an empty Field, further procedures will be executed after the user sets up NAs in the IoTtalk GUI and press "Refresh" button.
-
-**Parameters**
-| Name | Data type | Description |
-|-|-|-|
-| cb_id | Integer | The ID of the ControlBoard to create Field in, passed through request body |
-| sa_name | String | The Field's name to create IoTtalk Project, passed through request body |
-
-**Request Example**
-```json=
-{
-    "cb_id": 5,
-    "sa_name": "Demo_Field"
-}
-```
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| msg | String | Detailed execution status |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "msg": "Create SA succeeded"
-}
-// Specified ControlBoard doesn't exist or A project with the same name as <sa_name> already exists
-{
-    "status": 400,
-    "msg": "Create SA failed at creating project, project with the same name already exists."
-}
-// Failed at creating Device-object
-{
-    "status": 500,
-    "msg": "Internal Server Error"
-}
-```
-
----
-
-#### *[POST] /sa/delete_sa*
-**Description**
-Delete the specified Field and all UserRules related to the sensors/actuators contained in this Field.
-
-**Parameters**
-| Name | Data type | Description |
-|-|-|-|
-| sa_id | Integer | The ID of the Field to delete, passed through request body |
-
-**Request Example**
-```json=
-{
-    "sa_id": 5,
-}
-```
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| msg | String | Detailed execution status |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "msg": "Delete SA succeeded"
-}
-// Specified ControlBoard is not running
-{
-    "status": 400,
-    "msg": "Create SA failed at creating project, project with the same name already exists."
-}
-// AG-related error occurs
-{
-    "status": 500,
-    "msg": "Internal Server Error"
-}
-```
-
----
-
-#### *[GET] /sa/get_sa/<cb_id>*
-
-**Description**
-Get Field infos of the specified ControlBoard. Called when rendering available Fields to the user.
-
-**Parameters**
-| Name | Data type | Description |
-|-|-|-|
-| cb_id | Integer | The ID of the Field to delete, passed through url |
-
-**Request Example**
-```json=
-{
-    "cb_id": 5,
-}
-```
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| available_sa | List of Jsons | Fields contained in this ControlBoard |
-| status | Integer | Corresponding HTTP status code |
-
-##### The following table explains the fields of each element in *available_sa*
-| Field | Data type | description | 
-|-|-|-|
-| text | String | Name of this Field |
-| value | Integer | Unique ID of this Field |
-| pin | Boolean | Whether this Field in pinned |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "available_sa": [
-        {
-            "text": "Field1",
-            "value": 1,
-            "pin": false
-        },
-        {
-            "text": "Field2",
-            "value": 2,
-            "pin": true
-        }
-    ]
-}
-// User do not have the proper privilege level
-{
-    "status": 403,
-    "available_sa": "Not a superuser!"
-}
-```
-
----
-
-### **Subsystem Related**
-
-#### *[GET] /subsystem/get_accessible_proj/<user_name>*
-
-**Descrpiption**
-Returns ControlBoards that are granted to be controlled by user given *user_name*.
-
-**Parameters**
-| Name | Data type | Description |
-|-|-|-|
-| user_name | String | The account of requester, passed through url |
-
-**Request Example**
-```json=
-{
-    "user_name": "pcs54784@nctu.edu.tw"
-}
-```
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| proj_list | List of Integers | Unique ID of ControlBoards this user can access |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "proj_list": [1, 2, 3, 7, 8, 10]
-}
-```
-
----
-
-#### *[POST] /subsystem/set_pinned_field*
-**Description**
-Set Fields to be pinned in the ControlBoard given `cb_id` and `sa_id` and set all other Fields to un-pinned.
-
-**Parameters**
-| Name | Data type | Description |
-|-|-|-|
-| cb_id | Integer | The ID of the ControlBoard, passed through request body |
-| to_pinned | List of Intgers | The ID of Fields to be pinned, passed through request body |
-
-**Request Example**
-```json=
-{
-    "cb_id": 5,
-    "to_pinned": [1, 4, 7, 10]
-}
-```
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| msg | String | Detailed execution status |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "msg": "okay"
-}
-// Field not contained in specifed ControlBoard detected
-{
-    "status": 400,
-    "msg": "Unrelated SA involved, abort request"
-}
-```
-
----
-
-#### *[PUT] /subsystem/cb_icon/<cb_id>*
-**Description**
-Change specified ControlBoard's icon given `cb_id` and `file` from user.
-Modify `Config.ini` to accept different file extensions.
-
-**Parameters**
-| Name | Data type | Description |
-|-|-|-|
-| cb_id | Integer | The ID of the ControlBoard, passed through request body |
-| file | JavaScript file | Icon provided by user,passed through request body |
-
-**Request Example**
-```json=
-{
-    "cb_id": 5,
-    "file": JS File
-}
-```
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| msg | String | Detailed execution status |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "msg": "Icon change finished"
-}
-// Icon's extension not supported
-{
-    "status": 400,
-    "msg": "Non-supported icon format"
-}
-// User is not a SuperUser
-{
-    "status": 403,
-    "msg": "Not a superuser!"
-}
-```
-
----
-
-#### *[POST] /subsystem/create_cb*
-**Description**
-Creates a Empty ControlBoard.
-
-**Parameters**
-| Name | Data type | Description |
-|-|-|-|
-| text | String | The name of the ControlBoard, passed through request body |
-
-**Request Example**
-```json=
-{
-    "text": "demo-cb",
-}
-```
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| msg | String | Detailed execution status |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "msg": "Success"
-}
-// User doesnot exists.
-{
-    "status": 400,
-    "msg": "Non-existed User!"
-}
-```
-
----
-
-#### *[POST] /subsystem/delete_cb*
-**Description**
-Delete the specified ControlBoard and corresponding Fields / UserRules with  cb_id.
-
-**Parameters**
-| Name | Data type | Description |
-|-|-|-|
-| cb_id | Integer | The unique ID of the ControlBoard, passed through request body |
-
-**Request Example**
-```json=
-{
-    "text": "demo-cb",
-}
-```
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| msg | String | Detailed execution status |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "msg": "Specified ControlBoard and subsequent Fields deleted."
-}
-// Permission denied.
-{
-    "status": 403,
-    "msg": "Not a superuser!"
-}
-```
-
----
-
-#### *[GET] /subsystem/get_cb/<usr_account>*
-**Description**
-Returns all accessible ControlBoards of the specified user given user account
-
-**Parameters**
-| Name | Data type | Description |
-|-|-|-|
-| usr_account | String | Account of the requester user, passed through url |
-
-**Request Example**
-```json=
-{
-    "usr_account": "pcs54784@nctu.edu.tw",
-}
-```
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| accessible_cb | A Json with two fields | The requester's accessible ControlBoards and ControlBoards shared to this user |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "accessible_cb": {
-        "accessibleProjects": [1, 3, 5, 6, 7], // ID of ControlBoards this user can access.
-        "optionProjects": [
-            {
-                "icon": "./default_icon.svg", // Icon path of this CB
-                "text": "CB1", // Name of this CB
-                "value": "2" // ID of this CB
-            }
-        ]
-    }
-}
-// No such User
-{
-    "status": 401,
-    "msg": "No such user"
-}
-// Permission denied.
-{
-    "status": 403,
-    "msg": "Permission denied"
-}
-```
-
----
-
-### Account Releted [Need to be finished after AAA is done]
-
-#### *[GET] /account/get_accounts*
-**Description**
-Returns all users, the logined user must be privileged to call this entry.
-
-**Parameters**
-None
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| users | A List of Jsons | All user's basic information |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "users": [
-        {
-            "superuser": 2,
-            "username": "liny@nctu.edu.tw"
-        },
-        {
-            "superuser": 1,
-            "username": "ksoy@nctu.edu.tw"
-        },
-        {
-            "superuser": 0,
-            "username": "pcs54784@nctu.edu.tw"
-        }
-    ]
-}
-// No such User
-{
-    "status": 401,
-    "msg": "No such user"
-}
-// Permission denied.
-{
-    "status": 403,
-    "msg": "Permission denied"
-}
-```
-
-
-
-#### *[POST] /account/adjust_privilege/<usr_name>*
-**Description**
-Adjust user privilege and his/her accessible ControlBoards
-
-**Parameters**
-| Name | Data type | Description |
-|-|-|-|
-| usr_name | String | Account of the specified user, passed through url |
-| usr_profile | Json with two fields | the content to adjust |
-
-##### The following table explains what are the meaning of the two fields in *usr_profile*
-| Name | Data type | Description |
-|-|-|-|
-| privilege | Integer | Ranging from 0~2, indicating user/superuser/admin to be applied to this user individually. |
-| accessible_cb | List of Integers | Unique ID of ControlBoards this user is granted to access. |
-
-
-**Request Example**
-```json=
-{
-    "privilege": 1,
-    "accessible_cb": [1, 3, 5, 6, 7]
-}
-```
-
-**Response**
-
-| Field | Data type | description | 
-|-|-|-|
-| msg | String | Detailed execution status |
-| status | Integer | Corresponding HTTP status code |
-
-**Response example**
-```json=
-// Success
-{
-    "status": 200,
-    "msg": "setup done"
-}
-// No such User
-{
-    "status": 401,
-    "msg": "No such user"
-}
-// Permission denied.
-{
-    "status": 403,
-    "msg": "Permission denied"
-}
-```
-
----
+3. To disable the user's access control to a specific CB, just cancel the corresponding checkbox of this CB.
