@@ -128,7 +128,7 @@ The following commands are based on assuming your OS is Linux.
 ---
 
 ## How to use
-There two main features in ControlBoard Subsystem.
+There are two main features in ControlBoard Subsystem.
 - ControlBoard
 - Management system
 
