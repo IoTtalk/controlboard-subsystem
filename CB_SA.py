@@ -1,3 +1,23 @@
+CB_SA.py
+未共用
+類型
+文字
+大小
+27 KB (27,269 個位元組)
+儲存空間使用量
+27 KB (27,269 個位元組)
+位置
+ca
+擁有者
+我
+上次修改時間
+我在2021年1月24日修改過
+上次開啟時間
+我在下午4:22開啟過
+建立日期
+下午4:19 (使用「Google Drive Web」建立)
+新增說明
+檢視者可以下載
 import time
 import uuid
 import datetime
@@ -12,7 +32,7 @@ import zmq
 import zmq
 
 
-import DAN
+import DAN, csmapi
 
 
 class AG_SA():
@@ -53,7 +73,7 @@ class AG_SA():
         self.df_hist_val = dict()
         self.sa_id = int(sa_id)
         self.config = config
-        self.p_id = p_id
+        self.p_id = int(p_id)
 
         self.checking = dict()
         self.initial = dict()
@@ -117,7 +137,8 @@ class AG_SA():
                 "prev_trigger": -10000,  # An apparently impossible number.
                 "status": "GREEN",  # RED / YELLOW / GREEN
                 "value": 0,  # Current value of the selected sensor.
-                "rule_id": rule_id  # rule_id of this status recorder.
+                "rule_id": rule_id,  # rule_id of this status recorder.
+                "sa_id": self.sa_id
             }}
             DAN.push("Trigger-I" + str(rule["df_order"]), 0)
         print("recovered rules:", self.rules)
@@ -173,19 +194,16 @@ class AG_SA():
                             DAN.push(actuator_df, 0)
                 self.success = None
                 self.calibration_checker(
-                    rule["sensor_alias"], rule["mode"], status["status"], df_order, self.sa_id, data
+                    rule["sensor_df"], rule["mode"], status["status"], df_order, self.sa_id, data
                 )
-                if self.calibrate is True:
-                    status["calibrate"] = True
-                else:
-                    status["calibrate"] = False
+                status['calibrate'] = self.calibrate
                 status["success"] = self.success
+                status["sensor_df"] = rule["sensor_df"]
                 self.socket.send_json(status)
         except Exception as err:
             print(err)
         return
     
-    @orm.db_session
     def calibration_checker(self, sensor, mode, status, df_order, sa_id, data):
         '''
         Calibration checker for all sensors of this SA.
@@ -209,27 +227,27 @@ class AG_SA():
                     # print('SAVE SENSOR DATA FOR CHECKING')
                     self.checking[sensor] = datetime.datetime.now()
                     if sensor not in self.initial:
-                        self.initial[sensor] = deque(maxlen=50)
+                        self.initial[sensor] = deque(maxlen=20)
                     self.initial[sensor].append(data)
             else:
                 if self.checking[sensor] == 0:
                     if data is not None:
                         self.checking[sensor] = datetime.datetime.now()
                         if sensor not in self.initial:
-                            self.initial[sensor] = deque(maxlen=50)
+                            self.initial[sensor] = deque(maxlen=20)
                         self.initial[sensor].append(data)
         
         if sensor in self.checking:
             if self.checking[sensor] != 0:
                 time = datetime.datetime.now() - self.checking[sensor] 
-                if time.total_seconds() > 14:
-                    # print('SAVE DATA TO DATABASE')
+                if time.total_seconds() > 9:
                     if data is not None:
                         ascents = round( (data-self.initial[sensor][-1]), 3)
                         if self.calibrate == False:
                             if sensor not in self.ascent:
-                                self.ascent[sensor] = deque(maxlen=50)
+                                self.ascent[sensor] = deque(maxlen=20)
                             self.ascent[sensor].append(ascents)
+                            #print('HOW LONG DO I HAVE TO WAIT: ', len(self.ascent[sensor]))
                             self.outlier_test(sensor, self.initial[sensor][-1], ascents, sa_id)
                         self.checking[sensor] = 0
                     else:
@@ -255,7 +273,7 @@ class AG_SA():
                     time_diff = datetime.datetime.now() - self.prev_time[sensor]
                     time_diff = time_diff.total_seconds()
                     if sensor not in self.time_on:
-                        self.time_on[sensor] = deque(maxlen=50)
+                        self.time_on[sensor] = deque(maxlen=20)
                     self.time_on[sensor].append(time_diff)
                     self.prev_status[sensor] = 0
                     
@@ -269,7 +287,7 @@ class AG_SA():
     
     def threshold_test(self, sensor, time_diff, sa_id):
         # do the calculation with given data
-        if sensor not in self.threshold_time:
+        if sensor not in self.threshold_time and len(self.time_on[sensor]) == 20:
             try:
                 histogram_bins = dict()
                 find_medium = 0
@@ -330,7 +348,7 @@ class AG_SA():
     
     def outlier_test(self, sensor, initial_data, ascent, sa_id):
         # do calculation for MSE here
-        if( len(self.initial[sensor]) == 50):
+        if( len(self.initial[sensor]) == 20):
             x_avg = sum(self.initial[sensor]) / len(self.initial[sensor])
             y_avg = sum(self.ascent[sensor]) / len(self.ascent[sensor])
             x_mse = 0
@@ -388,26 +406,29 @@ class AG_SA():
     def calib_complete_check(self, sensor):
         # under calibration mode, keep checking for DA's return message
         try:
-            msg = DAN.pull('__Ctl_O__')
+            msg = csmapi.pull(DAN.MAC, '__Ctl_O__')
             if msg != []:
-                if self.last_timestamp == msg[0][0]: continue
-                self.last_timestamp = msg[0][0]
-                msg = msg[0][1]
-                if len(msg) == 3:
-                    if msg[2] is 'done':
-                        # report to user calibration done
-                        self.checking[sensor] = 0
-                        self.calibrate = False
-                        self.success = True
-                        pass
-                    elif msg[2] is 'failed':
-                        # report to user calibration failed
-                        self.checking[sensor] = 0
-                        self.calibrate = False
-                        self.success = False
-                        pass
-                    else:
-                        pass
+                if self.last_timestamp == msg[0][0]: pass
+                else:
+                    self.last_timestamp = msg[0][0]
+                    msg = msg[0][1]
+                    if len(msg) == 3:
+                        if msg[2]  == 'done':
+                            # report to user calibration done
+                            self.checking[sensor] = 0
+                            self.calibrate = False
+                            self.success = True
+                            print('calibration done')
+                            pass
+                        elif msg[2] == 'failed':
+                            # report to user calibration failed
+                            self.checking[sensor] = 0
+                            self.calibrate = False
+                            self.success = False
+                            print('calibration failed')
+                            pass
+                        else:
+                            pass
         except Exception as e:
             print("Pull control message error: ")
             print(e)
@@ -662,11 +683,11 @@ class AG_SA():
         return satisfied, status
 
 
-sa = AG_SA('{sa_id}', {config}, '{mac_addr}', '{sa_name}', {rules})
+sa = AG_SA('{sa_id}', {config}, '{mac_addr}', '{sa_name}', {rules}, '{p_id}')
 sa.recover()
 
 
 while True:
     print('start checking rules')
     sa.check_rules()
-    time.sleep(5)
+    time.sleep(10)

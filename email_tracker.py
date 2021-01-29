@@ -83,6 +83,6 @@ class EmailNotifier():
         except Exception as err:
             self.logger.exception(err)
         return
-
+        
 
 email_notifier = EmailNotifier()

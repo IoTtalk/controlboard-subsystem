@@ -327,6 +327,8 @@ def get_datum(sa_id):
             status = running_status[rule.rule_id]
             status["time"] = datetime.datetime.now().strftime("%H:%M")
             res_dict[rule.rule_id] = status
+
+        
         return jsonify(res_dict), 200
     except NotFoundError:
         api_logger.exception("Error getting SA's current data, Specified SA not running")

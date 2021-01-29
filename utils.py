@@ -17,7 +17,6 @@ from zmq.eventloop.zmqstream import ZMQStream
 from config import env_config, reg_config, use_v1
 from exceptions import CCMAPIFailError
 from models import UserRule, CB_Account, CB_SA, CB
-from email_tracker import email_notifier
 
 
 # used to record AG SA. In format {sa_id: CB_SA entity}
@@ -233,10 +232,24 @@ def status_receiver(msgs):
 
     Returns: None
     '''
+    @orm.db_session
+def status_receiver(msgs):
+    '''
+    Receive execution status from AG SAs.
+
+    Args:
+        msgs: Messages sent from AG SAs.
+
+    Returns: None
+    '''
     for msg in msgs:
         try:
             status = json.loads(msg.decode("utf-8"))
             rule_id = status["rule_id"]
+
+            sa = CB_SA[status["sa_id"]]
+            accessible_users = [user.account for user in sa.cb.account_set]
+            sensor_df = status["sensor_df"]
             if rule_id in running_status:
                 if running_status[rule_id]["status"] != status["status"]:
                     msg = (
@@ -247,24 +260,37 @@ def status_receiver(msgs):
                 if running_status[rule_id]["calibrate"] != status["calibrate"]:
                     if status["calibrate"] is True:
                         msg = (
-                            f"UserRule NO.{rule_id} start calibrating"
+                            f"{sensor_df} starts calibrating\n"
+                            "Insert corresponding standard sensor"
                         )
+                        calibr_notifier.send(accessible_users, msg)
                     else:
                         if status["success"] is True:
                             msg = (
-                                f"UserRule NO.{rule_id} calibration done"
+                                f"{sensor_df} calibration done"
                             )
+                            running_status[rule_id]['notified'] = False
+                            calibr_notifier.send(accessible_users, msg)
                         elif status["success"] is False:
                             msg = (
-                                f"UserRule NO.{rule_id} calibration failed"
+                                f"{sensor_df} calibration failed"
                             )
+                            running_status[rule_id]['notified'] = False
+                            calibr_notifier.send(accessible_users, msg)
             else:
                 msg = {
                     f"UserRule NO.{rule_id}'s first status log: {status['status']}\n"
                     f"Value: {status['value']}, Previous Triggered Epoch Time: {status['prev_trigger']}"
                 }
                 status_logger.info(msg)
-            running_status[rule_id] = status
+            if 'notified' in running_status[rule_id]:
+                notified = running_status[rule_id]['notified']
+                running_status[rule_id] = status
+                running_status[rule_id]['notified'] = notified
+
+            if 'notified' not in running_status[rule_id]:
+                running_status[rule_id] = status
+                running_status[rule_id]['notified'] = False 
         except Exception as err:
             status_logger.exception(err)
 
