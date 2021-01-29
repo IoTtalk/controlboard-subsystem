@@ -222,17 +222,7 @@ def test_db(logger):
 
 status_logger = make_logger("CB_status", "status")
 
-
-def status_receiver(msgs):
-    '''
-    Receive execution status from AG SAs.
-
-    Args:
-        msgs: Messages sent from AG SAs.
-
-    Returns: None
-    '''
-    @orm.db_session
+@orm.db_session
 def status_receiver(msgs):
     '''
     Receive execution status from AG SAs.
