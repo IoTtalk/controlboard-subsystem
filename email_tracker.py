@@ -102,8 +102,8 @@ class EmailNotifier():
         try:
             t = threading.Thread(target=self._send, args=(self, dst_list, msg,))
             t.start()
-        except:
-            self.logger.exception("Failed at creating email notifier thread")
+        except Exception as err:
+            self.logger.exception(f"Failed at creating email notifier thread, {err}")
 
     @staticmethod
     def _send(self, dst_list, msg):
