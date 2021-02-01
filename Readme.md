@@ -1,6 +1,6 @@
 # ControlBoard Subsystem User Manual
 ###### tags: `IoT` `Remote Control` 
-Cyber objects are the visual representations that map to physical devices that exist in real world. Users can interact with these physical devices through their cyber representations.
+Cyber objects are the visual representations that map to physical devices existing in the real world. Users can interact with these physical devices through their cyber representations.
 
 A typical example of such usage is to relate one cyber object to another, creating an **Network Application**(NA) that can automatically take user-defined actions as the cyber representaions of these physical devices update.
 
@@ -128,7 +128,7 @@ The following commands are based on assuming your OS is Linux.
 ---
 
 ## How to use
-There two main features in ControlBoard Subsystem.
+There are two main features in ControlBoard Subsystem.
 - ControlBoard
 - Management system
 
@@ -147,6 +147,7 @@ In the following sections we'll illustrate how to use these two features.
 
 3. The browser will be redirect to CB GUI automatically
     ![](https://i.imgur.com/5DPxZzC.png)
+
     *Figure 1. CB GUI when no CB is accessible.*
 
 4. Switch to management page by clicking *System* button(*Figure 1-b*)
@@ -160,6 +161,7 @@ In the following sections we'll illustrate how to use these two features.
 
 3. Press the "OK" button
 ![](https://i.imgur.com/Y6edm3h.png)
+
 *Figure 2. ControlBoard Creation*
 
 ---
@@ -175,6 +177,7 @@ In the following sections we'll illustrate how to use these two features.
 
 5. Press the "OK" button
 ![](https://i.imgur.com/Pd7Xx3b.png)
+
 *Figure 3. Field Creation*
 
 ---
@@ -188,6 +191,7 @@ In the following sections we'll illustrate how to use these two features.
     Connect the Sensor's IDF(*Figure 4-a*) to ControlBoard's ODF(*Figure 4-c*), and then connect the **corresponding** IDF(*Figure 4-d*) of ControlBoard to Actuator's ODF(*Figure 4-e*)
 
     ![](https://i.imgur.com/JOfW5gm.png)
+
     *Figure 4. Example Configuration for ControlBoard*
     
     Take *Figure 4.* for example, we want to use *Temperature* to control the *switch* of the fan, then the IDF *Temperature*(*Figure 4-b*) and the ODF *Switch*(*Figure 4-f*) must be connect to the same pair of ControlBoard's DF.
@@ -207,12 +211,14 @@ In the following sections we'll illustrate how to use these two features.
 
 2. The NAs created will be visualized as below(*Figure 5-b, 5-c*)
 ![](https://i.imgur.com/RzT0Hid.png)
+
 *Figure 5. NA setup GUI*
 
 3. If there is any modification on the IoTtalk GUI(i.e. alias, NA), just click Refresh again and the GUI will be automatically updated.
 
 4. Once a Field is refreshed, all the users that has access control to this Field will receive a email notifying that someone has refreshed the Field.
 ![](https://i.imgur.com/d9YTdUD.png)
+
 *Figure 6. Email notifying the Field is refreshed*
 
 ---
@@ -222,6 +228,7 @@ In the following sections we'll illustrate how to use these two features.
 
 
 ![](https://i.imgur.com/xHrRIIu.png)
+
 *Figure 7. NA setup GUI(cont.)*
 
 - *Sensor Name* (*Figure 7-a*)
@@ -259,6 +266,7 @@ In the following sections we'll illustrate how to use these two features.
     
 Once the configurations of NAs in a Field is changed, all the users that has access control to this Field will receive a email notifying that someone has changed the configurations.
 ![](https://i.imgur.com/40KWqtd.png)
+
 *Figure 8. Email notifying the configurations is modified*
 
 
@@ -294,12 +302,15 @@ There are 3 operations supported for CB management.
 - Custom ControlBoard Icon (*Figure 9-e*)
     
 ![](https://i.imgur.com/wqnsPW7.png)
+
 *Figure 9. CB Management Overview*
 
 ---
 
 ##### **ControlBoard Creation**
 Refer to **Step 2. Create an empty ControlBoard** of ControlBoard usage.
+
+---
 
 ##### **ControlBoard Deletion**
 ControlBoard supports cascade-delete, meaning that when you delete a ControlBoard, all the Fields inside will also be destoryed.
@@ -311,7 +322,10 @@ ControlBoard supports cascade-delete, meaning that when you delete a ControlBoar
 3. Find the CB to be deleted, click the corresponding "Delete CB"(*Figure 10-a*) and then click "OK"(*Figure 10-b*)
 
 ![](https://i.imgur.com/PnoXrf2.png)
+
 *Figure 10. ControlBoard Deletion*
+
+---
 
 ##### **Custom ControlBoard Icon**
 CB Subsystem supports custom icon(*Figure 11-a*) of created CBs, the uploaded icons will be saved in the backend, users can check *Config.ini* for supported file extensions.
@@ -324,6 +338,7 @@ CB Subsystem supports custom icon(*Figure 11-a*) of created CBs, the uploaded ic
 4. The selected file's filename will be displayed in the modal(*Figure 11-d*)
 5. Click "OK" and the icon should be replaced with the uploaded image.
 ![](https://i.imgur.com/zDs7Yor.png)
+
 *Figure 11. CB Icon Setup*
 
 ---
@@ -334,11 +349,14 @@ All users and their privilege level will be listed here(*Figure 12-b, 12-c*)
 Users can switch to CB management page by click "ControlBoard" (*Figure 12-a*)
 
 ![](https://i.imgur.com/cfoHK1n.png)
+
 *Figure 12. User Management Overview*
 
 There are two operations supported for user privilege management
 - User privilege adjustment.
 - CB accessibility adjustment.
+
+---
 
 ##### **User privilege adjustment**
 1. Click the account of the target user(*Figure 13-a*)
@@ -352,6 +370,7 @@ There are two operations supported for user privilege management
 
 *Figure 13. User Permission Adjustment*
 
+---
 
 ##### **CB accessibility adjustment**
 1. Click the account of the target user(*Figure 13-a*)
