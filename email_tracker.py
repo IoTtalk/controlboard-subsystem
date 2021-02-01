@@ -1,3 +1,4 @@
+import threading
 import smtplib
 
 # Import the email modules we'll need
@@ -98,6 +99,14 @@ class EmailNotifier():
         return smtp_client
 
     def send(self, dst_list, msg):
+        try:
+            t = threading.Thread(target=self._send, args=(self, dst_list, msg,))
+            t.start()
+        except:
+            self.logger.exception("Failed at creating email notifier thread")
+
+    @staticmethod
+    def _send(self, dst_list, msg):
         smtp_client = self.get_connection()
         email_content = MIMEText(msg)
         email_content["Subject"] = self.subject
