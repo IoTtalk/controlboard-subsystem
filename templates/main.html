@@ -148,6 +148,9 @@
           </b-card-header>
 
           <b-card-body class="text-center custom-card-body">
+            <div v-if="settings.length===0 && !manageMode" class="text-left">
+              Please Create NAs at the IoTtalk Server GUI First!
+            </div>
             <div v-for="(setting, index) in settings" class="setting-card" 
               v-if="!manageMode && currentField > 0">
               <!-- sensor List and sensor value -->

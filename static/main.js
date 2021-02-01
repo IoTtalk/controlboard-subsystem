@@ -248,7 +248,20 @@ var app = new Vue({
       this.getSARules(this.currentField)
         .then( (rules) => {
           this.backupSettings = JSON.parse(JSON.stringify(rules));
-          this.settings = rules;
+          new_rules = [];
+          rules.forEach( (rule) => {
+            var old_rule = this.settings.find(element => element.ruleID === rule.ruleID)
+            if (old_rule === undefined) {
+              new_rules.push(rule);
+            } else {
+              if (!old_rule.dirty) {
+                new_rules.push(rule);
+              } else {
+                new_rules.push(old_rule);
+              }
+            }
+          })
+          this.settings = new_rules;
           this.refreshStatusWorker();
         })
         .catch( (err) => {

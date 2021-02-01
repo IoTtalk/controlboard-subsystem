@@ -69,8 +69,7 @@ class AG_SA():
 
     def recover(self):
         '''
-        Recover SA UserRules from Database &
-        generate mappings of (actuator, sensor) of IoTTalk GUI.
+        Recover SA UserRules & generate Rule status.
 
         Args: None.
 

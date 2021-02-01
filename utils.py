@@ -42,16 +42,6 @@ log_root = env_config['env']['logroot']
 if not os.path.isdir(log_root):
     os.makedirs(log_root)
 
-default_rules = {
-    "threshold_open": 0.,
-    "threshold_close": 0,
-    "comparison_open": "notset",
-    "comparison_close": "notset",
-    "mode": "Sensor",
-    "duty_pos": 0,
-    "duty_neg": 0
-}
-
 
 def _post(url, data, logger):
     '''
@@ -75,10 +65,6 @@ def _post(url, data, logger):
     except Exception as err:
         logger.exception(err)
         return False, "failed at sending request to AG"
-    # if url == "ccm_api":
-    #     print(data, response)
-    # else:
-    #     print(url, response)
 
 
 def make_logger(log_name, log_file):
@@ -116,7 +102,7 @@ def connect_db(logger, cb_db):
         cb_db: Database object to be bind.
 
     Returns:
-        cb_db: MySQL Database Connection
+        cb_db: PonyORM Database Connection
     '''
     retry_times = 0
     if env_config['db']['database'] == 'sqlite':
@@ -163,12 +149,12 @@ def test_db(logger):
     '''
     try:
         test_account = CB_Account(
-            account="test",
-            privilege="2",
+            account="pcs54784@gmail.com",
+            privilege="1",
         )
 
         dummy_account = CB_Account(
-            account="luk1684tw",
+            account="example@gmail.com",
             privilege="0",
         )
 
