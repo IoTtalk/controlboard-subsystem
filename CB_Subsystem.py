@@ -18,6 +18,7 @@ from models import CB_SA, CB_Account
 from utils import connect_db, connect_zmq
 from utils import make_logger, register_ag, deregister_ag, get_iottalk_info
 from utils import running_sa, running_status
+from utils import test_db
 
 
 @orm.db_session
@@ -88,7 +89,7 @@ if __name__ == "__main__":
             system_logger.info(f"Init Admin with account {admin.account}")
             # CB_Account(account="Superuser", privilege=1)
             # CB_Account(account="luk1684tw", privilege=0)
-
+    # test_db(system_logger)
     app.run(
         host=env_config['env']['host'],
         port=env_config['env']['port'],

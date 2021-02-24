@@ -39,6 +39,7 @@ apis = Blueprint('api', __name__)
 
 def requires_login(f):
     @wraps(f)
+    @orm.db_session
     def decorated_function(*args, **kwargs):
         if session.get("token"):
             return f(*args, **kwargs)
@@ -47,9 +48,11 @@ def requires_login(f):
             # TODO: redirect to AAA to login
             session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
             session["user"] = env_config["env"]["admin"]
+            user = CB_Account.get(account=session["user"])
             # session["user"] = "pcs54784@gmail.com"
             # session["user"] = "example@gmail.com"
-            return redirect("/")
+            # return render_template("main.html", userLevel=user.privilege), 200
+            return f(*args, **kwargs)
     return decorated_function
 
 

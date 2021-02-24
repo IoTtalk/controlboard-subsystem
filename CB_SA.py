@@ -114,7 +114,7 @@ class AG_SA():
                         data = data[0]
                     else:
                         data = data[0][self.rules[df_order]["sensor_index"]]
-                status["value"] = data if data is not None else 0
+                status["value"] = data if data is not None else status["value"]
                 if rule["mode"] == "ON":
                     if status["status"] != "RED":
                         status["status"] = "RED"
