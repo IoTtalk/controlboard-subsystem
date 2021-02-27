@@ -48,7 +48,7 @@ def requires_login(f):
             # TODO: redirect to AAA to login
             session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
             session["user"] = env_config["env"]["admin"]
-            user = CB_Account.get(account=session["user"])
+            # user = CB_Account.get(account=session["user"])
             # session["user"] = "pcs54784@gmail.com"
             # session["user"] = "example@gmail.com"
             # return render_template("main.html", userLevel=user.privilege), 200
