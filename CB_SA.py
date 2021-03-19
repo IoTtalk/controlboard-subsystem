@@ -130,7 +130,7 @@ class AG_SA():
                     if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
                         if rule["mode"] == "Sensor" and data is not None:
                             self.sensor_checker(df_order, data)
-                        else:
+                        elif rule["mode"] == "Timer":
                             self.timer_checker(df_order)
                     else:
                         if status["status"] == "RED":

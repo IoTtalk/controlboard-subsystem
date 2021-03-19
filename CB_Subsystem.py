@@ -66,6 +66,7 @@ if __name__ == "__main__":
     system_logger.info('Start Launching ControlBoard Subsystem......')
 
     app = Flask(__name__)
+    app.config.update(SESSION_COOKIE_SAMESITE="None", SESSION_COOKIE_SECURE=True)
     app.secret_key = 'asdaldkjalskdjllkd'
     app.permanent_session_lifetime = timedelta(minutes=30)
     system_logger.info('\tCreating Server\t\t......done')
