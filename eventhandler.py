@@ -116,7 +116,8 @@ def set_rules(sa_id):
             400: a string containing invalid actuators.
             500: "Internal Server Error".
     '''
-    api_logger.info(f'Start setting new rules of SA NO. {sa_id}')
+    sa = CB_SA[sa_id]
+    api_logger.info(f'Start setting new rules of SA NO. {sa.sa_name}')
     invalid_list = list()
     rules = request.json
     try:
@@ -139,7 +140,6 @@ def set_rules(sa_id):
             raise WrongSettingError
 
         api_logger.info('\tStart setting rules')
-        sa = CB_SA[sa_id]
         accessible_users = [user.account for user in sa.cb.account_set]
         title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} has UserRules changed by {session['user']}, detail as follows\n"
 
@@ -193,7 +193,7 @@ def set_rules(sa_id):
         invalid_actuators = str()
         for actuator in invalid_list:
             invalid_actuators += (actuator + ' ')
-        api_logger.exception(f"Invalid new rules of SA NO. {sa_id} detected, abort all")
+        api_logger.exception(f"Invalid new rules of SA {sa.sa_name} detected, abort all")
         abort(400, f"Abnormal threshold setting of {invalid_actuators} detected, aborting all")
     except orm.RowNotFound:
         api_logger.exception("Specified rule not found")
@@ -244,10 +244,10 @@ def get_rules(sa_id):
             `rule_list` will be empty if the specified SA is not running.
     '''
     rule_list = list()
+    sa = CB_SA[sa_id]
     try:
         if sa_id not in running_sa:
             raise NotFoundError
-        sa = CB_SA[sa_id]
         for rule in sa.rule_set:
             content = dict()
 
@@ -280,7 +280,9 @@ def get_rules(sa_id):
             rule_list.append(tmp)
         return jsonify(rule_list), 200
     except NotFoundError:
-        api_logger.warning("Specified SA not running")
+        api_logger.warning(f"Specified SA {sa.sa_name} not running")
+        api_logger.warning("Current running sa:")
+        api_logger.warning(running_sa)
         return jsonify(list()), 200
     except Exception as err:
         api_logger.exception(err)
@@ -302,10 +304,11 @@ def get_datum(sa_id):
         res_dict: A json object containing the lastest data of each sensor and trigger status.
     '''
     res_dict = dict()
+    sa = CB_SA[sa_id]
     try:
         if int(sa_id) not in running_sa:
             raise NotFoundError
-        rules = CB_SA[sa_id].rule_set
+        rules = sa.rule_set
 
         for rule in rules:
             status = running_status[rule.rule_id]
@@ -313,9 +316,14 @@ def get_datum(sa_id):
             res_dict[rule.rule_id] = status
         return jsonify(res_dict), 200
     except NotFoundError:
+        api_logger.warning(f"Specified SA {sa.sa_name} not running")
+        api_logger.warning("Current running sa:")
+        api_logger.warning(running_sa)
         return "Specified SA not running", 200
     except Exception as err:
         api_logger.exception(err)
+        api_logger.warning(f"Specified SA {sa.sa_name} failed at getting data")
+        api_logger.warning(running_status)
         abort(500, err)
 
 
@@ -433,7 +441,7 @@ def refresh_sa(sa_id):
         if sa.ag_token != "NotCreated":
             status = deregister_ag(sa, api_logger)
             if not status:
-                api_logger.exception("Deregister Sa failed")
+                api_logger.exception(f"Deregister SA {sa.sa_name} failed")
                 abort(500, "Deregister AG SA failed, check api log and AG")
 
         # Register device
@@ -441,7 +449,7 @@ def refresh_sa(sa_id):
         if not status:
             sa.delete()
             cb_db.commit()
-            abort(500, "Create SA failed at registering device, check api log and AG")
+            abort(500, f"Create SA {sa.sa_name} failed at registering device, check api log and AG")
         sa.ag_token = ag_token
 
         # Bind device to DO
@@ -452,7 +460,7 @@ def refresh_sa(sa_id):
             deregister_ag(sa, api_logger)
             sa.delete()
             cb_db.commit()
-            abort(400, "Create SA failed at auto binding, check api log files")
+            abort(400, f"Create SA {sa.sa_name} failed at auto binding, check api log files")
         running_sa[sa.sa_id] = sa
         for rule in sa.rule_set:
             if rule.rule_id not in running_status:
@@ -534,28 +542,28 @@ def delete_sa(sa_id=None):
         Status code: 200 / 400 / 500
         message: 'SA deleted successfully'.
     '''
+    if None is sa_id:
+        sa_id = int(request.get_data().decode("utf-8"))
+    sa = CB_SA[sa_id]
     try:
-        if None is sa_id:
-            sa_id = int(request.get_data().decode("utf-8"))
-        sa = CB_SA[sa_id]
         status, message = delete_proj_ag(sa.p_id, api_logger)
         if not status:
-            api_logger.exception("Error delete SA, Delete project failed, check api log file")
+            api_logger.exception(f"Error delete SA {sa.sa_name}, Delete project failed, check api log file")
             api_logger.exception(f"Error msg from AG: {message}")
             return "Delete SA failed, check api log files", 500
         if sa.ag_token != "NotCreated":
             status = deregister_ag(sa, api_logger)
             if not status:
-                api_logger.exception("Error delete SA, Deregister SA failed, check api log file")
+                api_logger.exception(f"Error delete SA {sa.sa_name}, Deregister SA failed, check api log file")
                 return "Delete SA failed, check api log files", 500
         sa.delete()
         if sa_id in running_sa:
             del running_sa[sa_id]
-        api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
+        api_logger.info(f"Delete Running SA {sa.sa_name}")
         cb_db.commit()
         return "Delete SA succeed", 200
     except KeyError:
-        api_logger.exception('Specified Field not running')
+        api_logger.exception(f'Specified Field {sa.sa_name} not running')
         return "Specified SA not found", 400
     except Exception as err:
         api_logger.exception(err)
