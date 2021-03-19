@@ -14,7 +14,7 @@ import models
 
 from config import env_config, default_status
 from eventhandler import apis
-from models import CB_SA, CB_Account
+from models import CB_SA, CB_Account, cb_db
 from utils import connect_db, connect_zmq
 from utils import make_logger, register_ag, deregister_ag, get_iottalk_info
 from utils import running_sa, running_status
@@ -88,8 +88,10 @@ if __name__ == "__main__":
         if 0 == len(CB_Account.select()):
             admin = CB_Account(account=env_config["env"]["admin"], privilege=2)
             system_logger.info(f"Init Admin with account {admin.account}")
+            cb_db.commit()
             # CB_Account(account="Superuser", privilege=1)
             # CB_Account(account="luk1684tw", privilege=0)
+
     # test_db(system_logger)
     app.run(
         host=env_config['env']['host'],

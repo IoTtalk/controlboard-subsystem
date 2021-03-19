@@ -166,12 +166,14 @@ def set_rules(sa_id):
             rule.set(**rule_setting)
             if rule_setting["mode"] == "Sensor":
                 rule_setting["sensor_alias"] = rule.sensor_alias.split(',')[rule_setting["sensor_index"]]
+        cb_db.commit()
         email_notifier.notify_user(title, rules, accessible_users)
         if sa_id in running_sa:
             status = deregister_ag(running_sa[sa_id], api_logger)
             if not status:
                 api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
                 return "Internal Server Error", 500
+        cb_db.commit()
 
         status, ag_token = register_ag(sa, api_logger)
         if not status:
@@ -182,11 +184,10 @@ def set_rules(sa_id):
 
         do_id = [int(id) for id in sa.do_id.split(',')]
         status = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
-
         if not status:
             api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
             return "Internal Server Error", 500
-
+        cb_db.commit()
         return 'Configuration Saved', 200
     except WrongSettingError:
         invalid_actuators = str()
@@ -456,7 +457,7 @@ def refresh_sa(sa_id):
         for rule in sa.rule_set:
             if rule.rule_id not in running_status:
                 running_status[rule.rule_id] = default_status
-
+        cb_db.commit()
         api_logger.info(f"Create New SA, DM Name: {dm_name}")
 
         title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} is refreshed by {session['user']}, new UserRules as follows\n"
@@ -515,6 +516,7 @@ def create_sa():
         sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
     else:
         sa.do_id = str(do_id)
+    cb_db.commit()
     return "Create SA succeeded", 200
 
 
@@ -550,6 +552,7 @@ def delete_sa(sa_id=None):
         if sa_id in running_sa:
             del running_sa[sa_id]
         api_logger.info(f"Delete Running SA, SA_ID: {sa.sa_id}")
+        cb_db.commit()
         return "Delete SA succeed", 200
     except KeyError:
         api_logger.exception('Specified Field not running')
@@ -648,7 +651,7 @@ def set_pinned_field():
                 CB_SA[sa_id].pinned = True
             else:
                 CB_SA[sa_id].pinned = False
-
+        cb_db.commit()
         return "okay", 200
     except NotFoundError:
         api_logger.exception("Unrelated SA involved, abort request")
@@ -691,6 +694,7 @@ def manage_icon(cb_id):
             icon.save(icon_path)
         else:
             raise TypeError
+        cb_db.commit()
         return "Icon change finished", 200
     except NotAuthorizedError:
         api_logger.exception("Error Changing Icon, User is not a superuser.")
@@ -728,6 +732,7 @@ def create_cb():
             icon=env_config["env"]["default_icon"]
         )
         cb.account_set.add(owner)
+        cb_db.commit()
         api_logger.info(f"Create ControlBoard by User {owner.account}, CB ID:  {cb.cb_id}")
     except NotFoundError:
         api_logger.exception("Error Create CB, No Such User!")
@@ -764,6 +769,7 @@ def delete_cb():
             delete_sa(sa.sa_id)
 
         CB[cb_id].delete()  # By applying cascade deleting.
+        cb_db.commit()
         return "Specified ControlBoard and subsequent Fields deleted."
     except NotAuthorizedError:
         api_logger.exception("Error Deleting ControlBoard, User is not a superuser.")
@@ -933,6 +939,7 @@ def adjust_privilege(usr_name):
         account.cb_set.clear()
         for cb_id in data["accessible_cb"]:
             account.cb_set.add(CB[cb_id])
+        cb_db.commit()
         return "setup done", 200
     except NotFoundError:
         api_logger.exception("No Such User")
