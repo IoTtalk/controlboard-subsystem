@@ -18,7 +18,7 @@ from models import CB_SA, CB_Account, cb_db
 from utils import connect_db, connect_zmq
 from utils import make_logger, register_ag, deregister_ag, get_iottalk_info
 from utils import running_sa, running_status
-from utils import test_db
+# from utils import test_db
 
 
 @orm.db_session
