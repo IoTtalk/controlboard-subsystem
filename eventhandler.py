@@ -244,10 +244,12 @@ def get_rules(sa_id):
             `rule_list` will be empty if the specified SA is not running.
     '''
     rule_list = list()
-    sa = CB_SA[sa_id]
     try:
+        if sa_id == 0: # No SA exists in this ControlBoard
+            return jsonify(list()), 200
         if sa_id not in running_sa:
             raise NotFoundError
+        sa = CB_SA[sa_id]
         for rule in sa.rule_set:
             content = dict()
 
