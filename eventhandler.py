@@ -247,8 +247,6 @@ def get_rules(sa_id):
     try:
         if sa_id == 0: # No SA exists in this ControlBoard
             return jsonify(list()), 200
-        if sa_id not in running_sa:
-            raise NotFoundError
         sa = CB_SA[sa_id]
         for rule in sa.rule_set:
             content = dict()
@@ -281,11 +279,6 @@ def get_rules(sa_id):
             }
             rule_list.append(tmp)
         return jsonify(rule_list), 200
-    except NotFoundError:
-        api_logger.warning(f"Specified SA {sa.sa_name} not running")
-        api_logger.warning("Current running sa:")
-        api_logger.warning(running_sa)
-        return jsonify(list()), 200
     except Exception as err:
         api_logger.exception(err)
         abort(500, "Internal server error")
