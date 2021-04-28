@@ -95,6 +95,7 @@ def set_rules(sa_id):
         sa_id: ID of the requester SA.
         request: A list of UserRules in json format.
             each UserRule will contain the following fields
+                `rule_id`
                 `actuator_alias`
                 `mode`
                 `sensor_index`
@@ -162,7 +163,7 @@ def set_rules(sa_id):
                 )
                 rule_setting["time_close"] = time_close
 
-            rule = UserRule.get(sa=sa, actuator_alias=actuator)
+            rule = UserRule[rule_setting["rule_id"]]
             rule.set(**rule_setting)
             if rule_setting["mode"] == "Sensor":
                 rule_setting["sensor_alias"] = rule.sensor_alias.split(',')[rule_setting["sensor_index"]]
@@ -376,25 +377,25 @@ def refresh_sa(sa_id):
                 dst[order] = odfs
             else:
                 src[order] = idfs
-        actuators, actuators_df = list(), list()
-        temp_dst = dict()
-        for order, actuator in dst.items():  # we assume there is only one actuator to control currently.
-            if actuator[0][0] in actuators_df:
-                prev_actuator = 0
-                for key, val in temp_dst.items():  # find the order previous appeared actuator
-                    if val[0][0] == actuator[0][0]:
-                        prev_actuator = key
-                        break
-                if order in src:  # combine the sensors to one UserRule
-                    for sensor_info in src[order]:
-                        if sensor_info not in src[prev_actuator]:
-                            src[prev_actuator].append(sensor_info)
-                    src.pop(order, None)
-            else:
-                temp_dst[order] = actuator
-                actuators_df.append(actuator[0][0])
-                actuators.append(actuator[0][1])
-        dst = temp_dst
+        actuators = list()
+        # temp_dst = dict()
+        # for order, actuator in dst.items():  # we assume there is only one actuator to control currently.
+        #     if actuator[0][0] in actuators_df:
+        #         prev_actuator = 0
+        #         for key, val in temp_dst.items():  # find the order previous appeared actuator
+        #             if val[0][0] == actuator[0][0]:
+        #                 prev_actuator = key
+        #                 break
+        #         if order in src:  # combine the sensors to one UserRule
+        #             for sensor_info in src[order]:
+        #                 if sensor_info not in src[prev_actuator]:
+        #                     src[prev_actuator].append(sensor_info)
+        #             src.pop(order, None)
+        #     else:
+        #         temp_dst[order] = actuator
+        #         actuators_df.append(actuator[0][0])
+        #         actuators.append(actuator[0][1])
+        # dst = temp_dst
         for order, actuator in dst.items():
             old_rule = UserRule.get(df_order=order, sa=sa_id)
             has_record = False
@@ -403,6 +404,7 @@ def refresh_sa(sa_id):
                     has_record = True
                 else:
                     old_rule.delete()
+            actuators.append(actuator[0][1])
             if order not in src:  # Timer Type, No Sensors connected.
                 if has_record:
                     old_rule.set(

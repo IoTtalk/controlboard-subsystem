@@ -204,7 +204,7 @@
                 </div>
 
                 <!-- Timer setting area -->
-                <div class="mt-1">
+                <div v-bind:class="[setting.mode !== 'Timer'? 'mt-1': '']">
                   <span style="padding-right: 2px;">From</span>
                   <custom-sel
                     v-bind:options="hours"

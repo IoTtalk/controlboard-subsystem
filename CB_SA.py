@@ -138,8 +138,26 @@ class AG_SA():
                             DAN.push(actuator_df, 0)
                 self.socket.send_json(status)
         except Exception as err:
-            print("Checking UserRule failed", err)
+            print("Checking UserRule failed, ", err)
         return
+
+    def time_check_worker(self, df_order):
+        """
+        Work function for timing check, added for sensor-type's timing checking feature
+
+        Args:
+            df_order: The IDF/ODF pair of ControlBoard to pull/push data.
+
+        Returns:
+            satisfied: Boolean, whether timing correct.
+        """
+        rule = self.rules[df_order]
+        current = datetime.datetime.now()
+        time_open = datetime.datetime.combine(datetime.date.today(), rule["time_open"])
+        time_close = datetime.datetime.combine(datetime.date.today(), rule["time_close"])
+        if time_open > time_close:
+            time_close = time_close + datetime.timedelta(days=1)
+        return (current > time_open and current < time_close)
 
     def timer_checker(self, df_order):
         """
@@ -224,6 +242,11 @@ class AG_SA():
         try:
             avg = sum(self.df_hist_val[sensor_alias]) / len(self.df_hist_val[sensor_alias])
             if "notset" in rule["comparison_open"] and "notset" in rule["comparison_close"]:
+                if status["status"] == "RED":
+                    DAN.push(actuator_df, 0)
+                status["status"] = "GREEN"
+                return
+            elif not self.time_check_worker(df_order):
                 if status["status"] == "RED":
                     DAN.push(actuator_df, 0)
                 status["status"] = "GREEN"

@@ -483,6 +483,7 @@ var app = new Vue({
         var setting = this.settings[idx];
         setting["dirty"] = false;
         toChange.push({
+          "rule_id": setting["ruleID"],
           "actuator_alias": setting["actuator"],
           "mode": setting["mode"],
           "sensor_index": setting["selectedSensor"],
