@@ -204,7 +204,8 @@
                 </div>
 
                 <!-- Timer setting area -->
-                <div v-if="setting.mode==='Timer'">
+                <div class="mt-1">
+                  <span style="padding-right: 2px;">From</span>
                   <custom-sel
                     v-bind:options="hours"
                     v-bind:select="setting.content.openTimer[0]"
@@ -222,7 +223,7 @@
                     v-bind:select="setting.content.openTimer[2]"
                     v-on:update-option="onSelectTime($event, index, 2)"
                   ></custom-sel>
-                  <span style="padding-right: 10px;">on</span>
+                  <span style="padding-left: 10px; padding-right: 2px;">To</span>
                   <custom-sel
                     v-bind:options="hours"
                     v-bind:select="setting.content.closeTimer[0]"
@@ -240,7 +241,6 @@
                     v-bind:select="setting.content.closeTimer[2]"
                     v-on:update-option="onSelectTime($event, index, 5)"
                   ></custom-sel>
-                  <span>off</span>
                 </div>
                 <div>
                   <b-form-group>
