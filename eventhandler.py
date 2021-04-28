@@ -245,7 +245,7 @@ def get_rules(sa_id):
     '''
     rule_list = list()
     try:
-        if sa_id == 0: # No SA exists in this ControlBoard
+        if sa_id == 0:  # No SA exists in this ControlBoard
             return jsonify(list()), 200
         sa = CB_SA[sa_id]
         for rule in sa.rule_set:
@@ -376,7 +376,25 @@ def refresh_sa(sa_id):
                 dst[order] = odfs
             else:
                 src[order] = idfs
-        actuators = list()
+        actuators, actuators_df = list(), list()
+        temp_dst = dict()
+        for order, actuator in dst.items():  # we assume there is only one actuator to control currently.
+            if actuator[0][0] in actuators_df:
+                prev_actuator = 0
+                for key, val in temp_dst.items():  # find the order previous appeared actuator
+                    if val[0][0] == actuator[0][0]:
+                        prev_actuator = key
+                        break
+                if order in src:  # combine the sensors to one UserRule
+                    for sensor_info in src[order]:
+                        if sensor_info not in src[prev_actuator]:
+                            src[prev_actuator].append(sensor_info)
+                    src.pop(order, None)
+            else:
+                temp_dst[order] = actuator
+                actuators_df.append(actuator[0][0])
+                actuators.append(actuator[0][1])
+        dst = temp_dst
         for order, actuator in dst.items():
             old_rule = UserRule.get(df_order=order, sa=sa_id)
             has_record = False
@@ -385,7 +403,6 @@ def refresh_sa(sa_id):
                     has_record = True
                 else:
                     old_rule.delete()
-            actuators.append(actuator[0][1])
             if order not in src:  # Timer Type, No Sensors connected.
                 if has_record:
                     old_rule.set(
