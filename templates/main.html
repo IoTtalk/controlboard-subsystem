@@ -49,30 +49,30 @@
           <div class="field-manage" v-if="privilege">
             <div class="d-flex justify-content-between">
               <div>
-                <b-button size="sm" variant="success" v-b-modal="'CreateSA'" v-if="currentProject>0" class="create-field">+ New Field</b-button>
+                <b-button size="sm" variant="success" v-b-modal="'CreateSA'" v-if="currentProject>0" class="create-field">+ New CB</b-button>
                 <b-button size="sm" variant="secondary" class="ml-sm-1" v-if="currentField>0" v-on:click="onRefreshSA()">Refresh</b-button>
               </div>
-              <b-button size="sm" variant="danger" v-if="currentField>0" v-b-modal="'CancelSA'">Delete Field</b-button>
-              <b-modal id="CreateSA" size="lg" centered title="Create New ControlBoard Field"
+              <b-button size="sm" variant="danger" v-if="currentField>0" v-b-modal="'CancelSA'">Delete CB</b-button>
+              <b-modal id="CreateSA" size="lg" centered title="Create New ControlBoard"
                 hide-backdrop content-class="shadow"
                 v-on:ok="onSACreate(1)" v-on:cancel="onSACreate(0)" v-on:close="onSACreate(0)"
               >
                 <b-container fluid>
-                  Field Name
-                  <b-form-input placeholder="Enter Your Field's Name Here"
+                  CB Name
+                  <b-form-input placeholder="Enter Your ControlBoard's Name Here"
                     size="sm" v-model="newSA.text" id="input-fieldName"
                   ></b-form-input>
                   <b-form-text id="input-fieldName">This name will be 
                     used to create project on IoTtalk Server.</b-form-text>
                   <b-form-checkbox plain size="sm" class="mt-1"
                       v-model="newSA.pinned"
-                    >Pinned.</b-form-checkbox>
+                    >Quick Access</b-form-checkbox>
                 </b-container>
               </b-modal>
-              <b-modal id="CancelSA" size="lg" centered title="Delete ControlBoard Field"
+              <b-modal id="CancelSA" size="lg" centered title="Delete ControlBoard"
                 hide-backdrop content-class="shadow"
                 v-on:ok="onSADelete(1)" v-on:cancel="onSADelete(0)" v-on:close="onSADelete(0)"
-              > Are you sure to delete Field <b><% currentFieldName %></b>?
+              > Are you sure to delete ControlBoard <b><% currentFieldName %></b>?
               </b-modal>
             </div>
           </div>
@@ -81,13 +81,13 @@
         <div v-if="manageMode" class="manage-title">
           <b>System Management</b>
         </div>
-        <b-modal id="pinField" size="lg" centered title="Pinned Field" 
+        <b-modal id="pinField" size="lg" centered title="Quick Access" 
           hide-backdrop content-class="shadow"
           v-on:ok="onPinFields(1)" v-on:cancel="onPinFields(0)" v-on:close="onPinFields(0)"
         >
           <b-container fluid>
             <b-row>
-              <b-col>Pinned Fields</b-col>
+              <b-col>ControlBoards</b-col>
               <b-form-checkbox-group size="sm"
                 v-bind:options="fields.optionFields" 
                 v-model="pinnedFields"
@@ -104,7 +104,7 @@
                 <b-dropdown-group id="dropdown-group-1">
                   <template v-slot:header>
                     <div class="d-flex justify-content-between">
-                      <span>Pinned Fields</span>
+                      <span>Quick Access</span>
                       <b-button size="sm" variant="light" v-b-modal="'pinField'">
                         <b-icon icon="plus" aria-hidden="true"></b-icon>
                       </b-button>
@@ -118,7 +118,7 @@
                   > <%field.text%> </b-dropdown-item>
                 </b-dropdown-group>
                 <b-dropdown-divider v-if="unPinnedFields.length"></b-dropdown-divider>
-                <b-dropdown-group id="dropdown-group-2" header="Other Fields" 
+                <b-dropdown-group id="dropdown-group-2" header="Other CBs" 
                   v-if="unPinnedFields.length">
                   <b-dropdown-item
                     v-for="field in unPinnedFields"
@@ -128,7 +128,7 @@
                   > <%field.text%> </b-dropdown-item>
                 </b-dropdown-group>
               </b-nav-item-dropdown>
-              <span v-if="!manageMode && currentField<1" style="font-weight: bolder;">Please create a Field</span>
+              <span v-if="!manageMode && currentField<1" style="font-weight: bolder;">Please create a ControlBoard</span>
               <b-nav-item
                 v-for="(field, index) in fields.pinnedFields"
                 v-if="!manageMode && index < maxPinnedFields && currentField > 0"
@@ -141,7 +141,7 @@
                 User
               </b-nav-item>
               <b-nav-item v-if="manageMode" v-bind:active="!managePage" v-on:click="onSwitchManagePage">
-                ControlBoard
+                CB Group
               </b-nav-item>
 
             </b-nav>
@@ -149,7 +149,7 @@
 
           <b-card-body class="text-center custom-card-body">
             <div v-if="settings.length===0 && !manageMode" class="text-left">
-              Please Create NAs at the IoTtalk Server GUI First!
+              Please Select I/O Devices at the IoTtalk GUI First!
             </div>
             <div v-for="(setting, index) in settings" class="setting-card" 
               v-if="!manageMode && currentField > 0">
@@ -278,19 +278,19 @@
             </div>
             <div v-if="manageMode && privilege">
               <b-row class="text-left">
-                <b-col v-if="managePage"><b>UserName</b></b-col>
+                <b-col v-if="managePage"><b>User Email</b></b-col>
                 <b-col v-else>
-                  <b>ControlBoard</b>
+                  <b>CB Group</b>
                   <b-button size="sm" variant="light" v-b-modal="'CreateCB'">
                     <b-icon icon="plus" aria-hidden="true"></b-icon>
                   </b-button>
-                  <b-modal id="CreateCB" size="lg" centered title="Create ControlBoard"
+                  <b-modal id="CreateCB" size="lg" centered title="Create ControlBoard Group"
                     hide-backdrop content-class="shadow"
                     v-on:ok="onCBCreate(1)" v-on:cancel="onCBCreate(0)" v-on:close="onCBCreate(0)"
                   >
                     <b-container fluid>
-                      ControlBoard 
-                      <b-form-input placeholder="Enter Your ControlBoard's Name Here"
+                      CB Group
+                      <b-form-input placeholder="Enter Your ControlBoard Group's Name Here"
                         size="sm" v-model="newCB"
                       ></b-form-input>
                     </b-container>
@@ -326,7 +326,7 @@
                       <span v-else><% lvlToText(user.superuser) %></span>
                     </b-row>
                     <b-row class="divide-top"> 
-                      <b-col>Accessible CBs</b-col>
+                      <b-col>Accessible CB Groups</b-col>
                       <b-form-checkbox-group
                         class="custom-checkbox" size="sm"
                         v-bind:options="projects.optionProjects" 
@@ -342,14 +342,14 @@
               >
                 <b-col><% project.text %></b-col>
                 <b-col>
-                  <b-link v-b-modal="'deleteCB'+index" size="sm" variant="outline-primary" class="mr-3">Delete CB</b-link>
+                  <b-link v-b-modal="'deleteCB'+index" size="sm" variant="outline-primary" class="mr-3">Delete</b-link>
                   <b-link v-b-modal="'cbIcon'+index" size="sm" variant="outline-primary">Icons</b-link>
 
-                  <b-modal v-bind:id="'deleteCB'+index" size="lg" centered title="Delete ControlBoard"
+                  <b-modal v-bind:id="'deleteCB'+index" size="lg" centered title="Delete CB Group"
                     hide-backdrop content-class="shadow" v-on:ok="onCBDelete(project.value, 1)" 
                     v-on:cancel="onCBDelete(project.value, 0)" v-on:close="onCBDelete(project.value, 0)"
                   >
-                    Are you sure to delete ControlBoard <b><% project.text %></b>
+                    Are you sure to delete CB Group <b><% project.text %></b>
                   </b-modal>
 
                   <b-modal v-bind:id="'cbIcon'+index" size="lg" centered title="User Management"
