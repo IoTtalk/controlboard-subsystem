@@ -3,6 +3,7 @@ from functools import wraps
 import json
 import requests
 import time
+import re
 import os
 import uuid
 
@@ -24,10 +25,10 @@ from config import icon_extensions
 from config import use_v1
 from email_tracker import email_notifier
 from exceptions import NotAuthorizedError, NotFoundError, WrongSettingError
-from utils import running_sa, running_status
+from utils import running_sa, running_status, iottalk_info
 from utils import make_logger
 from utils import create_proj_ag, delete_proj_ag
-from utils import create_do_ag
+from utils import create_do_ag, get_df_ag
 from utils import register_ag, deregister_ag, bind_device_ag, get_na_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB_SA, CB
@@ -346,7 +347,6 @@ def refresh_sa(sa_id):
             )
             NAs = json.loads(NAs.text)["join"]
         else:
-            NAs = ["testV2"]
             raise NotImplementedError
         print(NAs)
         if not len(NAs):
@@ -488,9 +488,9 @@ def refresh_sa(sa_id):
         email_notifier.notify_user(title, rules, users)
         return f"Create New SA, DM Name: {dm_name}", 200
     except NotFoundError:
-        api_logger.exception("No NAs found, remind user to create NAs")
+        api_logger.warning("No NAs found, remind user to create NAs")
         sa = CB_SA[sa_id]
-        abort(400, f"No NA detected, please create Join point in Project {sa.sa_name}")
+        return f"No NA detected, please create Join point in Project {sa.sa_name}", 200
     except Exception as err:
         api_logger.exception(err)
         abort(500, "Internal Server Error")
@@ -504,6 +504,8 @@ def create_sa():
     Creates an empty SA. Further steps are to be triggered by refresh_sa event after
         User has setup GUI connections(NAs).
 
+    Warning, lots of workaround in this function to support IoTtalk V1...
+
     Args:
         cb_id: The ControlBoard this new SA belongs to.
         sa_name: Name of this SA given by the user.
@@ -516,28 +518,79 @@ def create_sa():
     if not CB.exists(cb_id=sa_spec["cb_id"]):
         abort(400, "Specified ControlBoard not existed")
     mac_addr = str(uuid.uuid4())
-    sa = CB_SA(sa_name=sa_spec["sa"]["text"], ag_token="NotCreated", mac_addr=mac_addr,
+
+    sa_name = sa_spec["sa"]["text"]
+    version = re.search(r"v\d+\Z", sa_name)
+    update_proj = False
+    prototype = None
+    proj_info = None
+    if None is not version:
+        prototype = re.split(r"v\d+\Z", sa_name)[0]
+        update_proj = True
+
+    sa = CB_SA(sa_name=sa_name, ag_token="NotCreated", mac_addr=mac_addr,
                p_id=-1, do_id="-1", pinned=sa_spec["sa"]["pinned"], cb=CB[sa_spec["cb_id"]])
+
     cb_db.commit()
     api_logger.info("Start Creating CB SA")
 
-    # Create Project
-    status, p_id = create_proj_ag(sa, api_logger)
-    if not status:
+    try:
+        # Create Project
+        status, p_id = create_proj_ag(sa, api_logger)
+        if not status:
+            sa.delete()
+            cb_db.commit()
+            abort(400, "Create SA failed at creating project, project with the same name already exists.")
+        sa.p_id = p_id
+        # Create Device Object
+        status, do_id = create_do_ag(p_id, iottalk_info["df_id"], "ControlBoard", api_logger)
+        if not status:
+            sa.delete()
+            cb_db.commit()
+            abort(500, "Create SA failed at creating DO, check api log files and IoTtalk CCM.")
+        if use_v1:
+            sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
+        else:
+            sa.do_id = str(do_id)
+
+        if update_proj:
+            api_logger.info("Update Project Detected")
+            if not use_v1:
+                raise NotImplementedError
+
+            prototype = CB_SA.get(sa_name=prototype)
+            proj_info = requests.get(  # Workaround for duplicating project.
+                f"http://{env_config['IoTtalk']['ServerIP']}:7788/export_project?p_id={prototype.p_id}",
+                data={"p_id": prototype.p_id}
+            )
+            proj_info = json.loads(proj_info.content.decode("utf-8"))
+            device_objects = dict()
+            for do_info in proj_info["project"]["DeviceObject"].values():
+                if do_info["dm_name"] == "ControlBoard":
+                    continue
+                df_ids = list()
+                for dfo in do_info["dfo"].values():
+                    df_id = get_df_ag(dfo["df_name"], api_logger)["df_id"]
+                    if df_id == -1:
+                        abort(500, "Internal Server Error")
+                    df_ids.append(df_id)
+                if do_info["dm_name"] not in device_objects:
+                    device_objects[do_info["dm_name"]] = df_ids
+                else:
+                    device_objects[do_info["dm_name"]] += df_ids
+
+            for dm_name, df_ids in device_objects.items():
+                create_do_ag(p_id, df_ids, str(dm_name), api_logger)
+    except NotImplementedError:
+        api_logger.exception("IoTtalk V2 is not supported")
+        return "IoTtalk V2 is not supported", 400
+    except Exception as err:
+        api_logger.exception(err)
+        if -1 is not sa.p_id:
+            delete_proj_ag(sa.p_id, api_logger)
         sa.delete()
-        cb_db.commit()
-        abort(400, "Create SA failed at creating project, project with the same name already exists.")
-    sa.p_id = p_id
-    # Create Device Object
-    status, do_id = create_do_ag(p_id, api_logger)
-    if not status:
-        sa.delete()
-        cb_db.commit()
-        abort(500, "Create SA failed at creating DO, check api log files and IoTtalk CCM.")
-    if use_v1:
-        sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
-    else:
-        sa.do_id = str(do_id)
+        return "Internal server error", 500
+
     cb_db.commit()
     return "Create SA succeeded", 200
 

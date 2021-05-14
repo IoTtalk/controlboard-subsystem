@@ -333,8 +333,7 @@ var app = new Vue({
     onSwitchField: function(fieldID) {
       window.clearInterval(this.statusTrackWorker);
       this.currentField = fieldID;
-      this.refreshRuleWorker();
-      this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+      this.onRefreshSA();
       return;
     },
     onSelectProject: function(selected) {

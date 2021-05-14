@@ -207,6 +207,7 @@ def test_db(logger):
 status_logger = make_logger("CB_status", "status")
 
 
+@orm.db_session
 def status_receiver(msgs):
     '''
     Receive execution status from AG SAs.
@@ -220,6 +221,8 @@ def status_receiver(msgs):
         try:
             status = json.loads(msg.decode("utf-8"))
             rule_id = status["rule_id"]
+            if None is UserRule.get(rule_id=rule_id):  # To filter out messages of deleted UserRules stuck at the queue
+                continue
             if rule_id in running_status:
                 if running_status[rule_id]["status"] != status["status"]:
                     msg = (
@@ -296,12 +299,41 @@ def get_iottalk_info(logger):
     return
 
 
+def get_df_ag(df_name, logger):
+    '''
+    Worker function to get ID of a specific Device Feature.
+
+    Args:
+        df_name: String, name of the Device Feature.
+        logger: Logger object to write log in.
+
+    Returns:
+        df_id: Integer, result from AG.
+
+    '''
+    data = {
+        "api_name": "devicefeature.get",
+        "payload": {
+            "df": df_name
+        }
+    }
+    try:
+        state, response = _post('ccm_api', data, logger)
+        if not state:
+            raise CCMAPIFailError
+        logger.info('\tGetting DF id\t......done')
+        return response["result"]
+    except Exception as err:
+        logger.exception(err)
+        return -1
+
+
 def create_proj_ag(sa, logger):
     '''
     Worker function to register to AG given sa entity and logger.
 
     Args:
-        proj_name: SA entity object selected from PonyORM.
+        sa: SA entity object selected from PonyORM.
         logger: Logger object to write log in.
 
     Returns:
@@ -352,12 +384,14 @@ def delete_proj_ag(p_id, logger):
         return False
 
 
-def create_do_ag(p_id, logger):
+def create_do_ag(p_id, df_id, dm_name, logger):
     '''
-    Creates Assigned Device Object Given dm_id, df_id and p_id.
+    Creates Assigned Device Object Given dm_name, df_id and p_id.
 
     Args:
-        p_id: IoTtalk Project ID to create DeviceObject(DO).
+        p_id: Integer, IoTtalk Project ID to create DeviceObject(DO).
+        df_id: List, DF ids of a specific device model.
+        dm_name: str, name of a specific device model.
         logger: Logger object to write log in.
 
     Returns:
@@ -368,8 +402,8 @@ def create_do_ag(p_id, logger):
         "api_name": "deviceobject.create",
         "payload": {
             "p_id": p_id,
-            "dm_name": "ControlBoard",
-            "dfs": iottalk_info["df_id"]
+            "dm_name": dm_name,
+            "dfs": df_id
         }
     }
     try:
@@ -378,6 +412,9 @@ def create_do_ag(p_id, logger):
             raise CCMAPIFailError
         logger.info('\tCreate DO\t......done')
         return status, response["result"]
+    except CCMAPIFailError:
+        logger.exception("CCM API request failed")
+        return False, -1
     except Exception as err:
         logger.exception(err)
         return False, -1

@@ -50,7 +50,7 @@
             <div class="d-flex justify-content-between">
               <div>
                 <b-button size="sm" variant="success" v-b-modal="'CreateSA'" v-if="currentProject>0" class="create-field">+ New CB</b-button>
-                <b-button size="sm" variant="secondary" class="ml-sm-1" v-if="currentField>0" v-on:click="onRefreshSA()">Refresh</b-button>
+                <!-- <b-button size="sm" variant="secondary" class="ml-sm-1" v-if="currentField>0" v-on:click="onRefreshSA()">Refresh</b-button> -->
               </div>
               <b-button size="sm" variant="danger" v-if="currentField>0" v-b-modal="'CancelSA'">Delete CB</b-button>
               <b-modal id="CreateSA" size="lg" centered title="Create New ControlBoard"
