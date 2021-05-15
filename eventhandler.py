@@ -340,6 +340,20 @@ def refresh_sa(sa_id):
     '''
     try:
         sa = CB_SA[sa_id]
+        version = re.search(r"v\d+\Z", sa.sa_name)
+        if None is not version:
+            print("Update Detected")
+            prototype = CB_SA.get(sa_name=re.split(r"v\d+\Z", sa.sa_name)[0])
+            print(prototype.rule_set)
+            sa.rule_set.clear()
+            for rule in prototype.rule_set:
+                sa.rule_set.add(
+                    UserRule(
+                        **rule.to_dict(exclude=["rule_id", "sa"]),
+                        sa=sa
+                    )
+                )
+
         if use_v1:
             NAs = requests.post(  # Workaround for V1 CCM API project.get lacking NA info.
                 f"http://{env_config['IoTtalk']['ServerIP']}:7788/reload_data",
@@ -378,24 +392,7 @@ def refresh_sa(sa_id):
             else:
                 src[order] = idfs
         actuators = list()
-        # temp_dst = dict()
-        # for order, actuator in dst.items():  # we assume there is only one actuator to control currently.
-        #     if actuator[0][0] in actuators_df:
-        #         prev_actuator = 0
-        #         for key, val in temp_dst.items():  # find the order previous appeared actuator
-        #             if val[0][0] == actuator[0][0]:
-        #                 prev_actuator = key
-        #                 break
-        #         if order in src:  # combine the sensors to one UserRule
-        #             for sensor_info in src[order]:
-        #                 if sensor_info not in src[prev_actuator]:
-        #                     src[prev_actuator].append(sensor_info)
-        #             src.pop(order, None)
-        #     else:
-        #         temp_dst[order] = actuator
-        #         actuators_df.append(actuator[0][0])
-        #         actuators.append(actuator[0][1])
-        # dst = temp_dst
+
         for order, actuator in dst.items():
             old_rule = UserRule.get(df_order=order, sa=sa_id)
             has_record = False
@@ -524,6 +521,7 @@ def create_sa():
     update_proj = False
     prototype = None
     proj_info = None
+
     if None is not version:
         prototype = re.split(r"v\d+\Z", sa_name)[0]
         update_proj = True
