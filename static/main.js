@@ -641,7 +641,7 @@ var app = new Vue({
       }
     },
     /* Managing page related procedures 
-    *  including user privilege / CB Icon / Accessible CB(Project)
+    *  including user privilege / CB Icon / Accessible CB(Project) / Logout
     */
     lvlToText: function(userLvl) {
       if (userLvl === 2) {
@@ -699,7 +699,7 @@ var app = new Vue({
             console.log(res);
             this.refreshCBWorker();
           })
-          .catch(function(error) {
+          .catch(function(err) {
             if (err.response) {
               alert(err.response.data);
             }
@@ -716,6 +716,24 @@ var app = new Vue({
           if (err.response) {
             alert(err.response.data);
           }
+        })
+    },
+    onLogout: function() {
+      axios
+        .put("/account/logout")
+        .then( (res) => {
+          console.log("logout succeeded");
+          // axios
+          //   .get("/")
+          //   .then( (res) => {
+          //     console.log("redirect to home page");
+          //   })
+          //   .catch( (err) => {
+          //     console.log("redirect to home page failed");
+          //   })
+        })
+        .catch( (err) => {
+          console.log("logout failed");
         })
     }
   }

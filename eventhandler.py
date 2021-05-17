@@ -15,6 +15,7 @@ from flask import render_template
 from flask import request
 from flask import session
 from flask import redirect
+from flask import url_for
 from werkzeug.utils import secure_filename
 from pony import orm
 
@@ -25,6 +26,7 @@ from config import icon_extensions
 from config import use_v1
 from email_tracker import email_notifier
 from exceptions import NotAuthorizedError, NotFoundError, WrongSettingError
+from oauth import oauth2_client
 from utils import running_sa, running_status, iottalk_info
 from utils import make_logger
 from utils import create_proj_ag, delete_proj_ag
@@ -45,19 +47,21 @@ def requires_login(f):
         if session.get("token"):
             return f(*args, **kwargs)
         else:
-            # next_url = request.path
             # TODO: redirect to AAA to login
-            session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
-            session["user"] = env_config["env"]["admin"]
+            redirect_url = url_for("api.oauth2_callback", _external=True)
+            print("url: ", redirect_url)
+            # session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
+            # session["user"] = env_config["env"]["admin"]
             # user = CB_Account.get(account=session["user"])
             # session["user"] = "pcs54784@gmail.com"
             # session["user"] = "example@gmail.com"
             # return render_template("main.html", userLevel=user.privilege), 200
-            return f(*args, **kwargs)
+            print("redirect to oauth login page")
+            return oauth2_client.iottalk.authorize_redirect(redirect_url)
     return decorated_function
 
 
-@apis.route('/', methods=["GET"])
+@apis.route('/', methods=["GET", "PUT"])
 @requires_login
 @orm.db_session
 def render_index():
@@ -1022,3 +1026,80 @@ def adjust_privilege(usr_name):
     except Exception as err:
         api_logger.exception(err)
         abort(500)
+
+
+@apis.route('/account/oauth_callback', methods=['GET'])
+@orm.db_session
+def oauth2_callback():
+    '''
+    CallBack route for OAuth2.0, This route will be invoked when user successfully logined from the OAuth Server.
+
+    Args:
+        None.
+
+    Returns:
+        Rendered HTML template of the SA.
+        Status code: 302 / 500.
+    '''
+    print("enter oauth callback")
+    if not request.args.get("code"):
+        if session.get("token"):
+            print("user already logined in")
+            return redirect(url_for("/"))
+
+        redirect_url = url_for('api.oauth2_callback', _external=True)
+        return oauth2_client.iottalk.authorize_redirect(redirect_url)
+
+    try:
+        # Exchange access token with an authorization code with token endpoint
+        #
+        # Ref: https://docs.authlib.org/en/stable/client/frameworks.html#id1
+        print("get token")
+        token_response = oauth2_client.iottalk.authorize_access_token()
+
+        # Parse the received ID token
+        user_info = oauth2_client.iottalk.parse_id_token(token_response)
+        print("get token done")
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)
+
+    try:
+        user = CB_Account.get(account=user_info["email"])
+
+        if None is user:  # Create a new account
+            print("create new account")
+            user = CB_Account(
+                account=user_info["email"],
+                privilege=2 if user_info["email"] == env_config["env"]["admin"] else 0,
+                access_token=token_response["access_token"]
+            )
+        print("write cookie")
+        session["token"] = user.access_token
+        session["user"] = user.account
+
+        return redirect(url_for("api.render_index"))
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)
+
+
+@apis.route('/account/logout', methods=['PUT'])
+@orm.db_session
+def logout():
+    '''
+    Logout current user by deleting session and redirect to Account System's login page.
+
+    Args:
+        None
+
+    Returns:
+        message indicating logout successfully
+    '''
+    user = CB_Account.get(account=session["user"])
+    user.access_token = "empty"
+    
+    session.pop("user")
+    session.pop("token")
+
+    return redirect(url_for("api.render_index"))

@@ -14,7 +14,8 @@ import models
 
 from config import env_config, default_status
 from eventhandler import apis
-from models import CB_SA, CB_Account, cb_db
+from models import CB_SA
+from oauth import oauth2_client
 from utils import connect_db, connect_zmq
 from utils import make_logger, register_ag, deregister_ag, get_iottalk_info
 from utils import running_sa, running_status
@@ -66,10 +67,24 @@ if __name__ == "__main__":
     system_logger.info('Start Launching ControlBoard Subsystem......')
 
     app = Flask(__name__)
-    app.config.update(SESSION_COOKIE_SAMESITE=None, SESSION_COOKIE_SECURE=True)
+    app.config.update(
+        SESSION_COOKIE_SAMESITE=None,
+        # SESSION_COOKIE_SECURE=True,  # for https only
+        SESSION_COOKIE_HTTPONLY=True
+    )
     app.secret_key = 'asdaldkjalskdjllkd'
     app.permanent_session_lifetime = timedelta(minutes=30)
     system_logger.info('\tCreating Server\t\t......done')
+
+    oauth2_client.init_app(app)
+    oauth2_client.register(
+        name="iottalk",
+        client_id=env_config["oauth"]["client_id"],
+        client_secret=env_config["oauth"]["client_secret"],
+        server_metadata_url=env_config["oauth"]["openid_url"],
+        client_kwargs={"scope": "openid"}
+    )
+    system_logger.info('\tRegister OAuth2.0 resource\t...done')
 
     app.register_blueprint(apis)
     system_logger.info('\tCreating EventHandler\t......done')
@@ -84,15 +99,6 @@ if __name__ == "__main__":
     system_logger.info('Start Creating status collector thread......done')
     atexit.register(on_exit, logger=system_logger, running_sa=running_sa)
 
-    with orm.db_session:
-        if 0 == len(CB_Account.select()):
-            admin = CB_Account(account=env_config["env"]["admin"], privilege=2)
-            system_logger.info(f"Init Admin with account {admin.account}")
-            cb_db.commit()
-            # CB_Account(account="Superuser", privilege=1)
-            # CB_Account(account="luk1684tw", privilege=0)
-
-    # test_db(system_logger)
     app.run(
         host=env_config['env']['host'],
         port=env_config['env']['port'],
