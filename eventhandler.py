@@ -50,14 +50,9 @@ def requires_login(f):
             # TODO: redirect to AAA to login
             redirect_url = url_for("api.oauth2_callback", _external=True)
             print("url: ", redirect_url)
-            # session["token"] = str(uuid.uuid4())  # dummy token, should be replaced with AAA token
-            # session["user"] = env_config["env"]["admin"]
-            # user = CB_Account.get(account=session["user"])
-            # session["user"] = "pcs54784@gmail.com"
-            # session["user"] = "example@gmail.com"
-            # return render_template("main.html", userLevel=user.privilege), 200
             print("redirect to oauth login page")
-            return oauth2_client.iottalk.authorize_redirect(redirect_url)
+            test = {"prompt": "login"}
+            return oauth2_client.iottalk.authorize_redirect(redirect_url, **test)
     return decorated_function
 
 
@@ -1098,8 +1093,8 @@ def logout():
     '''
     user = CB_Account.get(account=session["user"])
     user.access_token = "empty"
-    
+
     session.pop("user")
     session.pop("token")
 
-    return redirect(url_for("api.render_index"))
+    return "logout successfully", 200

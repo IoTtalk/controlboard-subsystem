@@ -723,14 +723,7 @@ var app = new Vue({
         .put("/account/logout")
         .then( (res) => {
           console.log("logout succeeded");
-          // axios
-          //   .get("/")
-          //   .then( (res) => {
-          //     console.log("redirect to home page");
-          //   })
-          //   .catch( (err) => {
-          //     console.log("redirect to home page failed");
-          //   })
+          window.location = "/";
         })
         .catch( (err) => {
           console.log("logout failed");
