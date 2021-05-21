@@ -39,6 +39,7 @@
           
           <div class="ml-auto">
             <b-navbar-nav>
+              <b-nav-item class="system-button" v-if="privilege" v-on:click="window.open(IoTtalkURL).focus()"><b>IoTtalk</b></b-nav-item>
               <b-nav-item class="system-button" v-if="privilege" v-on:click="onSwitchManage"><b>System</b></b-nav-item>
               <b-nav-item class="system-button custom-nav-item" v-on:click="onLogout"><b>Logout</b></b-nav-item>
             </b-navbar-nav>
@@ -128,7 +129,10 @@
                   > <%field.text%> </b-dropdown-item>
                 </b-dropdown-group>
               </b-nav-item-dropdown>
-              <span v-if="!manageMode && currentField<1" style="font-weight: bolder;">Please create a ControlBoard</span>
+              <span v-if="!manageMode && currentField<1" style="font-weight: bolder;">
+                <span v-if="privilege">Please create a ControlBoard</span>
+                <span v-else>Contact Us for ControlBoard Deployment!</span>
+              </span>
               <b-nav-item
                 v-for="(field, index) in fields.pinnedFields"
                 v-if="!manageMode && index < maxPinnedFields && currentField > 0"
@@ -149,7 +153,7 @@
 
           <b-card-body class="text-center custom-card-body">
             <div v-if="settings.length===0 && !manageMode" class="text-left">
-              Please Select I/O Devices at the IoTtalk GUI First!
+              <span v-if="privilege">Please Select I/O Devices at the IoTtalk GUI First!</span>
             </div>
             <div v-for="(setting, index) in settings" class="setting-card" 
               v-if="!manageMode && currentField > 0">
@@ -204,7 +208,7 @@
                 </div>
 
                 <!-- Timer setting area -->
-                <div v-bind:class="[setting.mode !== 'Timer'? 'mt-1': '']">
+                <!-- <div v-bind:class="[setting.mode !== 'Timer'? 'mt-1': '']">
                   <span style="padding-right: 2px;">From</span>
                   <custom-sel
                     v-bind:options="hours"
@@ -241,7 +245,7 @@
                     v-bind:select="setting.content.closeTimer[2]"
                     v-on:update-option="onSelectTime($event, index, 5)"
                   ></custom-sel>
-                </div>
+                </div> -->
                 <div>
                   <b-form-group>
                     <b-form-checkbox-group

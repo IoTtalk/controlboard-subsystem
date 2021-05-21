@@ -73,7 +73,6 @@ if __name__ == "__main__":
         SESSION_COOKIE_HTTPONLY=True
     )
     app.secret_key = 'asdaldkjalskdjllkd'
-    app.permanent_session_lifetime = timedelta(minutes=30)
     system_logger.info('\tCreating Server\t\t......done')
 
     oauth2_client.init_app(app)

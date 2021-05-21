@@ -43,7 +43,7 @@ class CB(cb_db.Entity):
 
 class CB_SA(cb_db.Entity):
     sa_id = PrimaryKey(int, auto=True)  # id of this SA.
-    sa_name = Required(str)  # User-defined cb_name. Can be repeated.
+    sa_name = Required(str)  # User-defined cb_name. Can't be repeated.
     pinned = Required(bool)  # if this SA is pinned.
     cb = Required(CB)  # which CB this SA belongs to.
     ag_token = Required(LongStr)  # AG-returned token

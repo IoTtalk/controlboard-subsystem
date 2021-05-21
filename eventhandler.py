@@ -48,16 +48,11 @@ def requires_login(f):
             return f(*args, **kwargs)
         else:
             # TODO: redirect to AAA to login
-            redirect_url = url_for("api.oauth2_callback", _external=True)
-            print("url: ", redirect_url)
-            print("redirect to oauth login page")
-            test = {"prompt": "login"}
-            return oauth2_client.iottalk.authorize_redirect(redirect_url, **test)
+            return abort(403)
     return decorated_function
 
 
 @apis.route('/', methods=["GET", "PUT"])
-@requires_login
 @orm.db_session
 def render_index():
     '''
@@ -71,7 +66,12 @@ def render_index():
         Status code: 200 / 500.
     '''
     try:
-        print(session["user"])
+        if not session.get("token"):
+            redirect_url = url_for("api.oauth2_callback", _external=True)
+            print("url: ", redirect_url)
+            print("redirect to oauth login page")
+            ask_login = {"prompt": "login"}
+            return oauth2_client.iottalk.authorize_redirect(redirect_url, **ask_login)
         user = CB_Account.get(account=session["user"])
         if None is user:
             raise NotFoundError
@@ -82,6 +82,12 @@ def render_index():
     except Exception as err:
         api_logger.exception(err)
         abort(500)
+
+
+@apis.route("/subsystem/infos", methods=["GET"])
+@requires_login
+def get_infos():
+    return f'http://{env_config["IoTtalk"]["ServerIP"]}:{env_config["IoTtalk"]["Port"]}', 200
 
 
 @apis.route('/sa/<int:sa_id>/new_rules', methods=['POST'])
@@ -463,7 +469,7 @@ def refresh_sa(sa_id):
         sa.ag_token = ag_token
 
         # Bind device to DO
-        time.sleep(5)  # Uncomment this if the IoTtalk Server cannot create DO in time.
+        time.sleep(1)  # Uncomment this if the IoTtalk Server cannot create DO in time.
         do_id = sa.do_id.split(",")
         status, dm_name = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
         if not status:
@@ -1063,15 +1069,17 @@ def oauth2_callback():
         user = CB_Account.get(account=user_info["email"])
 
         if None is user:  # Create a new account
+            privilege = CB_Account.select().count()
             print("create new account")
             user = CB_Account(
                 account=user_info["email"],
-                privilege=2 if user_info["email"] == env_config["env"]["admin"] else 0,
+                privilege=2 if privilege==0 else 0,
                 access_token=token_response["access_token"]
             )
         print("write cookie")
-        session["token"] = user.access_token
+        session["token"] = token_response["access_token"]
         session["user"] = user.account
+        user.access_token = token_response["access_token"]
 
         return redirect(url_for("api.render_index"))
     except Exception as err:

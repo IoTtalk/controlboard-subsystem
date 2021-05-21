@@ -6,6 +6,8 @@ var app = new Vue({
     manageMode: false,  // Switch bwtween CB page & manage page
     managePage: false, // Used to switch active state between User/CB management
     privilege: privilege,  // Whether current user is a superuser.
+    IoTtalkURL: "",
+    window: window,
     newCBIcon: null,
     statusTrackWorker: -1,  // Timer ID for periodically calling current_data
     width: -1,
@@ -21,8 +23,8 @@ var app = new Vue({
     ],
     userlvls: [
       {value: 0, text: "User"},
-      {value: 1, text: "Superuser"},
-      {value: 2, text: "Admin"}
+      {value: 1, text: "Developer"},
+      {value: 2, text: "Developer"}
     ],
     weekdays: [
       {value: 0, text: "Mon"},
@@ -69,6 +71,16 @@ var app = new Vue({
   created: function() {
     // Procedures to correctly render data:
     // get CBs -> get SAs -> get Rules -> get Status
+    axios
+      .get("/subsystem/infos")
+      .then( (res) => {
+        console.log(res);
+        this.IoTtalkURL = res.data;
+      })
+      .catch( (err) => {
+        console.log(err);
+      })
+
     this.refreshCBWorker();
     this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
     this.width = window.innerWidth;
@@ -230,6 +242,7 @@ var app = new Vue({
           if (err.response) {
             alert(err.response.data);
           }
+          window.location = "/";
         })
     },
     refreshSAWorker: function() {
@@ -242,6 +255,7 @@ var app = new Vue({
           if (err.response) {
             alert(err.response.data);
           }
+          window.location = "/";
         })
     },
     refreshRuleWorker: function() {
@@ -268,6 +282,7 @@ var app = new Vue({
           if (err.response) {
             alert(err.response.data);
           }
+          window.location = "/";
         })
     },
     refreshStatusWorker: function() {
@@ -279,6 +294,7 @@ var app = new Vue({
           .catch( (err) => {
             if (err.response) {
               alert(err.response.data);
+              window.location = "/";
             }
           });
       }
@@ -420,6 +436,7 @@ var app = new Vue({
           .post("/sa/create_sa", data)
           .then( (res) => {
             console.log(res);
+            window.open(this.IoTtalkURL).focus();
             this.refreshSAWorker();
             this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
           })
@@ -645,9 +662,9 @@ var app = new Vue({
     */
     lvlToText: function(userLvl) {
       if (userLvl === 2) {
-        return "Admin";
+        return "Developer";
       } else if (userLvl === 1) {
-        return "Superuser";
+        return "Developer";
       } else {
         return "User";
       }
