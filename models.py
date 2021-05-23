@@ -30,25 +30,25 @@ class UserRule(cb_db.Entity):
     weekday = Optional(str)  # Weekdays this rule should be executed.  ranging from 0 to 6
     duty_pos = Optional(int)  # Positive edge of Duty Cycle.
     duty_neg = Optional(int)  # Negative edge of Duty Cycle.
-    sa = Required("CB_SA")  # which SA this rule belongs to.
+    sa = Required("CB")  # which SA this rule belongs to.
+
+
+class CB_Group(cb_db.Entity):
+    group_id = PrimaryKey(int, auto=True)
+    group_name = Required(str)
+    cb_set = Set("CB")
+    account = Required("CB_Account")
 
 
 class CB(cb_db.Entity):
-    cb_id = PrimaryKey(int, auto=True)
-    cb_name = Required(str)
-    sa_set = Set("CB_SA", cascade_delete=True)
-    account_set = Set("CB_Account")  # accounts that can access this SA.
-    icon = Required(str)
-
-
-class CB_SA(cb_db.Entity):
-    sa_id = PrimaryKey(int, auto=True)  # id of this SA.
-    sa_name = Required(str)  # User-defined cb_name. Can't be repeated.
-    pinned = Required(bool)  # if this SA is pinned.
-    cb = Required(CB)  # which CB this SA belongs to.
+    cb_id = PrimaryKey(int, auto=True)  # id of this SA.
+    cb_name = Required(str)  # User-defined cb_name. Can't be repeated.
+    status = Required(bool)  # if this SA is in maintanance.
     ag_token = Required(LongStr)  # AG-returned token
     mac_addr = Required(LongStr)  # Mac-addr of this SA
     rule_set = Set(UserRule, cascade_delete=True)
+    account_set = Set("CB_Account")
+    cb_group = Set(CB_Group)
     p_id = Required(int)  # project id of this SA
     do_id = Required(str)  # device object id for this SA.
 
@@ -58,3 +58,4 @@ class CB_Account(cb_db.Entity):
     privilege = Required(int)  # User level of this user.
     access_token = Required(str)  # Account Access token for this user.
     cb_set = Set(CB)  # CBs this user can see.
+    group_set = Set(CB_Group)

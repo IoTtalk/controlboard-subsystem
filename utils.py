@@ -16,11 +16,11 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 from config import env_config, reg_config, use_v1
 from exceptions import CCMAPIFailError
-from models import UserRule, CB_Account, CB_SA, CB
+from models import UserRule, CB_Account, CB, CB_Group
 
 
 # used to record AG SA. In format {sa_id: CB_SA entity}
-running_sa = dict()
+running_cb = dict()
 
 '''
 used to record AG SA's rule status. In format
@@ -328,12 +328,41 @@ def get_df_ag(df_name, logger):
         return -1
 
 
-def create_proj_ag(sa, logger):
+def get_proj_ag(cb_name, logger):
     '''
-    Worker function to register to AG given sa entity and logger.
+    Worker function to get IoTtalk Project infomation given CB name and logger.
 
     Args:
-        sa: SA entity object selected from PonyORM.
+        cb_name: CB's name to be created.
+        logger: Logger object to write log in.
+
+    Returns:
+        status: Boolean value indicating create procedure success or fail.
+        p_id: Creatd integer Project ID retrived from AG.
+    '''
+    data = {
+        "api_name": "project.get",
+        "payload": {
+            "p_id": cb_name
+        }
+    }
+    try:
+        state, response = _post('ccm_api', data, logger)
+        if not state:
+            raise CCMAPIFailError
+        logger.info('\tCreate Project\t......done')
+        return state, int(response["result"]["p_id"])
+    except Exception as err:
+        logger.exception(err)
+        return False, -1
+
+
+def create_proj_ag(cb_name, logger):
+    '''
+    Worker function to create IoTtalk Project given CB name and logger.
+
+    Args:
+        cb_name: CB's name to be created.
         logger: Logger object to write log in.
 
     Returns:
@@ -343,7 +372,7 @@ def create_proj_ag(sa, logger):
     data = {
         "api_name": "project.create",
         "payload": {
-            "p_name": sa.sa_name
+            "p_name": cb_name
         }
     }
     try:
@@ -420,6 +449,39 @@ def create_do_ag(p_id, df_id, dm_name, logger):
         return False, -1
 
 
+def delete_do_ag(p_id, do_id, logger):
+    '''
+    Deletes Assigned Device Object Given p_id and do_id.
+
+    Args:
+        p_id: Integer, IoTtalk Project ID to delete DeviceObject(DO).
+        do_id: Integer, id of DO to be deleted.
+        logger: Logger object to write log in.
+
+    Returns:
+        status: Boolean value indicating create DO success or fail.
+    '''
+    data = {
+        "api_name": "deviceobject.delete",
+        "payload": {
+            "p_id": p_id,
+            "do_id": do_id
+        }
+    }
+    try:
+        status, response = _post('ccm_api', data, logger)
+        if not status:
+            raise CCMAPIFailError
+        logger.info(f'\tDelete DO {response["result"]}\t......done')
+        return status, response["result"]
+    except CCMAPIFailError:
+        logger.exception("CCM API request failed")
+        return False, -1
+    except Exception as err:
+        logger.exception(err)
+        return False, -1
+
+
 def register_ag(sa, logger):
     '''
     Worker function to register to AG given sa entity and logger.
@@ -455,12 +517,12 @@ def register_ag(sa, logger):
         return False, "Error"
 
 
-def deregister_ag(sa, logger):
+def deregister_ag(token, logger):
     '''
     Worker function to deregister AG device.
 
     Args:
-        sa: SA entity object selected from PonyORM.
+        token: AG Device token to be deleted.
         logger: Logger object to write log in.
 
     Returns:
@@ -469,7 +531,7 @@ def deregister_ag(sa, logger):
 
     try:
         data = {
-            'token': sa.ag_token
+            'token': token
         }
         status, res = _post('delete_device', data, logger)
         if not status:

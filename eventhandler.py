@@ -27,13 +27,13 @@ from config import use_v1
 from email_tracker import email_notifier
 from exceptions import NotAuthorizedError, NotFoundError, WrongSettingError
 from oauth import oauth2_client
-from utils import running_sa, running_status, iottalk_info
+from utils import running_cb, running_status, iottalk_info
 from utils import make_logger
-from utils import create_proj_ag, delete_proj_ag
-from utils import create_do_ag, get_df_ag
+from utils import create_proj_ag, delete_proj_ag, get_proj_ag
+from utils import create_do_ag, delete_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag, get_na_ag
 from models import cb_db
-from models import UserRule, CB_Account, CB_SA, CB
+from models import UserRule, CB_Account, CB, CB_Group
 
 
 api_logger = make_logger('API', 'API')
@@ -87,7 +87,7 @@ def render_index():
 @apis.route("/subsystem/infos", methods=["GET"])
 @requires_login
 def get_infos():
-    return f'http://{env_config["IoTtalk"]["ServerIP"]}:{env_config["IoTtalk"]["Port"]}', 200
+    return f'http://{env_config["IoTtalk"]["ServerIP"]}:7788/connection#', 200
 
 
 @apis.route('/sa/<int:sa_id>/new_rules', methods=['POST'])
@@ -175,8 +175,8 @@ def set_rules(sa_id):
                 rule_setting["sensor_alias"] = rule.sensor_alias.split(',')[rule_setting["sensor_index"]]
         cb_db.commit()
         email_notifier.notify_user(title, rules, accessible_users)
-        if sa_id in running_sa:
-            status = deregister_ag(running_sa[sa_id], api_logger)
+        if sa_id in running_cb:
+            status = deregister_ag(running_cb[sa_id], api_logger)
             if not status:
                 api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
                 return "Internal Server Error", 500
@@ -187,7 +187,7 @@ def set_rules(sa_id):
             api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
             return "Internal Server Error", 500
         sa.ag_token = ag_token
-        running_sa[sa.sa_id] = sa
+        running_cb[sa.sa_id] = sa
 
         do_id = [int(id) for id in sa.do_id.split(',')]
         status = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
@@ -308,7 +308,7 @@ def get_datum(sa_id):
     res_dict = dict()
     sa = CB_SA[sa_id]
     try:
-        if int(sa_id) not in running_sa:
+        if int(sa_id) not in running_cb:
             raise NotFoundError
         rules = sa.rule_set
 
@@ -320,7 +320,7 @@ def get_datum(sa_id):
     except NotFoundError:
         api_logger.warning(f"Specified SA {sa.sa_name} not running")
         api_logger.warning("Current running sa:")
-        api_logger.warning(running_sa)
+        api_logger.warning(running_cb)
         return "Specified SA not running", 200
     except Exception as err:
         api_logger.exception(err)
@@ -477,7 +477,7 @@ def refresh_sa(sa_id):
             sa.delete()
             cb_db.commit()
             abort(400, f"Create SA {sa.sa_name} failed at auto binding, check api log files")
-        running_sa[sa.sa_id] = sa
+        running_cb[sa.sa_id] = sa
         for rule in sa.rule_set:
             if rule.rule_id not in running_status:
                 running_status[rule.rule_id] = default_status
@@ -498,142 +498,105 @@ def refresh_sa(sa_id):
         abort(500, "Internal Server Error")
 
 
-@apis.route('/sa/create_sa', methods=['POST'])
+@apis.route('/cb/create_cb', methods=['POST'])
 @requires_login
 @orm.db_session
-def create_sa():
+def create_cb():
     '''
-    Creates an empty SA. Further steps are to be triggered by refresh_sa event after
+    Creates an empty CB. Further steps are to be triggered by refresh_CB event after
         User has setup GUI connections(NAs).
-
-    Warning, lots of workaround in this function to support IoTtalk V1...
-
     Args:
-        cb_id: The ControlBoard this new SA belongs to.
-        sa_name: Name of this SA given by the user.
+        new_cb: Name of this CB given by the user.
 
     Returns:
         Status code: 200 / 400 / 500.
         msg: Corresponding execution result.
     '''
-    sa_spec = request.json
-    if not CB.exists(cb_id=sa_spec["cb_id"]):
-        abort(400, "Specified ControlBoard not existed")
+    new_cb = request.get_data().decode("utf-8")
     mac_addr = str(uuid.uuid4())
 
-    sa_name = sa_spec["sa"]["text"]
-    version = re.search(r"v\d+\Z", sa_name)
-    update_proj = False
-    prototype = None
-    proj_info = None
 
-    if None is not version:
-        prototype = re.split(r"v\d+\Z", sa_name)[0]
-        update_proj = True
-
-    sa = CB_SA(sa_name=sa_name, ag_token="NotCreated", mac_addr=mac_addr,
-               p_id=-1, do_id="-1", pinned=sa_spec["sa"]["pinned"], cb=CB[sa_spec["cb_id"]])
+    cb = CB(cb_name=new_cb, ag_token="NotCreated", mac_addr=mac_addr,
+               p_id=-1, do_id="-1", status=False)
 
     cb_db.commit()
-    api_logger.info("Start Creating CB SA")
+    api_logger.info("Start Creating CB")
 
     try:
         # Create Project
-        status, p_id = create_proj_ag(sa, api_logger)
-        if not status:
-            sa.delete()
-            cb_db.commit()
-            abort(400, "Create SA failed at creating project, project with the same name already exists.")
-        sa.p_id = p_id
+        status, p_id = create_proj_ag(new_cb, api_logger)
+        if not status:  # Project already exists
+            status, p_id = get_proj_ag(new_cb, api_logger)
+            if not status:
+                cb.delete()
+                cb_db.commit()
+                abort(400, "Create SA failed at creating project, project with the same name already exists.")
+        cb.p_id = p_id
         # Create Device Object
         status, do_id = create_do_ag(p_id, iottalk_info["df_id"], "ControlBoard", api_logger)
         if not status:
-            sa.delete()
+            cb.delete()
             cb_db.commit()
             abort(500, "Create SA failed at creating DO, check api log files and IoTtalk CCM.")
         if use_v1:
-            sa.do_id = str(do_id[0]) + ',' + str(do_id[1])
+            cb.do_id = str(do_id[0]) + ',' + str(do_id[1])
         else:
-            sa.do_id = str(do_id)
+            cb.do_id = str(do_id)
+        account = CB_Account.get(account=session["user"])
+        account.cb_set.add(cb)
+        cb.account_set.add(account)
 
-        if update_proj:
-            api_logger.info("Update Project Detected")
-            if not use_v1:
-                raise NotImplementedError
-
-            prototype = CB_SA.get(sa_name=prototype)
-            proj_info = requests.get(  # Workaround for duplicating project.
-                f"http://{env_config['IoTtalk']['ServerIP']}:7788/export_project?p_id={prototype.p_id}",
-                data={"p_id": prototype.p_id}
-            )
-            proj_info = json.loads(proj_info.content.decode("utf-8"))
-            device_objects = dict()
-            for do_info in proj_info["project"]["DeviceObject"].values():
-                if do_info["dm_name"] == "ControlBoard":
-                    continue
-                df_ids = list()
-                for dfo in do_info["dfo"].values():
-                    df_id = get_df_ag(dfo["df_name"], api_logger)["df_id"]
-                    if df_id == -1:
-                        abort(500, "Internal Server Error")
-                    df_ids.append(df_id)
-                if do_info["dm_name"] not in device_objects:
-                    device_objects[do_info["dm_name"]] = df_ids
-                else:
-                    device_objects[do_info["dm_name"]] += df_ids
-
-            for dm_name, df_ids in device_objects.items():
-                create_do_ag(p_id, df_ids, str(dm_name), api_logger)
     except NotImplementedError:
         api_logger.exception("IoTtalk V2 is not supported")
         return "IoTtalk V2 is not supported", 400
     except Exception as err:
         api_logger.exception(err)
-        if -1 is not sa.p_id:
-            delete_proj_ag(sa.p_id, api_logger)
-        sa.delete()
+        if -1 is not cb.p_id:
+            delete_proj_ag(cb.p_id, api_logger)
+        cb.delete()
         return "Internal server error", 500
 
     cb_db.commit()
     return "Create SA succeeded", 200
 
 
-@apis.route('/sa/delete_sa', methods=['POST'])
+@apis.route('/cb/delete_cb', methods=['POST'])
 @requires_login
 @orm.db_session
-def delete_sa(sa_id=None):
+def delete_cb(cb_id=None):
     '''
-    Delete SA with specified sa_id.
+    Delete CB with specified cb_id.
 
     Args:
-        sa_id: ID of the requester SA.
+        cb_id: ID of the requester CB.
 
     Returns:
         Status code: 200 / 400 / 500
-        message: 'SA deleted successfully'.
+        message: 'CB deleted successfully'.
     '''
-    if None is sa_id:
-        sa_id = int(request.get_data().decode("utf-8"))
-    sa = CB_SA[sa_id]
+    if None is cb_id:
+        cb_id = int(request.get_data().decode("utf-8"))
+    cb = CB[cb_id]
     try:
-        status, message = delete_proj_ag(sa.p_id, api_logger)
+        if use_v1:
+            for do_id in cb.do_id.split(","):
+                status = delete_do_ag(cb.p_id, int(do_id), api_logger)
         if not status:
-            api_logger.exception(f"Error delete SA {sa.sa_name}, Delete project failed, check api log file")
-            api_logger.exception(f"Error msg from AG: {message}")
-            return "Delete SA failed, check api log files", 500
-        if sa.ag_token != "NotCreated":
-            status = deregister_ag(sa, api_logger)
+            api_logger.exception(f"Error delete CB {cb.cb_name}, Delete project failed, check api log file")
+            return "Delete CB failed, check api log files", 500
+        if cb.ag_token != "NotCreated":
+            status = deregister_ag(cb.ag_token, api_logger)
             if not status:
-                api_logger.exception(f"Error delete SA {sa.sa_name}, Deregister SA failed, check api log file")
-                return "Delete SA failed, check api log files", 500
-        sa.delete()
-        if sa_id in running_sa:
-            del running_sa[sa_id]
-        api_logger.info(f"Delete Running SA {sa.sa_name}")
+                api_logger.exception(f"Error delete CB {cb.cb_name}, Deregister SA failed, check api log file")
+                return "Delete CB failed, check api log files", 500
+        cb.delete()
+        if cb_id in running_cb:
+            del running_cb[cb_id]
+        api_logger.info(f"Delete Running CB {cb.cb_name}")
         cb_db.commit()
-        return "Delete SA succeed", 200
+        return "Delete CB succeed", 200
     except KeyError:
-        api_logger.exception(f'Specified Field {sa.sa_name} not running')
+        api_logger.exception(f'Specified Field {cb.cb_name} not running')
         return "Specified SA not found", 400
     except Exception as err:
         api_logger.exception(err)
@@ -789,7 +752,7 @@ def manage_icon(cb_id):
 @apis.route('/subsystem/create_cb', methods=['POST'])
 @requires_login
 @orm.db_session
-def create_cb():
+def createasd_cb():
     '''
     Create a Empty ControlBoard that contains no SA(Field).
 
@@ -824,7 +787,7 @@ def create_cb():
 @apis.route('/subsystem/delete_cb', methods=['POST'])
 @requires_login
 @orm.db_session
-def delete_cb():
+def delete_cb234():
     '''
     Delete CB and corresponding SAs / UserRules with specified cb_id.
 
@@ -858,7 +821,7 @@ def delete_cb():
         abort(500, "Internal error occurred")
 
 
-@apis.route('/subsystem/get_cb/<string:usr_account>', methods=['GET'])
+@apis.route('/cb/get_cb/<string:usr_account>', methods=['GET'])
 @requires_login
 @orm.db_session
 def get_cb(usr_account):
@@ -884,29 +847,26 @@ def get_cb(usr_account):
         current_user = CB_Account.get(account=session["user"])
         if 0 == current_user.privilege and usr_account != session["user"]:
             raise NotAuthorizedError
-        account = CB_Account.get(account=usr_account)
-        if None is account:
-            raise NotFoundError
         accessible_cb = list()
-        for cb in account.cb_set:
-            accessible_cb.append(cb.cb_id)
+        if "all" == usr_account:
+            for cb in CB.select()[:]:
+                accessible_cb.append({
+                    "value": cb.cb_id,
+                    "text": cb.cb_name,
+                    "status": cb.status
+                })
 
-        option_cb = list()
-        if 2 == account.privilege:
-            candidates = CB.select()
         else:
-            candidates = account.cb_set
-        for cb in candidates:
-            icon_path = os.path.join(os.path.normpath(env_config["env"]["icon_path"]), cb.icon)
-            option_cb.append({
-                "icon": icon_path,
-                "text": cb.cb_name,
-                "value": cb.cb_id
-            })
-        return jsonify({
-            "accessibleProjects": accessible_cb,
-            "optionProjects": option_cb
-        }), 200
+            account = CB_Account.get(account=usr_account)
+            if None is account:
+                raise NotFoundError
+            for cb in account.cb_set:
+                accessible_cb.append({
+                    "value": cb.cb_id,
+                    "text": cb.cb_name,
+                    "status": cb.status
+                })
+        return jsonify(accessible_cb), 200
     except NotAuthorizedError:
         api_logger.exception("Error Getting ControlBoard, Permission denied.")
         # TODO: redirect to AAA login page.
@@ -1069,11 +1029,11 @@ def oauth2_callback():
         user = CB_Account.get(account=user_info["email"])
 
         if None is user:  # Create a new account
-            privilege = CB_Account.select().count()
+            num_accounts = CB_Account.select().count()
             print("create new account")
             user = CB_Account(
                 account=user_info["email"],
-                privilege=2 if privilege==0 else 0,
+                privilege=1 if num_accounts==0 else 0,
                 access_token=token_response["access_token"]
             )
         print("write cookie")

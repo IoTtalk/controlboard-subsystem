@@ -14,47 +14,47 @@ import models
 
 from config import env_config, default_status
 from eventhandler import apis
-from models import CB_SA
+from models import CB
 from oauth import oauth2_client
 from utils import connect_db, connect_zmq
 from utils import make_logger, register_ag, deregister_ag, get_iottalk_info
-from utils import running_sa, running_status
+from utils import running_cb, running_status
 # from utils import test_db
 
 
 @orm.db_session
-def recover_sa(running_sa, logger):
+def recover_sa(running_cb, logger):
     '''
     Recover SAs stored in Database.
 
     Args:
-        running_sa: Dictionary used to record current AG SAs. Should be empty when passed in this function.
+        running_cb: Dictionary used to record current AG SAs. Should be empty when passed in this function.
         logger: Logger object to write log in.
 
     Returns:
         None
     '''
-    assert len(running_sa) == 0
-    to_recovered = CB_SA.select()[:]
+    assert len(running_cb) == 0
+    to_recovered = CB.select()[:]
     print('SA in Database ', to_recovered)
 
     for sa in to_recovered:
         status, ag_token = register_ag(sa, logger)
         if status:
             sa.ag_token = ag_token
-            running_sa[sa.sa_id] = sa
+            running_cb[sa.sa_id] = sa
             for rule in sa.rule_set:
                 running_status[rule.rule_id] = default_status
     logger.info('Start Recovering SAs in Database......done')
-    print(running_sa)
+    print(running_cb)
     return
 
 
 @orm.db_session
-def on_exit(logger, running_sa):
+def on_exit(logger, running_cb):
     logger.info("Closing Subsystem......")
     logger.info("\tDeregistering all running SAs")
-    for sa_id in running_sa:
+    for sa_id in running_cb:
         status = deregister_ag(CB_SA[sa_id], logger)
         if not status:
             logger.warning(f"Deregistration for SA Device for {CB_SA[sa_id].sa_name} failed")
@@ -89,14 +89,14 @@ if __name__ == "__main__":
     system_logger.info('\tCreating EventHandler\t......done')
 
     connect_db(system_logger, models.cb_db)
-    recover_sa(running_sa, system_logger)
+    recover_sa(running_cb, system_logger)
 
     get_iottalk_info(system_logger)
 
     t = threading.Thread(target=connect_zmq, args=(system_logger,), daemon=True, name='status_collector')
     t.start()
     system_logger.info('Start Creating status collector thread......done')
-    atexit.register(on_exit, logger=system_logger, running_sa=running_sa)
+    atexit.register(on_exit, logger=system_logger, running_cb=running_cb)
 
     app.run(
         host=env_config['env']['host'],

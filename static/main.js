@@ -7,7 +7,6 @@ var app = new Vue({
     managePage: false, // Used to switch active state between User/CB management
     privilege: privilege,  // Whether current user is a superuser.
     IoTtalkURL: "",
-    window: window,
     newCBIcon: null,
     statusTrackWorker: -1,  // Timer ID for periodically calling current_data
     width: -1,
@@ -23,8 +22,7 @@ var app = new Vue({
     ],
     userlvls: [
       {value: 0, text: "User"},
-      {value: 1, text: "Developer"},
-      {value: 2, text: "Developer"}
+      {value: 1, text: "Developer"}
     ],
     weekdays: [
       {value: 0, text: "Mon"},
@@ -53,39 +51,42 @@ var app = new Vue({
       45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
     ],
     users: [],
-    projects: { // All Shared projects of CB Subsystem + User's projects
-      accessibleProjects: [], // CB_ID of CBs this user can control
-      optionProjects: []  // All CBs this user can see.
+    groups: [],  // current user's group settings
+    controlboards: {
+      "accessible": [  // CBs current user can access.
+        {"text": "1", "value": 1, "status": true},
+        {"text": "2", "value": 2, "status": true},
+        {"text": "3", "value": 3, "status": false}
+      ],
+      "all": [   // All CBs, used in Admin page.
+        {"text": "1", "value": 1, "status": true},
+        {"text": "2", "value": 2, "status": true},
+        {"text": "3", "value": 3, "status": false},
+        {"text": "4", "value": 4, "status": true},
+        {"text": "5", "value": 5, "status": true},
+        {"text": "6", "value": 6, "status": true}
+      ]
     },
-    accessibleProjects: [],  // Empty list to save accessible Project(CB) changes in manage page.
-    fields: {
-      pinnedFields: [],
-      optionFields: []
-    },
-    pinnedFields: [],  // Empty list to save pinned Field(SA) changes.
-    currentField: 0,  // Field refers to SA in a specific CB.
-    currentProject: 0,  // Project refers to CB.
+    currentCB: {},
     backupSettings: [],
     settings: []
   },
   created: function() {
     // Procedures to correctly render data:
-    // get CBs -> get SAs -> get Rules -> get Status
+    // get CBs -> get Rules -> get Status
     axios
       .get("/subsystem/infos")
       .then( (res) => {
-        console.log(res);
         this.IoTtalkURL = res.data;
       })
       .catch( (err) => {
         console.log(err);
       })
-
-    this.refreshCBWorker();
-    this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+    // this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
     this.width = window.innerWidth;
     window.addEventListener("resize", this.onWindowResize);
     if (this.privilege) {
+      this.manageMode = true;
       console.log("get user");
       this.getAllUsers()
         .then( (users) => {
@@ -97,6 +98,7 @@ var app = new Vue({
           }
         });
     }
+    this.refreshCBWorker();
     return;
   },
   destoryed: function() {
@@ -112,7 +114,7 @@ var app = new Vue({
       });
       return toAccess;
     },
-    maxPinnedFields: function() {
+    maxPinnedCBs: function() {
       return Math.floor(this.width / 80) - 1;
     },
     currentFieldName: function() {
@@ -141,25 +143,10 @@ var app = new Vue({
     */
     getAvailableCBs: function(account) {
       return new Promise(function (resolve, reject) {
-        if (account === undefined) {
-          account = "self";
-        }
         axios
-          .get("/subsystem/get_cb/" + account)
+          .get("/cb/get_cb/" + account)
           .then(function(res) {
-            res.data.optionProjects.sort((a, b) => b.value - a. value);
-            resolve(res.data);
-          })
-          .catch(function(err) {
-            reject(err);
-          });
-      });
-    },
-    getAvailableSAs: function(projectID) {
-      return new Promise(function (resolve, reject) {
-        axios
-          .get("/sa/get_sa/" + projectID.toString())
-          .then(function(res) {
+            res.data.sort((a, b) => b.value - a. value);
             resolve(res.data);
           })
           .catch(function(err) {
@@ -229,14 +216,24 @@ var app = new Vue({
     },
     /* Refresh routine procedures, including CB, SA, Rule, Status */
     refreshCBWorker: function() {
-      this.getAvailableCBs()
-        .then( (projects) => {
-          this.projects = projects;
-          if (projects.accessibleProjects.length)
-            this.currentProject = projects.accessibleProjects[0];
-          else
-            this.currentProject = 0;
-          this.refreshSAWorker();
+      var req;
+      if (this.manageMode) {
+        req = "all";
+      } else {
+        req = "self";
+      }
+      this.getAvailableCBs(req)
+        .then( (controlboards) => {
+          console.log(controlboards);
+          if (this.manageMode) {
+            this.controlboards.all = controlboards;
+          } else {
+            this.controlboards.accessible = controlboards;
+            if (controlboards.length)
+              this.currentCB = controlboards[0];
+            else
+              this.currentCB = {};
+          }
         })
         .catch( (err) => {
           if (err.response) {
@@ -340,16 +337,16 @@ var app = new Vue({
     */
     onSwitchManage: function() {
       this.manageMode = !this.manageMode;
+      this.refreshCBWorker();
       return;
     },
     onSwitchManagePage: function() {
       this.managePage = !this.managePage;
       return;
     },
-    onSwitchField: function(fieldID) {
+    onSwitchCB: function(selected) {
       window.clearInterval(this.statusTrackWorker);
-      this.currentField = fieldID;
-      this.onRefreshSA();
+      this.currentCB = selected;
       return;
     },
     onSelectProject: function(selected) {
@@ -367,10 +364,12 @@ var app = new Vue({
     onCBCreate: function(action) {
       if (1 === action) {
         axios
-          .post("/subsystem/create_cb", this.newCB)
+          .post("/cb/create_cb", this.newCB)
           .then( (res) => {
             console.log("Response of creating CB", res);
             this.refreshCBWorker();
+            window.open(this.IoTtalkURL.concat(this.newCB)).focus();
+            this.newCB = "";
           })
           .catch(function(err) {
             if (err.response) {
@@ -378,13 +377,12 @@ var app = new Vue({
             }
           });
       }
-      this.newCB = "";
       return;
     },
     onCBDelete: function(cbID, action) {
       if (1 === action) {
         axios
-        .post("/subsystem/delete_cb", cbID)
+        .post("/cb/delete_cb", cbID)
         .then( (res) => {
           console.log(res);
           this.refreshCBWorker();
