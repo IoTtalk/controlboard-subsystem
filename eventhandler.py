@@ -176,7 +176,7 @@ def set_rules(sa_id):
         cb_db.commit()
         email_notifier.notify_user(title, rules, accessible_users)
         if sa_id in running_cb:
-            status = deregister_ag(running_cb[sa_id], api_logger)
+            status = deregister_ag(running_cb[sa_id].ag_token, api_logger)
             if not status:
                 api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
                 return "Internal Server Error", 500
@@ -213,19 +213,19 @@ def set_rules(sa_id):
         abort(500)
 
 
-@apis.route('/sa/<int:sa_id>/rules', methods=['GET'])
+@apis.route('/cb/<int:cb_id>/rules', methods=['GET'])
 @requires_login
 @orm.db_session
-def get_rules(sa_id):
+def get_rules(cb_id):
     '''
-    Get the rules contained in the specified SA.
+    Get the rules contained in the specified CB.
 
     Args:
-        sa_id: ID of the requester SA.
+        cb_id: ID of the requester CB.
 
     Returns:
         Status code: 200 / 500.
-        rule_list: A list containing rules of the specific SA. Each element of this list is a rule in dictionary format.
+        rule_list: A list containing rules of the specific CB. Each element of this list is a rule in dictionary format.
             Each rule will contain the following information
                 `ruleID`: integer, primary key of the rule in database table `UserRule`.
                 `actuator`: string, indicating user-defined actuator df-alias on IoTtalk GUI.
@@ -248,14 +248,12 @@ def get_rules(sa_id):
                 `status`: False,
                 `time`: "00:00",
                 `value`: 0
-            `rule_list` will be empty if the specified SA is not running.
+            `rule_list` will be empty if the specified CB is not running.
     '''
     rule_list = list()
     try:
-        if sa_id == 0:  # No SA exists in this ControlBoard
-            return jsonify(list()), 200
-        sa = CB_SA[sa_id]
-        for rule in sa.rule_set:
+        cb = CB[cb_id]
+        for rule in cb.rule_set:
             content = dict()
 
             content["openTimer"] = [int(data) for data in rule.time_open.strftime('%H:%M:%S').split(":")]
@@ -291,26 +289,26 @@ def get_rules(sa_id):
         abort(500, "Internal server error")
 
 
-@apis.route('/sa/<int:sa_id>/current_data', methods=['GET'])
+@apis.route('/cb/<int:cb_id>/current_data', methods=['GET'])
 @requires_login
 @orm.db_session
-def get_datum(sa_id):
+def get_datum(cb_id):
     '''
-    Get the datum of sensors manipulated by the specified SA.
+    Get the datum of sensors manipulated by the specified CB.
 
     Args:
-        sa_id: ID of the requester SA.
+        cb_id: ID of the requester CB.
 
     Returns:
         Status code: 200 / 500.
         res_dict: A json object containing the lastest data of each sensor and trigger status.
     '''
     res_dict = dict()
-    sa = CB_SA[sa_id]
+    cb = CB[cb_id]
     try:
-        if int(sa_id) not in running_cb:
+        if int(cb_id) not in running_cb:
             raise NotFoundError
-        rules = sa.rule_set
+        rules = cb.rule_set
 
         for rule in rules:
             status = running_status[rule.rule_id]
@@ -318,51 +316,37 @@ def get_datum(sa_id):
             res_dict[rule.rule_id] = status
         return jsonify(res_dict), 200
     except NotFoundError:
-        api_logger.warning(f"Specified SA {sa.sa_name} not running")
-        api_logger.warning("Current running sa:")
+        api_logger.warning(f"Specified CB {cb.cb_name} not running")
+        api_logger.warning("Current running cb:")
         api_logger.warning(running_cb)
-        return "Specified SA not running", 200
+        return "Specified CB not running", 200
     except Exception as err:
         api_logger.exception(err)
-        api_logger.warning(f"Specified SA {sa.sa_name} failed at getting data")
+        api_logger.warning(f"Specified CB {cb.cb_name} failed at getting data")
         api_logger.warning(running_status)
         abort(500, err)
 
 
-@apis.route('/sa/refresh_sa/<int:sa_id>', methods=['GET'])
+@apis.route('/cb/refresh_cb/<int:cb_id>', methods=['GET'])
 @requires_login
 @orm.db_session
-def refresh_sa(sa_id):
+def refresh_cb(cb_id):
     '''
     Fetch NetworkApplications to read IDF/ODF name.
 
     Args:
-        sa_id: ID of the SA to get p_id.
+        cb_id: ID of the cb to sync with IoTtalk Project.
 
     Returns:
         Status code: 200 / 400 / 500
         Msg: Corresponding execution result.
     '''
     try:
-        sa = CB_SA[sa_id]
-        version = re.search(r"v\d+\Z", sa.sa_name)
-        if None is not version:
-            print("Update Detected")
-            prototype = CB_SA.get(sa_name=re.split(r"v\d+\Z", sa.sa_name)[0])
-            print(prototype.rule_set)
-            sa.rule_set.clear()
-            for rule in prototype.rule_set:
-                sa.rule_set.add(
-                    UserRule(
-                        **rule.to_dict(exclude=["rule_id", "sa"]),
-                        sa=sa
-                    )
-                )
-
+        cb = CB[cb_id]
         if use_v1:
             NAs = requests.post(  # Workaround for V1 CCM API project.get lacking NA info.
                 f"http://{env_config['IoTtalk']['ServerIP']}:7788/reload_data",
-                data={"p_id": sa.p_id}
+                data={"p_id": cb.p_id}
             )
             NAs = json.loads(NAs.text)["join"]
         else:
@@ -373,7 +357,7 @@ def refresh_sa(sa_id):
         # Create UserRules for each NA
         src, dst = dict(), dict()
         for na in NAs:
-            na_info = get_na_ag(sa.p_id, na[0], api_logger)[1]
+            na_info = get_na_ag(cb.p_id, na[0], api_logger)[1]
             print("na_info: ", na_info)
             order, idfs, odfs = 0, list(), list()
             direction = 0  # 0 for src, 1 for dst
@@ -399,7 +383,7 @@ def refresh_sa(sa_id):
         actuators = list()
 
         for order, actuator in dst.items():
-            old_rule = UserRule.get(df_order=order, sa=sa_id)
+            old_rule = UserRule.get(df_order=order, cb=cb)
             has_record = False
             if None is not old_rule:
                 if old_rule.actuator_alias == actuator[0][1]:
@@ -417,14 +401,14 @@ def refresh_sa(sa_id):
                         df_order=order,
                     )
                 else:
-                    sa.rule_set.add(
+                    cb.rule_set.add(
                         UserRule(
                             **default_rules,
                             actuator_alias=actuator[0][1],
                             actuator_df=actuator[0][0],
                             df_order=order,
                             mode="Timer",
-                            sa=sa
+                            cb=cb
                         )
                     )
             else:  # Sensor type
@@ -437,7 +421,7 @@ def refresh_sa(sa_id):
                         df_order=order,
                     )
                 else:
-                    sa.rule_set.add(
+                    cb.rule_set.add(
                         UserRule(
                             **default_rules,
                             actuator_alias=actuator[0][1],
@@ -446,53 +430,53 @@ def refresh_sa(sa_id):
                             sensor_df=",".join([row[0] for row in src[order]]),
                             df_order=order,
                             mode="Sensor",
-                            sa=sa
+                            cb=cb
                         )
                     )
         cb_db.commit()
-        for rule in sa.rule_set:
+        for rule in cb.rule_set:
             if rule.actuator_alias not in actuators:
-                sa.rule_set.remove(rule)
+                cb.rule_set.remove(rule)
 
-        if sa.ag_token != "NotCreated":
-            status = deregister_ag(sa, api_logger)
+        if cb.ag_token != "NotCreated":
+            status = deregister_ag(cb.ag_token, api_logger)
             if not status:
-                api_logger.exception(f"Deregister SA {sa.sa_name} failed")
-                abort(500, "Deregister AG SA failed, check api log and AG")
+                api_logger.exception(f"Deregister CB {cb.cb_name} failed")
+                abort(500, "Deregister AG CB failed, check api log and AG")
 
         # Register device
-        status, ag_token = register_ag(sa, api_logger)
+        status, ag_token = register_ag(cb, api_logger)
         if not status:
-            sa.delete()
+            cb.delete()
             cb_db.commit()
-            abort(500, f"Create SA {sa.sa_name} failed at registering device, check api log and AG")
-        sa.ag_token = ag_token
+            abort(500, f"Create CB {cb.cb_name} failed at registering device, check api log and AG")
+        cb.ag_token = ag_token
 
         # Bind device to DO
         time.sleep(1)  # Uncomment this if the IoTtalk Server cannot create DO in time.
-        do_id = sa.do_id.split(",")
-        status, dm_name = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
+        do_id = cb.do_id.split(",")
+        status, dm_name = bind_device_ag(cb.mac_addr, cb.p_id, do_id, api_logger)
         if not status:
-            deregister_ag(sa, api_logger)
-            sa.delete()
+            deregister_ag(cb.ag_token, api_logger)
+            cb.delete()
             cb_db.commit()
-            abort(400, f"Create SA {sa.sa_name} failed at auto binding, check api log files")
-        running_cb[sa.sa_id] = sa
-        for rule in sa.rule_set:
+            abort(400, f"Create CB {cb.cb_name} failed at auto binding, check api log files")
+        running_cb[cb.cb_id] = cb
+        for rule in cb.rule_set:
             if rule.rule_id not in running_status:
                 running_status[rule.rule_id] = default_status
         cb_db.commit()
-        api_logger.info(f"Create New SA, DM Name: {dm_name}")
+        api_logger.info(f"Create New CB, DM Name: {dm_name}")
 
-        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} is refreshed by {session['user']}, new UserRules as follows\n"
-        rules = [rule.to_dict() for rule in sa.rule_set]
-        users = [user.account for user in sa.cb.account_set]
+        title = f"ControlBoard {cb.cb_name} is refreshed by {session['user']}, new UserRules as follows\n"
+        rules = [rule.to_dict() for rule in cb.rule_set]
+        users = [user.account for user in cb.account_set]
         email_notifier.notify_user(title, rules, users)
-        return f"Create New SA, DM Name: {dm_name}", 200
+        return f"Create New CB, DM Name: {dm_name}", 200
     except NotFoundError:
         api_logger.warning("No NAs found, remind user to create NAs")
-        sa = CB_SA[sa_id]
-        return f"No NA detected, please create Join point in Project {sa.sa_name}", 200
+        cb = CB[cb_id]
+        return f"No NA detected, please create Join point in Project {cb.cb_name}", 200
     except Exception as err:
         api_logger.exception(err)
         abort(500, "Internal Server Error")

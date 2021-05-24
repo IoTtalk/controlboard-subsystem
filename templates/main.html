@@ -291,7 +291,7 @@
                     <b-row class="divide-bottom">
                       <b-col>Privilege</b-col>
                       <custom-sel
-                        v-if="privilege===2"
+                        v-if="privilege"
                         v-bind:options="userlvls"
                         v-bind:select="user.superuser"
                         v-on:update-option="onSelectUserLvl($event, index)"

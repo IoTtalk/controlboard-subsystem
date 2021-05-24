@@ -82,7 +82,6 @@ var app = new Vue({
       .catch( (err) => {
         console.log(err);
       })
-    // this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
     this.width = window.innerWidth;
     window.addEventListener("resize", this.onWindowResize);
     if (this.privilege) {
@@ -99,6 +98,7 @@ var app = new Vue({
         });
     }
     this.refreshCBWorker();
+    this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
     return;
   },
   destoryed: function() {
@@ -154,10 +154,10 @@ var app = new Vue({
           });
       });
     },
-    getSARules: function(fieldID) {
+    getCBRules: function(cbID) {
       return new Promise(function (resolve, reject) {
         axios
-          .get("/sa/" + fieldID.toString() + "/rules")
+          .get("/cb/" + cbID.toString() + "/rules")
           .then( (rules) => {
             rules.data.sort((a, b) => {
               actuator1 = a.actuator.toUpperCase();
@@ -177,10 +177,10 @@ var app = new Vue({
           });
       });
     },
-    getRuleStatus: function(fieldID) {
+    getRuleStatus: function(cbID) {
       return new Promise(function (resolve, reject) {
         axios
-          .get("/sa/" + fieldID.toString() + "/current_data")
+          .get("/cb/" + cbID.toString() + "/current_data")
           .then( (status) => {
             resolve(status.data);
           })
@@ -224,7 +224,6 @@ var app = new Vue({
       }
       this.getAvailableCBs(req)
         .then( (controlboards) => {
-          console.log(controlboards);
           if (this.manageMode) {
             this.controlboards.all = controlboards;
           } else {
@@ -233,6 +232,7 @@ var app = new Vue({
               this.currentCB = controlboards[0];
             else
               this.currentCB = {};
+            this.refreshRuleWorker();
           }
         })
         .catch( (err) => {
@@ -256,7 +256,7 @@ var app = new Vue({
         })
     },
     refreshRuleWorker: function() {
-      this.getSARules(this.currentField)
+      this.getCBRules(this.currentCB.value)
         .then( (rules) => {
           this.backupSettings = JSON.parse(JSON.stringify(rules));
           new_rules = [];
@@ -276,6 +276,7 @@ var app = new Vue({
           this.refreshStatusWorker();
         })
         .catch( (err) => {
+          console.log(err);
           if (err.response) {
             alert(err.response.data);
           }
@@ -284,11 +285,12 @@ var app = new Vue({
     },
     refreshStatusWorker: function() {
       if (this.settings.length) {
-        this.getRuleStatus(this.currentField)
+        this.getRuleStatus(this.currentCB.value)
           .then( (status) => {
             this.setupRuleStatus(status);
           })
           .catch( (err) => {
+            console.log(err);
             if (err.response) {
               alert(err.response.data);
               window.location = "/";
@@ -345,8 +347,10 @@ var app = new Vue({
       return;
     },
     onSwitchCB: function(selected) {
+      console.log("test");
       window.clearInterval(this.statusTrackWorker);
       this.currentCB = selected;
+      this.onRefreshCB();
       return;
     },
     onSelectProject: function(selected) {
@@ -528,10 +532,10 @@ var app = new Vue({
         })
       return;
     },
-    onRefreshSA: function() {
+    onRefreshCB: function() {
       window.clearInterval(this.statusTrackWorker);
       axios
-        .get("/sa/refresh_sa/" + this.currentField.toString())
+        .get("/cb/refresh_cb/" + this.currentCB.value.toString())
         .then( (res)=> {
           console.log(res);
           this.refreshRuleWorker();

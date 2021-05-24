@@ -482,12 +482,12 @@ def delete_do_ag(p_id, do_id, logger):
         return False, -1
 
 
-def register_ag(sa, logger):
+def register_ag(cb, logger):
     '''
-    Worker function to register to AG given sa entity and logger.
+    Worker function to register to AG given cb entity and logger.
 
     Args:
-        sa: The CB_SA Entity to be registered.
+        cb: The CB Entity to be registered.
         logger: Logger object to write log in.
 
     Returns:
@@ -496,10 +496,10 @@ def register_ag(sa, logger):
     '''
     try:
         rules = dict()
-        for rule in sa.rule_set:
+        for rule in cb.rule_set:
             rules[rule.df_order] = rule.to_dict()
         new_sa = open('./CB_SA.py', 'r').read().format(
-            sa_id=sa.sa_id, config=reg_config, mac_addr=sa.mac_addr, sa_name=sa.sa_name, rules=rules)
+            sa_id=cb.cb_id, config=reg_config, mac_addr=cb.mac_addr, sa_name=cb.cb_name, rules=rules)
         data = {
             "version": int(env_config["IoTtalk"]["version"]),
             "code": new_sa

@@ -23,12 +23,12 @@ from utils import running_cb, running_status
 
 
 @orm.db_session
-def recover_sa(running_cb, logger):
+def recover_cb(running_cb, logger):
     '''
-    Recover SAs stored in Database.
+    Recover CBs stored in Database.
 
     Args:
-        running_cb: Dictionary used to record current AG SAs. Should be empty when passed in this function.
+        running_cb: Dictionary used to record current AG CBs. Should be empty when passed in this function.
         logger: Logger object to write log in.
 
     Returns:
@@ -36,16 +36,16 @@ def recover_sa(running_cb, logger):
     '''
     assert len(running_cb) == 0
     to_recovered = CB.select()[:]
-    print('SA in Database ', to_recovered)
+    print('CB in Database ', to_recovered)
 
-    for sa in to_recovered:
-        status, ag_token = register_ag(sa, logger)
+    for cb in to_recovered:
+        status, ag_token = register_ag(cb, logger)
         if status:
-            sa.ag_token = ag_token
-            running_cb[sa.sa_id] = sa
-            for rule in sa.rule_set:
+            cb.ag_token = ag_token
+            running_cb[cb.cb_id] = cb
+            for rule in cb.rule_set:
                 running_status[rule.rule_id] = default_status
-    logger.info('Start Recovering SAs in Database......done')
+    logger.info('Start Recovering CBs in Database......done')
     print(running_cb)
     return
 
@@ -54,10 +54,10 @@ def recover_sa(running_cb, logger):
 def on_exit(logger, running_cb):
     logger.info("Closing Subsystem......")
     logger.info("\tDeregistering all running SAs")
-    for sa_id in running_cb:
-        status = deregister_ag(CB_SA[sa_id], logger)
+    for cb_id in running_cb:
+        status = deregister_ag(CB[cb_id].ag_token, logger)
         if not status:
-            logger.warning(f"Deregistration for SA Device for {CB_SA[sa_id].sa_name} failed")
+            logger.warning(f"Deregistration for CB Device for {CB[cb_id].cb_name} failed")
     logger.info("Subsystem closed")
     return
 
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     system_logger.info('\tCreating EventHandler\t......done')
 
     connect_db(system_logger, models.cb_db)
-    recover_sa(running_cb, system_logger)
+    recover_cb(running_cb, system_logger)
 
     get_iottalk_info(system_logger)
 

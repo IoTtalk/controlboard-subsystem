@@ -30,7 +30,7 @@ class UserRule(cb_db.Entity):
     weekday = Optional(str)  # Weekdays this rule should be executed.  ranging from 0 to 6
     duty_pos = Optional(int)  # Positive edge of Duty Cycle.
     duty_neg = Optional(int)  # Negative edge of Duty Cycle.
-    sa = Required("CB")  # which SA this rule belongs to.
+    cb = Required("CB")  # which CB this rule belongs to.
 
 
 class CB_Group(cb_db.Entity):
