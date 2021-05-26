@@ -55,9 +55,9 @@ class AG_SA():
             "dm_name": "ControlBoard",
             "u_name": "yb",
             "is_sim": False,
-            "df_list": ["Threshold-O1", "Trigger-I1", "Threshold-O2", "Trigger-I2",
-                        "Threshold-O3", "Trigger-I3", "Threshold-O4", "Trigger-I4",
-                        "Threshold-O5", "Trigger-I5"]
+            "df_list": ["CBElement-O1", "CBElement-I1", "CBElement-O2", "CBElement-I2",
+                        "CBElement-O3", "CBElement-I3", "CBElement-O4", "CBElement-I4",
+                        "CBElement-O5", "CBElement-I5"]
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
@@ -76,8 +76,8 @@ class AG_SA():
         Returns: None
         '''
         self.status = dict()
-        DAN.state = "RESUME"
         print("print sa's rules")
+        DAN.state = "RESUME"
         for (df_order, rule) in self.rules.items():
             rule_id = rule["rule_id"]
             self.status[rule_id] = {{
@@ -86,7 +86,6 @@ class AG_SA():
                 "value": 0,  # Current value of the selected sensor.
                 "rule_id": rule_id  # rule_id of this status recorder.
             }}
-            DAN.push("Trigger-I" + str(rule["df_order"]), 0)
         print("recovered rules:", self.rules)
         print("status recorder: ", self.status)
         return
@@ -103,8 +102,8 @@ class AG_SA():
         try:
             for df_order, rule in self.rules.items():
                 status = self.status[rule["rule_id"]]
-                actuator_df = "Trigger-I" + str(df_order)
-                sensor_df = "Threshold-O" + str(df_order)
+                actuator_df = "CBElement-I" + str(df_order)
+                sensor_df = "CBElement-O" + str(df_order)
                 data = DAN.pull(sensor_df)
                 if data is None:
                     print("No sensor data pulled")
@@ -114,15 +113,27 @@ class AG_SA():
                         data = data[0]
                     else:
                         data = data[0][self.rules[df_order]["sensor_index"]]
+                temp_rule = {{
+                    "threshold_open": rule["threshold_open"],
+                    "threshold_close": rule["threshold_close"],
+                    "comparison_open": rule["comparison_open"],
+                    "comparison_close": rule["comparison_close"],
+                    "time_open": [rule["time_open"].hour, rule["time_open"].minute, rule["time_open"].second],
+                    "time_close": [rule["time_close"].hour, rule["time_close"].minute, rule["time_close"].second],
+                    "mode": rule["mode"],
+                    "weekday": rule["weekday"],
+                    "duty_pos": rule["duty_pos"],
+                    "duty_neg": rule["duty_neg"],
+                    "sensor_val": data
+                }}
+                DAN.push(actuator_df, temp_rule)
                 status["value"] = data if data is not None else status["value"]
                 if rule["mode"] == "ON":
                     if status["status"] != "RED":
                         status["status"] = "RED"
-                        DAN.push(actuator_df, 1)
                 elif rule["mode"] == "OFF":
                     if status["status"] == "RED":
                         status["status"] = "GREEN"
-                        DAN.push(actuator_df, 0)
                 # auto mode
                 else:
                     weekdays = [int(x) for x in rule["weekday"].split(",")] \
@@ -135,7 +146,6 @@ class AG_SA():
                     else:
                         if status["status"] == "RED":
                             status["status"] = "GREEN"
-                            DAN.push(actuator_df, 0)
                 self.socket.send_json(status)
         except Exception as err:
             print("Checking UserRule failed, ", err)
@@ -174,7 +184,6 @@ class AG_SA():
 
         current = datetime.datetime.now()
         current_epoch = time.time()
-        actuator_df = "Trigger-I" + str(df_order)
         time_open = datetime.datetime.combine(datetime.date.today(), rule["time_open"])
         time_close = datetime.datetime.combine(datetime.date.today(), rule["time_close"])
 
@@ -191,11 +200,9 @@ class AG_SA():
                     if satisfied:
                         pass
                     else:
-                        DAN.push(actuator_df, 0)
                         status["status"] = "GREEN"
                 elif status["status"] == "YELLOW":
                     if satisfied:
-                        DAN.push(actuator_df, 1)
                         status["status"] = "RED"
                         status["prev_trigger"] = current_epoch
                     elif about2trigger:
@@ -204,7 +211,6 @@ class AG_SA():
                         status["status"] = "GREEN"
                 elif status["status"] == "GREEN":
                     if satisfied:
-                        DAN.push(actuator_df, 1)
                         status["status"] = "RED"
                         status["prev_trigger"] = current_epoch
                     elif about2trigger:
@@ -212,8 +218,6 @@ class AG_SA():
                     else:
                         status["status"] = "GREEN"
             else:
-                if status["status"] == "RED":
-                    DAN.push(actuator_df, 0)
                 status["status"] = "GREEN"
         except Exception as err:
             print("Check Timer UserRule failed", err)
@@ -238,17 +242,12 @@ class AG_SA():
         if sensor_alias not in self.df_hist_val:
             self.df_hist_val[sensor_alias] = list()
         self.df_hist_val[sensor_alias].append(data)
-        actuator_df = "Trigger-I" + str(df_order)
         try:
             avg = sum(self.df_hist_val[sensor_alias]) / len(self.df_hist_val[sensor_alias])
             if "notset" in rule["comparison_open"] and "notset" in rule["comparison_close"]:
-                if status["status"] == "RED":
-                    DAN.push(actuator_df, 0)
                 status["status"] = "GREEN"
                 return
             elif not self.time_check_worker(df_order):
-                if status["status"] == "RED":
-                    DAN.push(actuator_df, 0)
                 status["status"] = "GREEN"
                 return
             elif "notset" in rule["comparison_open"]:
@@ -273,7 +272,6 @@ class AG_SA():
                 if status["status"] == "RED":
                     if action == "CLOSE":
                         if satisfied:
-                            DAN.push(actuator_df, 0)
                             if next_action == "YELLOW":
                                 status["status"] = "YELLOW"
                             else:
@@ -281,7 +279,6 @@ class AG_SA():
                 elif status["status"] == "GREEN":
                     if action == "OPEN":
                         if satisfied:
-                            DAN.push(actuator_df, 1)
                             status["status"] = "RED"
                             status["prev_trigger"] = current
                         else:
@@ -290,7 +287,6 @@ class AG_SA():
                 else:
                     if action == "OPEN":
                         if satisfied:
-                            DAN.push(actuator_df, 1)
                             status["status"] = "RED"
                             status["prev_trigger"] = current
                         else:
@@ -300,8 +296,6 @@ class AG_SA():
                         if next_action != "YELLOW":
                             status["status"] = "GREEN"
             else:
-                if status["status"] == "RED":
-                    DAN.push(actuator_df, 0)
                 status["status"] = "GREEN"
             return
         except Exception as err:

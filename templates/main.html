@@ -93,7 +93,7 @@
                     </div>
                   </template>
                   <b-dropdown-item
-                    v-for="cb in controlboards.accessible"
+                    v-for="cb in controlboards.accessible.slice(maxPinnedCBs)"
                     v-bind:active="cb.value===currentCB.value"
                     v-on:click="onSwitchCB(cb)"
                     align-self="start"
@@ -300,11 +300,11 @@
                       <span v-else><% lvlToText(user.superuser) %></span>
                     </b-row>
                     <b-row class="divide-top"> 
-                      <b-col>Accessible CB Groups</b-col>
+                      <b-col>Accessible ControlBoards</b-col>
                       <b-form-checkbox-group
                         class="custom-checkbox" size="sm"
                         v-bind:options="controlboards.all" 
-                        v-model="accessibleProjects"
+                        v-model="accessibleCBs"
                       ></b-form-checkbox-group>
                     </b-row>
                   </b-container>

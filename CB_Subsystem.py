@@ -2,9 +2,6 @@ import atexit
 import threading
 
 
-from datetime import timedelta
-
-
 from flask import Flask
 from pony import orm
 

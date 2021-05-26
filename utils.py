@@ -338,7 +338,7 @@ def get_proj_ag(cb_name, logger):
 
     Returns:
         status: Boolean value indicating create procedure success or fail.
-        p_id: Creatd integer Project ID retrived from AG.
+        project_info: Info of the requested project
     '''
     data = {
         "api_name": "project.get",
@@ -351,7 +351,7 @@ def get_proj_ag(cb_name, logger):
         if not state:
             raise CCMAPIFailError
         logger.info('\tCreate Project\t......done')
-        return state, int(response["result"]["p_id"])
+        return state, response["result"]
     except Exception as err:
         logger.exception(err)
         return False, -1

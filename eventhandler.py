@@ -3,7 +3,6 @@ from functools import wraps
 import json
 import requests
 import time
-import re
 import os
 import uuid
 
@@ -90,15 +89,15 @@ def get_infos():
     return f'http://{env_config["IoTtalk"]["ServerIP"]}:7788/connection#', 200
 
 
-@apis.route('/sa/<int:sa_id>/new_rules', methods=['POST'])
+@apis.route('/cb/<int:cb_id>/new_rules', methods=['POST'])
 @requires_login
 @orm.db_session
-def set_rules(sa_id):
+def set_rules(cb_id):
     '''
-    Set the rules contained in the request sent from the specified SA.
+    Set the rules contained in the request sent from the specified CB.
 
     Args:
-        sa_id: ID of the requester SA.
+        cb_id: ID of the requester SA.
         request: A list of UserRules in json format.
             each UserRule will contain the following fields
                 `rule_id`
@@ -123,8 +122,8 @@ def set_rules(sa_id):
             400: a string containing invalid actuators.
             500: "Internal Server Error".
     '''
-    sa = CB_SA[sa_id]
-    api_logger.info(f'Start setting new rules of SA NO. {sa.sa_name}')
+    cb = CB[cb_id]
+    api_logger.info(f'Start setting new rules of CB {cb.cb_name}')
     invalid_list = list()
     rules = request.json
     try:
@@ -147,8 +146,8 @@ def set_rules(sa_id):
             raise WrongSettingError
 
         api_logger.info('\tStart setting rules')
-        accessible_users = [user.account for user in sa.cb.account_set]
-        title = f"Field {sa.sa_name} of ControlBoard {sa.cb.cb_name} has UserRules changed by {session['user']}, detail as follows\n"
+        accessible_users = [user.account for user in cb.account_set]
+        title = f"ControlBoard {cb.cb_name} has UserRules changed by {session['user']}, detail as follows\n"
 
         for rule_setting in rules:
             actuator = rule_setting["actuator_alias"]
@@ -175,22 +174,22 @@ def set_rules(sa_id):
                 rule_setting["sensor_alias"] = rule.sensor_alias.split(',')[rule_setting["sensor_index"]]
         cb_db.commit()
         email_notifier.notify_user(title, rules, accessible_users)
-        if sa_id in running_cb:
-            status = deregister_ag(running_cb[sa_id].ag_token, api_logger)
+        if cb_id in running_cb:
+            status = deregister_ag(running_cb[cb_id].ag_token, api_logger)
             if not status:
                 api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
                 return "Internal Server Error", 500
         cb_db.commit()
 
-        status, ag_token = register_ag(sa, api_logger)
+        status, ag_token = register_ag(cb, api_logger)
         if not status:
             api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
             return "Internal Server Error", 500
-        sa.ag_token = ag_token
-        running_cb[sa.sa_id] = sa
+        cb.ag_token = ag_token
+        running_cb[cb.cb_id] = cb
 
-        do_id = [int(id) for id in sa.do_id.split(',')]
-        status = bind_device_ag(sa.mac_addr, sa.p_id, do_id, api_logger)
+        do_id = [int(id) for id in cb.do_id.split(',')]
+        status = bind_device_ag(cb.mac_addr, cb.p_id, do_id, api_logger)
         if not status:
             api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
             return "Internal Server Error", 500
@@ -200,11 +199,11 @@ def set_rules(sa_id):
         invalid_actuators = str()
         for actuator in invalid_list:
             invalid_actuators += (actuator + ' ')
-        api_logger.exception(f"Invalid new rules of SA {sa.sa_name} detected, abort all")
+        api_logger.exception(f"Invalid new rules of CB {cb.cb_name} detected, abort all")
         abort(400, f"Abnormal threshold setting of {invalid_actuators} detected, aborting all")
     except orm.RowNotFound:
         api_logger.exception("Specified rule not found")
-        abort(400, "Specified SA not found")
+        abort(400, "Specified CB not found")
     except orm.MultipleRowsFound:
         api_logger.exception("Multiple Rule found for the same actuator")
         abort(400, "Multiple Rules for the same actuator detected")
@@ -284,6 +283,8 @@ def get_rules(cb_id):
             }
             rule_list.append(tmp)
         return jsonify(rule_list), 200
+    except orm.core.ObjectNotFound:
+        return jsonify([]), 200
     except Exception as err:
         api_logger.exception(err)
         abort(500, "Internal server error")
@@ -304,8 +305,8 @@ def get_datum(cb_id):
         res_dict: A json object containing the lastest data of each sensor and trigger status.
     '''
     res_dict = dict()
-    cb = CB[cb_id]
     try:
+        cb = CB[cb_id]
         if int(cb_id) not in running_cb:
             raise NotFoundError
         rules = cb.rule_set
@@ -316,13 +317,13 @@ def get_datum(cb_id):
             res_dict[rule.rule_id] = status
         return jsonify(res_dict), 200
     except NotFoundError:
-        api_logger.warning(f"Specified CB {cb.cb_name} not running")
+        api_logger.warning(f"Specified CB ID {cb_id} not running")
         api_logger.warning("Current running cb:")
         api_logger.warning(running_cb)
         return "Specified CB not running", 200
     except Exception as err:
         api_logger.exception(err)
-        api_logger.warning(f"Specified CB {cb.cb_name} failed at getting data")
+        api_logger.warning(f"Specified CB ID {cb_id} failed at getting data")
         api_logger.warning(running_status)
         abort(500, err)
 
@@ -362,13 +363,13 @@ def refresh_cb(cb_id):
             order, idfs, odfs = 0, list(), list()
             direction = 0  # 0 for src, 1 for dst
             for idf in na_info["input"]:
-                if idf["df_name"].startswith("Trigger-I"):
+                if idf["df_name"].startswith("CBElement-I"):
                     order = int(idf["df_name"][-1])
                     direction = 1
                 idfs.append([idf["df_name"], idf["alias_name"].replace("-I", "")])
 
             for odf in na_info["output"]:
-                if odf["df_name"].startswith("Threshold-O"):
+                if odf["df_name"].startswith("CBElement-O"):
                     order = int(odf["df_name"][-1])
                     direction = 0
                 odfs.append([odf["df_name"], odf["alias_name"].replace("-O", "")])
@@ -499,29 +500,44 @@ def create_cb():
     new_cb = request.get_data().decode("utf-8")
     mac_addr = str(uuid.uuid4())
 
-
-    cb = CB(cb_name=new_cb, ag_token="NotCreated", mac_addr=mac_addr,
-               p_id=-1, do_id="-1", status=False)
+    cb = CB(cb_name=new_cb, ag_token="NotCreated", mac_addr=mac_addr, p_id=-1, do_id="-1", status=False)
 
     cb_db.commit()
     api_logger.info("Start Creating CB")
 
     try:
+        new_project = True
         # Create Project
         status, p_id = create_proj_ag(new_cb, api_logger)
         if not status:  # Project already exists
-            status, p_id = get_proj_ag(new_cb, api_logger)
+            status, project_info = get_proj_ag(new_cb, api_logger)
+            new_project = False
+            print(project_info)
             if not status:
                 cb.delete()
                 cb_db.commit()
-                abort(400, "Create SA failed at creating project, project with the same name already exists.")
-        cb.p_id = p_id
-        # Create Device Object
-        status, do_id = create_do_ag(p_id, iottalk_info["df_id"], "ControlBoard", api_logger)
-        if not status:
-            cb.delete()
-            cb_db.commit()
-            abort(500, "Create SA failed at creating DO, check api log files and IoTtalk CCM.")
+                abort(400, "Create CB failed at getting project, project with the same name already exists.")
+            cb.p_id = project_info["p_id"]
+            p_id = project_info["p_id"]
+        else:
+            cb.p_id = p_id
+
+        do_id = list()
+        if not new_project:
+            if use_v1:
+                for do in project_info["ido"]:
+                    if do["dm_name"] == "ControlBoard":
+                        do_id.append(do["do_id"])
+                for do in project_info["odo"]:
+                    if do["dm_name"] == "ControlBoard":
+                        do_id.append(do["do_id"])
+        if len(do_id) != 2:
+            # Create Device Object
+            status, do_id = create_do_ag(p_id, iottalk_info["df_id"], "ControlBoard", api_logger)
+            if not status:
+                cb.delete()
+                cb_db.commit()
+                abort(500, "Create CB failed at creating DO, check api log files and IoTtalk CCM.")
         if use_v1:
             cb.do_id = str(do_id[0]) + ',' + str(do_id[1])
         else:
@@ -618,31 +634,6 @@ def get_sa(cb_id):
     except NotAuthorizedError:
         api_logger.exception("Error getting SA, Requested CB is not shared with this user.")
         abort(403, "Not a superuser!")
-
-
-@apis.route('/subsystem/get_accessible_proj/<string:user_name>', methods=['GET'])
-@requires_login
-@orm.db_session
-def get_accessible_proj(user_name):
-    '''
-    Returns CB(Projects) granted to be controlled by user given `user_name`.
-
-    Args:
-        user_name: String, the user's account
-
-    Returns:
-        Status code: 200 / 500
-        proj_list: A list of `cb_id`s that this user can reach.
-    '''
-    try:
-        proj_list = list()
-        req_account = CB_Account.get(account=user_name)
-        for cb in req_account.cb_set:
-            proj_list.append(cb.cb_id)
-        return jsonify(proj_list), 200
-    except Exception as err:
-        api_logger.exception(err)
-        abort(500)
 
 
 @apis.route('/subsystem/set_pinned_field', methods=['POST'])
@@ -937,12 +928,12 @@ def get_users():
 @orm.db_session
 def adjust_privilege(usr_name):
     '''
-    Adjust user privilege and accessible CB(Project)s
+    Adjust user privilege and accessible CBs
 
     Args:
         usr_name: String, account of the specified user.
         usr_profile: Dictionary containing two fields `privilege` and `accessible_cb`
-            privilege: Int, ranging from 0~2, indicating user/superuser/admin individually.
+            privilege: Int, 0 or 1, indicating user/admin individually.
             accessible_cb: List, cb_ids this user is granted to access.
 
     Returns:
@@ -952,7 +943,7 @@ def adjust_privilege(usr_name):
     try:
         data = request.json
         current_user = CB_Account.get(account=session["user"])
-        if current_user.privilege <= data["privilege"] and current_user.privilege < 2:
+        if current_user.privilege == 0:
             raise NotAuthorizedError
         account = CB_Account.get(account=usr_name)
         if None is account:
@@ -961,6 +952,7 @@ def adjust_privilege(usr_name):
         account.cb_set.clear()
         for cb_id in data["accessible_cb"]:
             account.cb_set.add(CB[cb_id])
+            CB[cb_id].account_set.add(account)
         cb_db.commit()
         return "setup done", 200
     except NotFoundError:
@@ -1017,7 +1009,7 @@ def oauth2_callback():
             print("create new account")
             user = CB_Account(
                 account=user_info["email"],
-                privilege=1 if num_accounts==0 else 0,
+                privilege=1 if num_accounts == 0 else 0,
                 access_token=token_response["access_token"]
             )
         print("write cookie")

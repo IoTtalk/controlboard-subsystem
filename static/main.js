@@ -53,21 +53,13 @@ var app = new Vue({
     users: [],
     groups: [],  // current user's group settings
     controlboards: {
-      "accessible": [  // CBs current user can access.
-        {"text": "1", "value": 1, "status": true},
-        {"text": "2", "value": 2, "status": true},
-        {"text": "3", "value": 3, "status": false}
-      ],
-      "all": [   // All CBs, used in Admin page.
-        {"text": "1", "value": 1, "status": true},
-        {"text": "2", "value": 2, "status": true},
-        {"text": "3", "value": 3, "status": false},
-        {"text": "4", "value": 4, "status": true},
-        {"text": "5", "value": 5, "status": true},
-        {"text": "6", "value": 6, "status": true}
-      ]
+      "accessible": [],    // CBs current user can access.
+      "all": []  // All CBs, used in Admin page.
     },
-    currentCB: {},
+    currentCB: {
+      "value": 0
+    },
+    accessibleCBs: [],
     backupSettings: [],
     settings: []
   },
@@ -92,7 +84,7 @@ var app = new Vue({
           this.users = users;
         })
         .catch( (err) => {
-          if (err.response) {
+          if (err.response.status != 403) {
             alert(err.response.data);
           }
         });
@@ -105,36 +97,8 @@ var app = new Vue({
     window.removeEventListener("resize", this.onWindowResize);
   },
   computed: {
-    accessibleProjectObjects: function() {
-      toAccess = [];
-      this.projects.optionProjects.forEach( project => {
-        if (this.projects.accessibleProjects.includes(project.value)) {
-          toAccess.push(project);
-        }
-      });
-      return toAccess;
-    },
     maxPinnedCBs: function() {
       return Math.floor(this.width / 80) - 1;
-    },
-    currentFieldName: function() {
-      var name = "";
-      this.fields.optionFields.forEach(field => {
-        if (field.value === this.currentField) {
-          name = field.text;
-        }
-      });
-      return name;
-    },
-    unPinnedFields: function() {
-      var fields = [];
-      this.fields.optionFields.forEach(field => {
-        if (!this.fields.pinnedFields.includes(field)) {
-          fields.push(field);
-        }
-      })
-      console.log(fields);
-      return fields;
     }
   },
   methods: {
@@ -202,18 +166,6 @@ var app = new Vue({
           })
       })
     },
-    getAccessibleProjects: function(userName) {
-      return new Promise(function (resolve, reject) {
-        axios
-          .get("/subsystem/get_accessible_proj/" + userName)
-          .then( (res) => {
-            resolve(res.data);
-          })
-          .catch( (err) => {
-            reject(err);
-          })
-      })
-    },
     /* Refresh routine procedures, including CB, SA, Rule, Status */
     refreshCBWorker: function() {
       var req;
@@ -228,15 +180,21 @@ var app = new Vue({
             this.controlboards.all = controlboards;
           } else {
             this.controlboards.accessible = controlboards;
-            if (controlboards.length)
+            if (controlboards.length) {
               this.currentCB = controlboards[0];
+              if (this.privilege) {
+                this.onRefreshCB();
+              }
+            }
             else
-              this.currentCB = {};
+              this.currentCB = {
+                "value": 0
+              };
             this.refreshRuleWorker();
           }
         })
         .catch( (err) => {
-          if (err.response) {
+          if (err.response.status != 403) {
             alert(err.response.data);
           }
           window.location = "/";
@@ -280,7 +238,7 @@ var app = new Vue({
           if (err.response) {
             alert(err.response.data);
           }
-          window.location = "/";
+          // window.location = "/";
         })
     },
     refreshStatusWorker: function() {
@@ -291,7 +249,7 @@ var app = new Vue({
           })
           .catch( (err) => {
             console.log(err);
-            if (err.response) {
+            if (err.response.status != 403) {
               alert(err.response.data);
               window.location = "/";
             }
@@ -340,6 +298,7 @@ var app = new Vue({
     onSwitchManage: function() {
       this.manageMode = !this.manageMode;
       this.refreshCBWorker();
+      // this.onRefreshCB();
       return;
     },
     onSwitchManagePage: function() {
@@ -350,7 +309,8 @@ var app = new Vue({
       console.log("test");
       window.clearInterval(this.statusTrackWorker);
       this.currentCB = selected;
-      this.onRefreshCB();
+      if (this.privilege)
+        this.onRefreshCB();
       return;
     },
     onSelectProject: function(selected) {
@@ -389,6 +349,7 @@ var app = new Vue({
         .post("/cb/delete_cb", cbID)
         .then( (res) => {
           console.log(res);
+          window.clearInterval(this.statusTrackWorker);
           this.refreshCBWorker();
         })
         .catch(function(err) {
@@ -518,7 +479,7 @@ var app = new Vue({
       });
       console.log(toChange);
 
-      axios.post("/sa/" + this.currentField.toString() + "/new_rules", toChange)
+      axios.post("/cb/" + this.currentCB.value.toString() + "/new_rules", toChange)
         .then( (msg) => {
           window.clearInterval(this.statusTrackWorker);
           console.log(msg);
@@ -679,7 +640,7 @@ var app = new Vue({
       if (1 === action) {
         data = {
           "privilege": this.users[index].superuser,
-          "accessible_cb": this.accessibleProjects
+          "accessible_cb": this.accessibleCBs
         };
         axios.post("/account/adjust_privilege/" + this.users[index].username, data)
           .then( (res) => {
@@ -689,7 +650,7 @@ var app = new Vue({
                 this.users = usrs;
               })
               .catch( (err) => {
-                if (err.response) {
+                if (err.response.status != 403) {
                   alert(err.response.data);
                 }
               });
@@ -727,9 +688,12 @@ var app = new Vue({
       this.newCBIcon = null;
     },
     onAccessibleCB: function(userName) {
-      this.getAccessibleProjects(userName)
-        .then( (projs) => {
-          this.accessibleProjects = projs;
+      this.getAvailableCBs(userName)
+        .then( (cbs) => {
+          this.accessibleCBs = [];
+          cbs.forEach( (cb) => {
+            this.accessibleCBs.push(cb.value);
+          });
         })
         .catch( (err) => {
           if (err.response) {
@@ -745,7 +709,8 @@ var app = new Vue({
           window.location = "/";
         })
         .catch( (err) => {
-          console.log("logout failed");
+          if (err.response.status != 403)
+            console.log("logout failed");
         })
     }
   }
