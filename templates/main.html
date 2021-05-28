@@ -75,25 +75,25 @@
         <b-card title="Card Title" no-body class="card mb-3">
           <b-card-header header-tag="nav">
             <b-nav card-header tabs>
-              <span v-if="!manageMode && controlboards.accessible.length === 0" style="font-weight: bolder;">
+              <span v-if="!manageMode && controlboards.length === 0" style="font-weight: bolder;">
                 <span v-if="privilege">Please create a ControlBoard</span>
                 <span v-else>Contact Us for ControlBoard Deployment!</span>
               </span>
               <b-nav-item
-                v-for="(cb, index) in controlboards.accessible"
+                v-for="(cb, index) in controlboards"
                 v-if="!manageMode && index < maxPinnedCBs && currentCB.value > 0"
                 v-bind:active="cb.value===currentCB.value"
                 v-on:click="onSwitchCB(cb)"
                 class="fieldName"
               ><% cb.text %></b-nav-item>
-              <b-nav-item-dropdown text="More" right lazy v-if="!manageMode && currentCB.value > 0 && maxPinnedCBs < controlboards.accessible.length">
+              <b-nav-item-dropdown text="More" right lazy v-if="!manageMode && currentCB.value > 0 && maxPinnedCBs < controlboards.length">
                 <b-dropdown-group id="dropdown-group-1">
                   <template v-slot:header>
                     <div class="d-flex justify-content-between">
                     </div>
                   </template>
                   <b-dropdown-item
-                    v-for="cb in controlboards.accessible.slice(maxPinnedCBs)"
+                    v-for="cb in controlboards.slice(maxPinnedCBs)"
                     v-bind:active="cb.value===currentCB.value"
                     v-on:click="onSwitchCB(cb)"
                     align-self="start"
@@ -125,6 +125,9 @@
             <div v-if="settings.length===0 && !manageMode" class="text-left">
               <span v-if="privilege">Please Select I/O Devices at the IoTtalk GUI First!</span>
             </div>
+            <div v-if="maintanance===currentCB.value && !manageMode" style="color:crimson; text-align: left;" class="mb-1">
+              <b>Modify settings to safe state and press "Confirm"</b>
+            </div>
             <div v-for="(setting, index) in settings" class="setting-card" 
               v-if="!manageMode && currentCB.value > 0">
               <!-- sensor List and sensor value -->
@@ -142,6 +145,7 @@
                 v-bind:actuator="setting.actuator"
                 v-bind:dirty="setting.dirty"
                 v-bind:sensors="setting.sensors.length"
+                v-bind:status="currentCB.status || maintanance !== -1"
                 v-on:update-mode="onSelectMode($event, index)"
                 v-on:undo="onSettingUndoChange(index)"
                 v-on:save="onSettingSaveChange([index])"
@@ -156,6 +160,7 @@
                   <custom-sel
                     v-bind:options="comparisons"
                     v-bind:select="setting.content.openSensor"
+                    v-bind:status="currentCB.status || maintanance !== -1"
                     v-on:update-option="onSelectCompare($event, index, 'open')"
                   ></custom-sel>
                   <b-form-input size="sm" class="custom-input"
@@ -167,6 +172,7 @@
                   <custom-sel
                     v-bind:options="comparisons"
                     v-bind:select="setting.content.closeSensor"
+                    v-bind:status="currentCB.status || maintanance !== -1"
                     v-on:update-option="onSelectCompare($event, index, 'close')"
                   ></custom-sel> 
                   <b-form-input size="sm" class="custom-input"
@@ -183,36 +189,42 @@
                   <custom-sel
                     v-bind:options="hours"
                     v-bind:select="setting.content.openTimer[0]"
+                    v-bind:status="currentCB.status || maintanance !== -1"
                     v-on:update-option="onSelectTime($event, index, 0)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="minutes"
                     v-bind:select="setting.content.openTimer[1]"
+                    v-bind:status="currentCB.status || maintanance !== -1"
                     v-on:update-option="onSelectTime($event, index, 1)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="seconds"
                     v-bind:select="setting.content.openTimer[2]"
+                    v-bind:status="currentCB.status || maintanance !== -1"
                     v-on:update-option="onSelectTime($event, index, 2)"
                   ></custom-sel>
                   <span style="padding-left: 10px; padding-right: 2px;">To</span>
                   <custom-sel
                     v-bind:options="hours"
                     v-bind:select="setting.content.closeTimer[0]"
+                    v-bind:status="currentCB.status || maintanance !== -1"
                     v-on:update-option="onSelectTime($event, index, 3)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="minutes"
                     v-bind:select="setting.content.closeTimer[1]"
+                    v-bind:status="currentCB.status || maintanance !== -1"
                     v-on:update-option="onSelectTime($event, index, 4)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="seconds"
                     v-bind:select="setting.content.closeTimer[2]"
+                    v-bind:status="currentCB.status || maintanance !== -1"
                     v-on:update-option="onSelectTime($event, index, 5)"
                   ></custom-sel>
                 </div>
@@ -222,6 +234,7 @@
                       :options="weekdays" size="sm" plain
                       v-on:change="onSelectWeekdays($event, index)"
                       v-bind:checked="setting.content.weekdays"
+                      v-bind:disabled="!(currentCB.status || maintanance !== -1)"
                     ></b-form-checkbox-group>
                   </b-form-group>
                 </div>
@@ -237,6 +250,7 @@
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"
                       v-model="setting.content.dutyPos"
                       v-on:input="setting.dirty=true"
+                      v-bind:disabled="!(currentCB.status || maintanance  !== -1)"
                     ></b-form-input>
                     <span class="setting-text-mid">Seconds.</span>
                     <span class="setting-text-start">OFF</span>
@@ -303,7 +317,7 @@
                       <b-col>Accessible ControlBoards</b-col>
                       <b-form-checkbox-group
                         class="custom-checkbox" size="sm"
-                        v-bind:options="controlboards.all" 
+                        v-bind:options="controlboards" 
                         v-model="accessibleCBs"
                       ></b-form-checkbox-group>
                     </b-row>
@@ -312,12 +326,12 @@
               </b-row>
 
               <b-row class="text-left divide-top divide-bottom"
-                v-for="(cb, index) in controlboards.all" v-if="!managePage"
+                v-for="(cb, index) in controlboards" v-if="!managePage"
               >
                 <b-col><% cb.text %></b-col>
                 <b-col>
                   <b-link v-b-modal="'deleteCB'+index" size="sm" variant="outline-primary" class="mr-3">Delete</b-link>
-                  <b-link v-b-modal="'cbIcon'+index" size="sm" variant="outline-primary">Update</b-link>
+                  <b-link v-on:click="onCBUpdate(cb)" size="sm" variant="outline-primary">Update</b-link>
 
                   <b-modal v-bind:id="'deleteCB'+index" size="lg" centered title="Delete ControlBoard"
                     hide-backdrop content-class="shadow" v-on:ok="onCBDelete(cb.value, 1)" 

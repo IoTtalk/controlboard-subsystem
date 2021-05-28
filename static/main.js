@@ -5,10 +5,12 @@ var app = new Vue({
   data: {
     manageMode: false,  // Switch bwtween CB page & manage page
     managePage: false, // Used to switch active state between User/CB management
+    maintanance: -1,
     privilege: privilege,  // Whether current user is a superuser.
     IoTtalkURL: "",
     newCBIcon: null,
     statusTrackWorker: -1,  // Timer ID for periodically calling current_data
+    cbTrackWorker: -1,
     width: -1,
     newCB: "",
     newSA: {
@@ -52,10 +54,7 @@ var app = new Vue({
     ],
     users: [],
     groups: [],  // current user's group settings
-    controlboards: {
-      "accessible": [],    // CBs current user can access.
-      "all": []  // All CBs, used in Admin page.
-    },
+    controlboards: [],
     currentCB: {
       "value": 0
     },
@@ -91,6 +90,7 @@ var app = new Vue({
     }
     this.refreshCBWorker();
     this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+    this.cbTrackWorker = setInterval(this.cbTrackWorker, 60000);
     return;
   },
   destoryed: function() {
@@ -167,7 +167,7 @@ var app = new Vue({
       })
     },
     /* Refresh routine procedures, including CB, SA, Rule, Status */
-    refreshCBWorker: function() {
+    refreshCBWorker: function(next_currentCB) {
       var req;
       if (this.manageMode) {
         req = "all";
@@ -176,22 +176,15 @@ var app = new Vue({
       }
       this.getAvailableCBs(req)
         .then( (controlboards) => {
-          if (this.manageMode) {
-            this.controlboards.all = controlboards;
-          } else {
-            this.controlboards.accessible = controlboards;
-            if (controlboards.length) {
-              this.currentCB = controlboards[0];
-              if (this.privilege) {
-                this.onRefreshCB();
-              }
-            }
-            else
-              this.currentCB = {
-                "value": 0
-              };
-            this.refreshRuleWorker();
+          this.controlboards = controlboards;
+          if (next_currentCB === undefined)
+            this.currentCB = controlboards[0];
+          else
+            this.currentCB = next_currentCB;
+          if (this.privilege && !this.manageMode && this.maintanance === -1) {
+            this.onRefreshCB();
           }
+          this.refreshRuleWorker();
         })
         .catch( (err) => {
           if (err.response.status != 403) {
@@ -298,7 +291,6 @@ var app = new Vue({
     onSwitchManage: function() {
       this.manageMode = !this.manageMode;
       this.refreshCBWorker();
-      // this.onRefreshCB();
       return;
     },
     onSwitchManagePage: function() {
@@ -306,15 +298,16 @@ var app = new Vue({
       return;
     },
     onSwitchCB: function(selected) {
-      console.log("test");
       window.clearInterval(this.statusTrackWorker);
+      this.statusTrackWorker = -1;
       this.currentCB = selected;
-      if (this.privilege)
+      if (this.privilege && this.maintanance !== -1)
         this.onRefreshCB();
       return;
     },
     onSelectProject: function(selected) {
       window.clearInterval(this.statusTrackWorker);
+      this.statusTrackWorker = -1;
       this.currentProject = selected;
       this.manageMode = false;
       this.managePage = false;
@@ -350,6 +343,7 @@ var app = new Vue({
         .then( (res) => {
           console.log(res);
           window.clearInterval(this.statusTrackWorker);
+          this.statusTrackWorker = -1;
           this.refreshCBWorker();
         })
         .catch(function(err) {
@@ -358,6 +352,18 @@ var app = new Vue({
           }
         });
       }
+    },
+    onCBUpdate: function(cb) {
+      axios
+        .put("/cb/update_cb/" + cb.value.toString())
+        .then( () => {
+          this.refreshCBWorker(cb);
+          this.manageMode = false;
+          this.maintanance = cb.value;
+        })
+        .catch( (err) => {
+          console.log(err);
+        })
     },
     onPinFields: function(action) {
       if (action && this.currentProject) {
@@ -391,6 +397,7 @@ var app = new Vue({
     onSACreate: function(action) {
       if (1 === action) {
         window.clearInterval(this.statusTrackWorker);
+        this.statusTrackWorker = -1;
         data = {
           "sa": this.newSA,
           "cb_id": this.currentProject
@@ -416,6 +423,7 @@ var app = new Vue({
     onSADelete: function(action) {
       if (1 === action) {
         window.clearInterval(this.statusTrackWorker);
+        this.statusTrackWorker = -1;
         axios
           .post("sa/delete_sa", this.currentField)
           .then( (res) => {
@@ -432,6 +440,7 @@ var app = new Vue({
     },
     onSAConfirm: function() {
       window.clearInterval(this.statusTrackWorker);
+      this.statusTrackWorker = -1;
       ruleIDs = [];
       this.settings.forEach((setting, index) => {
         if (setting["dirty"]) {
@@ -441,10 +450,12 @@ var app = new Vue({
       console.log(ruleIDs);
       this.onSettingSaveChange(ruleIDs);
       this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+      this.maintanance = -1;
       return;
     },
     onSAReset: function() {
       window.clearInterval(this.statusTrackWorker);
+      this.statusTrackWorker = -1;
       ruleIDs = [];
       this.settings.forEach((setting, index) => {
         ruleIDs.push(index);
@@ -482,6 +493,7 @@ var app = new Vue({
       axios.post("/cb/" + this.currentCB.value.toString() + "/new_rules", toChange)
         .then( (msg) => {
           window.clearInterval(this.statusTrackWorker);
+          this.statusTrackWorker = -1;
           console.log(msg);
           this.refreshRuleWorker();
           this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
@@ -495,12 +507,15 @@ var app = new Vue({
     },
     onRefreshCB: function() {
       window.clearInterval(this.statusTrackWorker);
+      this.statusTrackWorker = -1;
       axios
         .get("/cb/refresh_cb/" + this.currentCB.value.toString())
         .then( (res)=> {
           console.log(res);
           this.refreshRuleWorker();
-          this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+          if (this.statusTrackWorker == -1) {
+            this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+          }
         })
         .catch( (err) => {
           if (err.response) {

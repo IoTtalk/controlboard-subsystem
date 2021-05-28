@@ -483,6 +483,27 @@ def refresh_cb(cb_id):
         abort(500, "Internal Server Error")
 
 
+@apis.route('/cb/update_cb/<int:cb_id>', methods=['PUT'])
+@requires_login
+@orm.db_session
+def update_cb(cb_id):
+    '''
+    Set specified CB's status to false, indicating it's in maintanance.
+
+    Args:
+        cb_id: ID of the specified CB
+
+    Returns:
+        None
+    '''
+    try:
+        CB[cb_id].status = False
+        return "Set Maintanance done", 200
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)
+
+
 @apis.route('/cb/create_cb', methods=['POST'])
 @requires_login
 @orm.db_session
@@ -500,7 +521,7 @@ def create_cb():
     new_cb = request.get_data().decode("utf-8")
     mac_addr = str(uuid.uuid4())
 
-    cb = CB(cb_name=new_cb, ag_token="NotCreated", mac_addr=mac_addr, p_id=-1, do_id="-1", status=False)
+    cb = CB(cb_name=new_cb, ag_token="NotCreated", mac_addr=mac_addr, p_id=-1, do_id="-1", status=True)
 
     cb_db.commit()
     api_logger.info("Start Creating CB")

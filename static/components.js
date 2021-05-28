@@ -1,5 +1,5 @@
 Vue.component('custom-sel', {
-    props: ['options', 'select'],
+    props: ['options', 'select', 'status'],
     methods:{
         onSelect(val) {
             this.$emit("update-option", val);
@@ -11,6 +11,7 @@ Vue.component('custom-sel', {
             :options="options"
             v-on:change="onSelect"
             v-model="select"
+            v-bind:disabled="!status"
         ></b-form-select>
     `
 })
@@ -73,7 +74,7 @@ Vue.component('sensor-row', {
 })
 
 Vue.component('actuator-row', {
-    props: ['mode', 'actuator', 'dirty', 'sensors'],
+    props: ['mode', 'actuator', 'dirty', 'sensors', 'status'],
     data: function() {
         return {
             state: (this.mode==="ON")? true: false
@@ -100,6 +101,7 @@ Vue.component('actuator-row', {
                 <b-button-group>
                     <b-button size="md" variant="outline-success"
                         v-bind:pressed="mode==='ON' || mode==='OFF'"
+                        v-bind:disabled="!status"
                     >
                         <b-form-checkbox switch
                             v-model="state"
@@ -108,17 +110,18 @@ Vue.component('actuator-row', {
                     </b-button>
                     <b-button variant="outline-success" 
                         v-bind:pressed="mode==='Sensor'"
-                        v-bind:disabled="sensors===0"
+                        v-bind:disabled="sensors===0 || !status"
                         v-on:click="onSelectMode(2)"
                     >Sensor</b-button>
                     <b-button variant="outline-success"
                         v-bind:pressed="mode==='Timer'"
+                        v-bind:disabled="!status"
                         v-on:click="onSelectMode(3)"
                     >Timer</b-button>
                 </b-button-group>
                 <span class="setting-test">{{actuator}}</span>
             </b-col>
-            <b-button-group class="ml-auto" v-if="dirty">
+            <b-button-group class="ml-auto" v-if="dirty && status">
                 <b-button size="sm" variant="secondary" plain v-on:click="onUndo">Undo</b-button>
                 <b-button size="sm" variant="primary" v-on:click="onSave">Save</b-button>
             </b-button-group>
