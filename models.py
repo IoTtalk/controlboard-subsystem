@@ -43,7 +43,7 @@ class CB_Group(cb_db.Entity):
 class CB(cb_db.Entity):
     cb_id = PrimaryKey(int, auto=True)  # id of this SA.
     cb_name = Required(str)  # User-defined cb_name. Can't be repeated.
-    status = Required(bool)  # if this SA is in maintanance.
+    status = Required(bool)  # This CB's current status, True => working, False => in maintanance.
     ag_token = Required(LongStr)  # AG-returned token
     mac_addr = Required(LongStr)  # Mac-addr of this SA
     rule_set = Set(UserRule, cascade_delete=True)
@@ -51,10 +51,12 @@ class CB(cb_db.Entity):
     cb_group = Set(CB_Group)
     p_id = Required(int)  # project id of this SA
     do_id = Required(str)  # device object id for this SA.
+    na_id = Required(str)  # na_ids used in delete CB
 
 
 class CB_Account(cb_db.Entity):
-    account = Required(str)  # Account of this user.
+    account = Required(str)  # Account/Email of this user.
+    user_name = Required(str)  # UserName of this user
     privilege = Required(int)  # User level of this user.
     access_token = Required(str)  # Account Access token for this user.
     cb_set = Set(CB)  # CBs this user can see.

@@ -285,6 +285,7 @@ def get_iottalk_info(logger):
         }
         state, response = _post('ccm_api', data, logger)
         if not state:
+            logger.error("Get DM failed")
             raise CCMAPIFailError
         response = response["result"]
         iottalk_info['dm_id'] = response['dm_id']
@@ -292,8 +293,35 @@ def get_iottalk_info(logger):
         for df in response["df_list"]:
             iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
+
+        data = {
+            "api_name": "function.list",
+            "payload": {}
+        }
+        state, res = _post("ccm_api", data, logger)
+        if not state:
+            logger.error("Get function failed")
+            raise CCMAPIFailError
+        for fn in res["result"]:
+            if fn["fn_name"] == "ControlBoard":
+                iottalk_info["fn_id"] = fn["fn_id"]
+                break
+        if "fn_id" not in iottalk_info:
+            data = {
+                "api_name": "function.create",
+                "payload": {
+                    "fn_name": "ControlBoard",
+                    "code": open('./CB_join.py', 'r').read()
+                }
+            }
+            state, res = _post("ccm_api", data, logger)
+            if not state:
+                logger.error("Create fn failed")
+                raise CCMAPIFailError
+            iottalk_info["fn_id"] = res["result"]
+        logger.info(iottalk_info)
     except CCMAPIFailError:
-        logger.exception("Getting Device Model info failed.")
+        logger.exception("Getting IoTtalk info failed. check log")
     except Exception as err:
         logger.exception(err)
     return
@@ -627,6 +655,75 @@ def get_na_ag(p_id, na_id, logger):
         return state, res["result"]
     except CCMAPIFailError:
         logger.exception("Get NA failed")
+        return False, "AG returned bad response"
+    except Exception as err:
+        logger.exception(err)
+        return False, "Send request to query NA failed, check API log."
+
+
+def delete_na_ag(na_id, p_id, logger):
+    '''
+    Delete a specific NetworkApplication given p_id and na_id.
+
+    Args:
+        p_id: Integer indicating which CB to delete NA.
+        na_id: Integer indicating which NA to delete.
+
+    Returns:
+        status: Boolean indicating ccm_api execution result.
+        msg: NA's info or CCM API failure message.
+    '''
+    data = {
+        "api_name": "networkapplication.delete",
+        "payload": {
+            "p_id": p_id,
+            "na_id": na_id
+        }
+    }
+    try:
+        state, res = _post("ccm_api", data, logger)
+        if not state:
+            raise CCMAPIFailError
+        return state, res["result"]
+    except CCMAPIFailError:
+        logger.exception("Delete NA failed")
+        return False, "AG returned bad response"
+    except Exception as err:
+        logger.exception(err)
+        return False, "Send request to query NA failed, check API log."
+
+
+def set_fn_ag(p_id, na_info, logger):
+    '''
+    Set specified na's join function to CB's function
+
+    Args:
+        na_info: result from `get_na_ag`
+    '''
+    dfm_list = list()
+    for index in na_info['input']:
+        dfm_list.append({"dfo_id": index['dfo_id'], "dfmp_list": index['dfmp']})
+    for index in na_info['output']:
+        dfm_list.append({"dfo_id": index['dfo_id'], "dfmp_list": index['dfmp']})
+    dfm_list[1]['dfmp_list'][0]['fn_id'] = iottalk_info["fn_id"]
+    print("helloooooooooo", dfm_list)
+    data = {
+        "api_name": "networkapplication.update",
+        "payload": {
+            "p_id": p_id,
+            "na_id": na_info["na_id"],
+            "dfm_list": dfm_list,
+            "na_name": na_info["na_name"]
+        }
+    }
+    try:
+        state, res = _post("ccm_api", data, logger)
+        print("change fn result:", res)
+        if not state:
+            raise CCMAPIFailError
+        return state, res["result"]
+    except CCMAPIFailError:
+        logger.exception("Change FN failed")
         return False, "AG returned bad response"
     except Exception as err:
         logger.exception(err)

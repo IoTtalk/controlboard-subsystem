@@ -38,6 +38,7 @@ class AG_SA():
         self.sa_id = int(sa_id)
         self.config = config
         self.rules = rules
+        self.times = 0
         if mac_addr != 'None':
             self.mac_addr = mac_addr
         else:
@@ -55,9 +56,9 @@ class AG_SA():
             "dm_name": "ControlBoard",
             "u_name": "yb",
             "is_sim": False,
-            "df_list": ["CBElement-O1", "CBElement-I1", "CBElement-O2", "CBElement-I2",
-                        "CBElement-O3", "CBElement-I3", "CBElement-O4", "CBElement-I4",
-                        "CBElement-O5", "CBElement-I5"]
+            "df_list": ["CBElement-O1", "CBElement-TI1", "CBElement-O2", "CBElement-TI2",
+                        "CBElement-O3", "CBElement-TI3", "CBElement-O4", "CBElement-TI4",
+                        "CBElement-O5", "CBElement-TI5"]
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
@@ -102,7 +103,7 @@ class AG_SA():
         try:
             for df_order, rule in self.rules.items():
                 status = self.status[rule["rule_id"]]
-                actuator_df = "CBElement-I" + str(df_order)
+                actuator_df = "CBElement-TI" + str(df_order)
                 sensor_df = "CBElement-O" + str(df_order)
                 data = DAN.pull(sensor_df)
                 if data is None:
@@ -113,20 +114,23 @@ class AG_SA():
                         data = data[0]
                     else:
                         data = data[0][self.rules[df_order]["sensor_index"]]
-                temp_rule = {{
-                    "threshold_open": rule["threshold_open"],
-                    "threshold_close": rule["threshold_close"],
-                    "comparison_open": rule["comparison_open"],
-                    "comparison_close": rule["comparison_close"],
-                    "time_open": [rule["time_open"].hour, rule["time_open"].minute, rule["time_open"].second],
-                    "time_close": [rule["time_close"].hour, rule["time_close"].minute, rule["time_close"].second],
-                    "mode": rule["mode"],
-                    "weekday": rule["weekday"],
-                    "duty_pos": rule["duty_pos"],
-                    "duty_neg": rule["duty_neg"],
-                    "sensor_val": data
-                }}
-                DAN.push(actuator_df, temp_rule)
+                if self.times < 5:
+                    temp_rule = {{
+                        "threshold_open": rule["threshold_open"],
+                        "threshold_close": rule["threshold_close"],
+                        "comparison_open": rule["comparison_open"],
+                        "comparison_close": rule["comparison_close"],
+                        "time_open": [rule["time_open"].hour, rule["time_open"].minute, rule["time_open"].second],
+                        "time_close": [rule["time_close"].hour, rule["time_close"].minute, rule["time_close"].second],
+                        "mode": rule["mode"],
+                        "weekday": rule["weekday"],
+                        "duty_pos": rule["duty_pos"],
+                        "duty_neg": rule["duty_neg"],
+                        "sensor_val": data
+                    }}
+                    DAN.push(actuator_df, temp_rule)
+                else:
+                    DAN.push(actuator_df, {{"sensor_val": data}})
                 status["value"] = data if data is not None else status["value"]
                 if rule["mode"] == "ON":
                     if status["status"] != "RED":
@@ -147,6 +151,8 @@ class AG_SA():
                         if status["status"] == "RED":
                             status["status"] = "GREEN"
                 self.socket.send_json(status)
+            if (self.times < 5):
+                self.times += 1
         except Exception as err:
             print("Checking UserRule failed, ", err)
         return

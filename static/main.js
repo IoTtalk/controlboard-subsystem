@@ -1,8 +1,10 @@
 Vue.config.devtools = true;
+
 var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
   data: {
+    mainPage: true,    // In main page or pop-uped maintain page
     manageMode: false,  // Switch bwtween CB page & manage page
     managePage: false, // Used to switch active state between User/CB management
     maintanance: -1,
@@ -24,7 +26,7 @@ var app = new Vue({
     ],
     userlvls: [
       {value: 0, text: "User"},
-      {value: 1, text: "Developer"}
+      {value: 1, text: "Admin"}
     ],
     weekdays: [
       {value: 0, text: "Mon"},
@@ -53,7 +55,6 @@ var app = new Vue({
       45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
     ],
     users: [],
-    groups: [],  // current user's group settings
     controlboards: [],
     currentCB: {
       "value": 0
@@ -65,6 +66,11 @@ var app = new Vue({
   created: function() {
     // Procedures to correctly render data:
     // get CBs -> get Rules -> get Status
+    this.width = window.innerWidth;
+    window.addEventListener("resize", this.onWindowResize);
+    var cb = window.localStorage.getItem("cb");
+    console.log(cb);
+    this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
     axios
       .get("/subsystem/infos")
       .then( (res) => {
@@ -73,28 +79,41 @@ var app = new Vue({
       .catch( (err) => {
         console.log(err);
       })
-    this.width = window.innerWidth;
-    window.addEventListener("resize", this.onWindowResize);
-    if (this.privilege) {
-      this.manageMode = true;
-      console.log("get user");
-      this.getAllUsers()
-        .then( (users) => {
-          this.users = users;
-        })
-        .catch( (err) => {
-          if (err.response.status != 403) {
-            alert(err.response.data);
-          }
-        });
+    if (cb !== null) {  // Create page for maintanance
+      console.log("hello world");
+      cb = JSON.parse(cb);
+      this.maintanance = cb.value;
+      this.controlboards = [cb];
+      this.privilege = 0;
+      this.currentCB = cb;
+      this.mainPage = false;
+      this.refreshRuleWorker();
+
+      window.addEventListener("beforeunload", function() {
+        window.localStorage.clear();
+      })
+
+    } else {  // Main page
+      window.addEventListener("storage", function(event) {
+        this.maintanance
+      });
+      if (this.privilege) {
+        this.manageMode = true;
+        console.log("get user");
+        this.getAllUsers()
+          .then( (users) => {
+            this.users = users;
+          })
+          .catch( (err) => {
+            if (err.response.status != 403) {
+              alert(err.response.data);
+            }
+          });
+      }
+      this.refreshCBWorker();
+      this.cbTrackWorker = setInterval(this.cbTrackWorker, 60000);
     }
-    this.refreshCBWorker();
-    this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
-    this.cbTrackWorker = setInterval(this.cbTrackWorker, 60000);
     return;
-  },
-  destoryed: function() {
-    window.removeEventListener("resize", this.onWindowResize);
   },
   computed: {
     maxPinnedCBs: function() {
@@ -105,6 +124,9 @@ var app = new Vue({
     /* API data getter Methods, including CB, SA, Rule, Status, User, 
     *  Reachable Project
     */
+    projectURL: function(cb) {
+      return this.IoTtalkURL.concat(cb);
+    },
     getAvailableCBs: function(account) {
       return new Promise(function (resolve, reject) {
         axios
@@ -176,17 +198,26 @@ var app = new Vue({
       }
       this.getAvailableCBs(req)
         .then( (controlboards) => {
+          console.log(controlboards);
           this.controlboards = controlboards;
-          if (next_currentCB === undefined)
-            this.currentCB = controlboards[0];
-          else
-            this.currentCB = next_currentCB;
-          if (this.privilege && !this.manageMode && this.maintanance === -1) {
-            this.onRefreshCB();
+          if (controlboards.length === 0) {
+            this.currentCB = {
+              "value": 0,
+              "status": true
+            };
           }
-          this.refreshRuleWorker();
+          if (next_currentCB !== undefined) {
+            this.currentCB = next_currentCB;
+          }
+          else if (controlboards.length) {
+            this.currentCB = controlboards[0];
+          }
+          if (controlboards.length !== 0) {
+            this.refreshRuleWorker();
+          }
         })
         .catch( (err) => {
+          console.log(err);
           if (err.response.status != 403) {
             alert(err.response.data);
           }
@@ -241,11 +272,11 @@ var app = new Vue({
             this.setupRuleStatus(status);
           })
           .catch( (err) => {
-            console.log(err);
-            if (err.response.status != 403) {
-              alert(err.response.data);
-              window.location = "/";
-            }
+            // console.log(err);
+            // if (err.response.status != 403) {
+            //   alert(err.response.data);
+            //   window.location = "/";
+            // }
           });
       }
       return;
@@ -289,8 +320,33 @@ var app = new Vue({
     *  including manage page switching handlers and CB(Project)/SA(Field) selecting.
     */
     onSwitchManage: function() {
-      this.manageMode = !this.manageMode;
-      this.refreshCBWorker();
+      if (this.manageMode === false) {
+        window.clearInterval(this.statusTrackWorker);
+        this.statusTrackWorker = -1;
+        this.manageMode = true;
+      }
+      else if (this.controlboards.length) {
+        allReady = true;
+        this.controlboards.forEach( (cb) => {
+          if (!cb.status) {
+            console.log(cb);
+            window.open(this.projectURL(cb.text));
+            allReady = false;
+          }
+        })
+        if (allReady && this.currentCB.value !== 0) {
+          this.onRefreshCB(this.currentCB)
+            .then( (res) => {
+              this.manageMode = !this.manageMode;
+              console.log(res);
+              this.refreshCBWorker();
+            })
+            .catch( (err) => {
+              console.log(err);
+              window.open(this.projectURL(this.currentCB.text))
+            })
+        }
+      }
       return;
     },
     onSwitchManagePage: function() {
@@ -301,8 +357,17 @@ var app = new Vue({
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
       this.currentCB = selected;
-      if (this.privilege && this.maintanance !== -1)
-        this.onRefreshCB();
+      if (this.privilege && this.maintanance !== selected.value) {
+        this.onRefreshCB(selected)
+          .then( (res) => {
+            this.refreshRuleWorker();
+            this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+            console.log(res);
+          })
+          .catch( (err) => {
+            console.log(err);
+          })
+      }
       return;
     },
     onSelectProject: function(selected) {
@@ -325,7 +390,7 @@ var app = new Vue({
           .then( (res) => {
             console.log("Response of creating CB", res);
             this.refreshCBWorker();
-            window.open(this.IoTtalkURL.concat(this.newCB)).focus();
+            window.open(this.projectURL(this.newCB)).focus();
             this.newCB = "";
           })
           .catch(function(err) {
@@ -357,12 +422,32 @@ var app = new Vue({
       axios
         .put("/cb/update_cb/" + cb.value.toString())
         .then( () => {
-          this.refreshCBWorker(cb);
-          this.manageMode = false;
-          this.maintanance = cb.value;
+          if (cb.status) {  // has settings available now
+            cb.status = false;
+            this.maintanance = cb.value;
+
+            // TODO: POP CB element page
+            window.localStorage.setItem("cb",JSON.stringify(cb));
+            window.open("/")
+          } else {
+            this.onRefreshCB(cb)
+              .then( (res) => {
+                console.log(res);
+                this.maintanance = -1;
+                this.refreshCBWorker(cb);
+              })
+              .catch( (err) => {
+                if (err.response.status === 400) {
+                  this.maintanance = cb.value;
+                  window.open(this.projectURL(cb.text));
+                } else {
+                  console.log(err);
+                }
+              })
+            }
         })
         .catch( (err) => {
-          console.log(err);
+          console.log(err.response);
         })
     },
     onPinFields: function(action) {
@@ -406,7 +491,6 @@ var app = new Vue({
           .post("/sa/create_sa", data)
           .then( (res) => {
             console.log(res);
-            window.open(this.IoTtalkURL).focus();
             this.refreshSAWorker();
             this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
           })
@@ -450,7 +534,11 @@ var app = new Vue({
       console.log(ruleIDs);
       this.onSettingSaveChange(ruleIDs);
       this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
-      this.maintanance = -1;
+      if (this.maintanance !== -1) {
+        this.maintanance = -1;
+        window.open(this.projectURL(this.currentCB.text)).focus();
+        window.close();
+      }
       return;
     },
     onSAReset: function() {
@@ -464,6 +552,19 @@ var app = new Vue({
       console.log(ruleIDs);
       this.onSettingSaveChange(ruleIDs);
       this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+      if (this.maintanance !== -1) {
+        this.maintanance = -1;
+        this.manageMode = true;
+        this.onRefreshCB()
+          .then( (res) => {
+            console.log(res);
+            window.open(this.projectURL(this.currentCB.text)).focus();
+            window.close();
+          })
+          .catch( (err) => {
+            console.log(err);
+          })
+      }
       return;
     },
     onSettingSaveChange: function(ruleIdx) {
@@ -505,24 +606,27 @@ var app = new Vue({
         })
       return;
     },
-    onRefreshCB: function() {
-      window.clearInterval(this.statusTrackWorker);
-      this.statusTrackWorker = -1;
-      axios
-        .get("/cb/refresh_cb/" + this.currentCB.value.toString())
-        .then( (res)=> {
-          console.log(res);
-          this.refreshRuleWorker();
-          if (this.statusTrackWorker == -1) {
+    onRefreshCB: function(cb) {
+      return new Promise(function (resolve, reject) {
+        console.log(this.currentCB);
+        console.log(cb);
+        window.clearInterval(this.statusTrackWorker);
+        this.statusTrackWorker = -1;
+        if (cb === undefined) {
+          value = this.currentCB.value;
+        } else {
+          value = cb.value
+        }
+        axios
+          .get("/cb/refresh_cb/" + value.toString())
+          .then( (res)=> {
             this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
-          }
+            resolve(res);
+          })
+          .catch( (err) => {
+            reject(err);
+          })
         })
-        .catch( (err) => {
-          if (err.response) {
-            alert(err.response.data);
-          }
-        })
-        return;
     },
     onSettingUndoChange: function(settingIndex) {
       this.$set(this.settings, settingIndex, 
@@ -639,10 +743,8 @@ var app = new Vue({
     *  including user privilege / CB Icon / Accessible CB(Project) / Logout
     */
     lvlToText: function(userLvl) {
-      if (userLvl === 2) {
-        return "Developer";
-      } else if (userLvl === 1) {
-        return "Developer";
+      if (userLvl === 1) {
+        return "Admin";
       } else {
         return "User";
       }
@@ -657,7 +759,7 @@ var app = new Vue({
           "privilege": this.users[index].superuser,
           "accessible_cb": this.accessibleCBs
         };
-        axios.post("/account/adjust_privilege/" + this.users[index].username, data)
+        axios.post("/account/adjust_privilege/" + this.users[index].email, data)
           .then( (res) => {
             console.log(res);
             this.getAllUsers()

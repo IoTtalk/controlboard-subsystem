@@ -30,7 +30,8 @@ from utils import running_cb, running_status, iottalk_info
 from utils import make_logger
 from utils import create_proj_ag, delete_proj_ag, get_proj_ag
 from utils import create_do_ag, delete_do_ag
-from utils import register_ag, deregister_ag, bind_device_ag, get_na_ag
+from utils import register_ag, deregister_ag, bind_device_ag
+from utils import get_na_ag, delete_na_ag, set_fn_ag
 from models import cb_db
 from models import UserRule, CB_Account, CB, CB_Group
 
@@ -357,19 +358,26 @@ def refresh_cb(cb_id):
             raise NotFoundError
         # Create UserRules for each NA
         src, dst = dict(), dict()
+        na_ids = list()
         for na in NAs:
             na_info = get_na_ag(cb.p_id, na[0], api_logger)[1]
             print("na_info: ", na_info)
             order, idfs, odfs = 0, list(), list()
             direction = 0  # 0 for src, 1 for dst
             for idf in na_info["input"]:
-                if idf["df_name"].startswith("CBElement-I"):
+                if idf["df_name"].startswith("CBElement-TI"):
+                    status, data = get_na_ag(cb.p_id, na[0], api_logger)
+                    if not status:
+                        api_logger.Exception("Get Na info failed")
+                    set_fn_ag(cb.p_id, data, api_logger)
+                    na_ids.append(na[0])
                     order = int(idf["df_name"][-1])
                     direction = 1
-                idfs.append([idf["df_name"], idf["alias_name"].replace("-I", "")])
+                idfs.append([idf["df_name"], idf["alias_name"].replace("-TI", "")])
 
             for odf in na_info["output"]:
                 if odf["df_name"].startswith("CBElement-O"):
+                    na_ids.append(na[0])
                     order = int(odf["df_name"][-1])
                     direction = 0
                 odfs.append([odf["df_name"], odf["alias_name"].replace("-O", "")])
@@ -381,8 +389,11 @@ def refresh_cb(cb_id):
                 dst[order] = odfs
             else:
                 src[order] = idfs
-        actuators = list()
+        print(na_ids)
+        nas = ",".join(str(na_id) for na_id in na_ids)
+        cb.na_id = nas
 
+        actuators = list()
         for order, actuator in dst.items():
             old_rule = UserRule.get(df_order=order, cb=cb)
             has_record = False
@@ -398,7 +409,7 @@ def refresh_cb(cb_id):
                         actuator_alias=actuator[0][1],
                         actuator_df=actuator[0][0],
                         sensor_alias="",
-                        mode="Timer",
+                        mode="OFF",
                         df_order=order,
                     )
                 else:
@@ -408,7 +419,7 @@ def refresh_cb(cb_id):
                             actuator_alias=actuator[0][1],
                             actuator_df=actuator[0][0],
                             df_order=order,
-                            mode="Timer",
+                            mode="OFF",
                             cb=cb
                         )
                     )
@@ -430,7 +441,7 @@ def refresh_cb(cb_id):
                             sensor_alias=",".join([row[1] for row in src[order]]),
                             sensor_df=",".join([row[0] for row in src[order]]),
                             df_order=order,
-                            mode="Sensor",
+                            mode="OFF",
                             cb=cb
                         )
                     )
@@ -438,6 +449,7 @@ def refresh_cb(cb_id):
         for rule in cb.rule_set:
             if rule.actuator_alias not in actuators:
                 cb.rule_set.remove(rule)
+        cb.status = True
 
         if cb.ag_token != "NotCreated":
             status = deregister_ag(cb.ag_token, api_logger)
@@ -477,7 +489,7 @@ def refresh_cb(cb_id):
     except NotFoundError:
         api_logger.warning("No NAs found, remind user to create NAs")
         cb = CB[cb_id]
-        return f"No NA detected, please create Join point in Project {cb.cb_name}", 200
+        abort(400, "No NA detected, please create Join point in Project {cb.cb_name}")
     except Exception as err:
         api_logger.exception(err)
         abort(500, "Internal Server Error")
@@ -497,7 +509,7 @@ def update_cb(cb_id):
         None
     '''
     try:
-        CB[cb_id].status = False
+        CB[cb_id].status = not CB[cb_id].status
         return "Set Maintanance done", 200
     except Exception as err:
         api_logger.exception(err)
@@ -521,7 +533,8 @@ def create_cb():
     new_cb = request.get_data().decode("utf-8")
     mac_addr = str(uuid.uuid4())
 
-    cb = CB(cb_name=new_cb, ag_token="NotCreated", mac_addr=mac_addr, p_id=-1, do_id="-1", status=True)
+    cb = CB(cb_name=new_cb, ag_token="NotCreated", mac_addr=mac_addr,
+            p_id=-1, do_id="-1", status=False, na_id="-1")
 
     cb_db.commit()
     api_logger.info("Start Creating CB")
@@ -603,8 +616,17 @@ def delete_cb(cb_id=None):
             for do_id in cb.do_id.split(","):
                 status = delete_do_ag(cb.p_id, int(do_id), api_logger)
         if not status:
-            api_logger.exception(f"Error delete CB {cb.cb_name}, Delete project failed, check api log file")
+            api_logger.exception(f"Error delete CB {cb.cb_name}, Delete DO failed, check api log file")
             return "Delete CB failed, check api log files", 500
+
+        na_ids = cb.na_id.split(",")
+        if na_ids[0] != "-1":
+            for na_id in na_ids:
+                status, res = delete_na_ag(int(na_id), cb.p_id, api_logger)
+                if not status:
+                    api_logger.exception(f"Error delete CB {cb.cb_name}, Delete NA {res} failed, check api log file")
+                    return "Delete CB failed, check api log files", 500
+
         if cb.ag_token != "NotCreated":
             status = deregister_ag(cb.ag_token, api_logger)
             if not status:
@@ -851,7 +873,6 @@ def get_cb(usr_account):
                     "text": cb.cb_name,
                     "status": cb.status
                 })
-
         else:
             account = CB_Account.get(account=usr_account)
             if None is account:
@@ -930,7 +951,8 @@ def get_users():
         for account in CB_Account.select():
             users.append({
                 "superuser": account.privilege,
-                "username": account.account
+                "username": account.user_name,
+                "email": account.account
             })
         return jsonify(users), 200
     except NotFoundError:
@@ -1012,12 +1034,11 @@ def oauth2_callback():
         # Exchange access token with an authorization code with token endpoint
         #
         # Ref: https://docs.authlib.org/en/stable/client/frameworks.html#id1
-        print("get token")
         token_response = oauth2_client.iottalk.authorize_access_token()
 
         # Parse the received ID token
         user_info = oauth2_client.iottalk.parse_id_token(token_response)
-        print("get token done")
+        print(user_info)
     except Exception as err:
         api_logger.exception(err)
         abort(500)
@@ -1031,7 +1052,8 @@ def oauth2_callback():
             user = CB_Account(
                 account=user_info["email"],
                 privilege=1 if num_accounts == 0 else 0,
-                access_token=token_response["access_token"]
+                access_token=token_response["access_token"],
+                user_name=user_info["preferred_username"]
             )
         print("write cookie")
         session["token"] = token_response["access_token"]

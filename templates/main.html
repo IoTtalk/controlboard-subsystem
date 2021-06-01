@@ -125,8 +125,13 @@
             <div v-if="settings.length===0 && !manageMode" class="text-left">
               <span v-if="privilege">Please Select I/O Devices at the IoTtalk GUI First!</span>
             </div>
-            <div v-if="maintanance===currentCB.value && !manageMode" style="color:crimson; text-align: left;" class="mb-1">
-              <b>Modify settings to safe state and press "Confirm"</b>
+            <div style="color:crimson; text-align: left;" class="mb-1">
+              <b v-if="maintanance===currentCB.value && !manageMode">
+                Modify settings to safe state and press "Confirm".
+              </b>
+              <b v-if="!manageMode && maintanance===-1 && !currentCB.status">
+                This ControlBoard is in maintanance.
+              </b>
             </div>
             <div v-for="(setting, index) in settings" class="setting-card" 
               v-if="!manageMode && currentCB.value > 0">
@@ -146,6 +151,7 @@
                 v-bind:dirty="setting.dirty"
                 v-bind:sensors="setting.sensors.length"
                 v-bind:status="currentCB.status || maintanance !== -1"
+                v-bind:maintain="maintanance"
                 v-on:update-mode="onSelectMode($event, index)"
                 v-on:undo="onSettingUndoChange(index)"
                 v-on:save="onSettingSaveChange([index])"
@@ -184,7 +190,7 @@
                 </div>
 
                 <!-- Timer setting area -->
-                <div v-bind:class="[setting.mode !== 'Timer'? 'mt-1': '']">
+                <!-- <div v-bind:class="[setting.mode !== 'Timer'? 'mt-1': '']">
                   <span style="padding-right: 2px;">From</span>
                   <custom-sel
                     v-bind:options="hours"
@@ -227,7 +233,7 @@
                     v-bind:status="currentCB.status || maintanance !== -1"
                     v-on:update-option="onSelectTime($event, index, 5)"
                   ></custom-sel>
-                </div>
+                </div> -->
                 <div>
                   <b-form-group>
                     <b-form-checkbox-group
@@ -266,9 +272,10 @@
             </div>
             <div v-if="manageMode && privilege">
               <b-row class="text-left">
-                <b-col v-if="managePage"><b>User Email</b></b-col>
+                <b-col v-if="managePage"><b>User</b></b-col>
+                <b-col v-if="managePage" cols="6"><b>Email</b></b-col>
                 <b-col v-else>
-                  <b>ControlBoard</b>
+                  <b>ControlBoards</b>
                   <b-button size="sm" variant="light" v-b-modal="'CreateCB'">
                     <b-icon icon="plus" aria-hidden="true"></b-icon>
                   </b-button>
@@ -278,13 +285,13 @@
                   >
                     <b-container fluid>
                       ControlBoard
-                      <b-form-input placeholder="Enter Your ControlBoard's Name Here"
+                      <b-form-input placeholder="Enter Your IoTtalk Project's Name Here"
                         size="sm" v-model="newCB"
                       ></b-form-input>
                     </b-container>
                   </b-modal>
                 </b-col>
-                <b-col v-if="managePage"><b>Privilege</b></b-col>
+                <b-col v-if="managePage"><b>Identity</b></b-col>
                 <b-col v-else><b>Actions</b></b-col>
               </b-row>
               <b-row class="text-left divide-top divide-bottom"
@@ -292,22 +299,24 @@
               >
                 <b-col>
                   <b-link v-b-modal="'modal'+index" size="sm" 
-                    variant="outline-primary" v-on:click="onAccessibleCB(user.username)"
+                    variant="outline-primary" v-on:click="onAccessibleCB(user.email)"
                   ><% user.username %>
                   </b-link>
                 </b-col>
+                <b-col cols="6"> <% user.email %></b-col>
                 <b-col> <% lvlToText(user.superuser) %> </b-col>
-                <b-modal v-bind:id="'modal'+index" size="lg" centered title="User Management"
+                <b-modal v-bind:id="'modal'+index" size="lg" centered v-bind:title="'Selected User：' + user.username"
                   hide-backdrop content-class="shadow" v-on:ok="onUserUpdate(index, 1)"
                   v-on:cancel="onUserUpdate(index, 0)" v-on:close="onUserUpdate(index, 0)"
                 >
                   <b-container fluid>
                     <b-row class="divide-bottom">
-                      <b-col>Privilege</b-col>
+                      <b-col>Identity</b-col>
                       <custom-sel
                         v-if="privilege"
                         v-bind:options="userlvls"
                         v-bind:select="user.superuser"
+                        status="true"
                         v-on:update-option="onSelectUserLvl($event, index)"
                         class="select-privilege"
                       ></custom-sel>
@@ -315,24 +324,26 @@
                     </b-row>
                     <b-row class="divide-top"> 
                       <b-col>Accessible ControlBoards</b-col>
-                      <b-form-checkbox-group
-                        class="custom-checkbox" size="sm"
-                        v-bind:options="controlboards" 
-                        v-model="accessibleCBs"
-                      ></b-form-checkbox-group>
+                      <b-col>
+                        <b-form-checkbox-group
+                          class="custom-checkbox" size="sm"
+                          v-bind:options="controlboards" 
+                          v-model="accessibleCBs"
+                        ></b-form-checkbox-group>
+                      </b-col>
                     </b-row>
                   </b-container>
                 </b-modal>
               </b-row>
 
-              <b-row class="text-left divide-top divide-bottom"
+              <b-row v-bind:class="['text-left', 'divide-top', 'divide-bottom']"
                 v-for="(cb, index) in controlboards" v-if="!managePage"
               >
-                <b-col><% cb.text %></b-col>
-                <b-col>
+                <b-col v-bind:class="cb.value===maintanance?'bg-warning': ''"><% cb.text %></b-col>
+                <b-col v-bind:class="cb.value===maintanance?'bg-warning': ''">
                   <b-link v-b-modal="'deleteCB'+index" size="sm" variant="outline-primary" class="mr-3">Delete</b-link>
-                  <b-link v-on:click="onCBUpdate(cb)" size="sm" variant="outline-primary">Update</b-link>
-
+                  <b-link v-on:click="onCBUpdate(cb)" size="sm" 
+                    v-bind:variant="cb.status?'outline-primary' : 'secondary'"><% cb.status? "Update" :"Flush " %></b-link>
                   <b-modal v-bind:id="'deleteCB'+index" size="lg" centered title="Delete ControlBoard"
                     hide-backdrop content-class="shadow" v-on:ok="onCBDelete(cb.value, 1)" 
                     v-on:cancel="onCBDelete(cb.value, 0)" v-on:close="onCBDelete(cb.value, 0)"

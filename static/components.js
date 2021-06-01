@@ -74,7 +74,7 @@ Vue.component('sensor-row', {
 })
 
 Vue.component('actuator-row', {
-    props: ['mode', 'actuator', 'dirty', 'sensors', 'status'],
+    props: ['mode', 'actuator', 'dirty', 'sensors', 'status', 'maintain'],
     data: function() {
         return {
             state: (this.mode==="ON")? true: false
@@ -121,7 +121,7 @@ Vue.component('actuator-row', {
                 </b-button-group>
                 <span class="setting-test">{{actuator}}</span>
             </b-col>
-            <b-button-group class="ml-auto" v-if="dirty && status">
+            <b-button-group class="ml-auto" v-if="dirty && maintain===-1">
                 <b-button size="sm" variant="secondary" plain v-on:click="onUndo">Undo</b-button>
                 <b-button size="sm" variant="primary" v-on:click="onSave">Save</b-button>
             </b-button-group>
