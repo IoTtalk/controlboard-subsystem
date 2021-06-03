@@ -52,7 +52,7 @@ class AG_SA():
         }}
 
         ctlboard_profile = {{
-            "d_name": str(sa_id) + "-" + sa_name + ".Controlboard",
+            "d_name": "Controlboard",
             "dm_name": "ControlBoard",
             "u_name": "yb",
             "is_sim": False,

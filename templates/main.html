@@ -31,11 +31,11 @@
         <!-- Navigation bar -->
         <b-navbar type="dark" variant="dark" class="d-flex">
           <b-navbar-nav>
-            <b-nav-item><b>ControlBoard Subsystem</b></b-nav-item>
+            <b-nav-item><b><% privilege?"ControlBoard Admin": "ControlBoard Subsystem" %></b></b-nav-item>
           </b-navbar-nav>
           <div class="ml-auto">
             <b-navbar-nav>
-              <b-nav-item class="system-button" v-if="privilege" v-on:click="onSwitchManage"><b><% manageMode? "Admin": "User" %></b></b-nav-item>
+              <!-- <b-nav-item class="system-button" v-if="privilege" v-on:click="onSwitchManage"><b><% manageMode? "Admin": "User" %></b></b-nav-item> -->
               <b-nav-item class="system-button custom-nav-item" v-on:click="onLogout"><b>Logout</b></b-nav-item>
             </b-navbar-nav>
           </div>
@@ -305,9 +305,9 @@
                 </b-col>
                 <b-col cols="6"> <% user.email %></b-col>
                 <b-col> <% lvlToText(user.superuser) %> </b-col>
-                <b-modal v-bind:id="'modal'+index" size="lg" centered v-bind:title="'Selected User：' + user.username"
+                <b-modal v-bind:id="'modal'+index" size="lg" centered v-bind:title="'User：' + user.username"
                   hide-backdrop content-class="shadow" v-on:ok="onUserUpdate(index, 1)"
-                  v-on:cancel="onUserUpdate(index, 0)" v-on:close="onUserUpdate(index, 0)"
+                  ok-only v-on:close="onUserUpdate(index, 0)"
                 >
                   <b-container fluid>
                     <b-row class="divide-bottom">
@@ -326,7 +326,7 @@
                       <b-col>Accessible ControlBoards</b-col>
                       <b-col>
                         <b-form-checkbox-group
-                          class="custom-checkbox" size="sm"
+                          class="ml-auto custom-checkbox" size="sm"
                           v-bind:options="controlboards" 
                           v-model="accessibleCBs"
                         ></b-form-checkbox-group>
@@ -342,8 +342,9 @@
                 <b-col v-bind:class="cb.value===maintanance?'bg-warning': ''"><% cb.text %></b-col>
                 <b-col v-bind:class="cb.value===maintanance?'bg-warning': ''">
                   <b-link v-b-modal="'deleteCB'+index" size="sm" variant="outline-primary" class="mr-3">Delete</b-link>
+                  <b-link class="mr-3">GUI</b-link>
                   <b-link v-on:click="onCBUpdate(cb)" size="sm" 
-                    v-bind:variant="cb.status?'outline-primary' : 'secondary'"><% cb.status? "Update" :"Flush " %></b-link>
+                    v-bind:variant="cb.status?'outline-primary' : 'secondary'">Configuration</b-link>
                   <b-modal v-bind:id="'deleteCB'+index" size="lg" centered title="Delete ControlBoard"
                     hide-backdrop content-class="shadow" v-on:ok="onCBDelete(cb.value, 1)" 
                     v-on:cancel="onCBDelete(cb.value, 0)" v-on:close="onCBDelete(cb.value, 0)"

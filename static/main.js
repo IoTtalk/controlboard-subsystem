@@ -69,7 +69,6 @@ var app = new Vue({
     this.width = window.innerWidth;
     window.addEventListener("resize", this.onWindowResize);
     var cb = window.localStorage.getItem("cb");
-    console.log(cb);
     this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
     axios
       .get("/subsystem/infos")
@@ -82,7 +81,11 @@ var app = new Vue({
     if (cb !== null) {  // Create page for maintanance
       console.log("hello world");
       cb = JSON.parse(cb);
-      this.maintanance = cb.value;
+      if (cb.status) {
+        this.maintanance = cb.value;
+      } else {
+        this.maintanance = -1;
+      }
       this.controlboards = [cb];
       this.privilege = 0;
       this.currentCB = cb;
@@ -428,7 +431,7 @@ var app = new Vue({
 
             // TODO: POP CB element page
             window.localStorage.setItem("cb",JSON.stringify(cb));
-            window.open("/")
+            window.open("/");
           } else {
             this.onRefreshCB(cb)
               .then( (res) => {
