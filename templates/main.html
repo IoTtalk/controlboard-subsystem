@@ -36,6 +36,8 @@
           <div class="ml-auto">
             <b-navbar-nav>
               <!-- <b-nav-item class="system-button" v-if="privilege" v-on:click="onSwitchManage"><b><% manageMode? "Admin": "User" %></b></b-nav-item> -->
+              <b-nav-item class="system-button custom-nav-item" v-on:click="onSAConfirm"><b>Save</b></b-nav-item>
+              <b-nav-item class="system-button custom-nav-item" v-on:click="onSAReset"><b>Reset</b></b-nav-item>
               <b-nav-item class="system-button custom-nav-item" v-on:click="onLogout"><b>Logout</b></b-nav-item>
             </b-navbar-nav>
           </div>
@@ -135,31 +137,32 @@
             </div>
             <div v-for="(setting, index) in settings" class="setting-card" 
               v-if="!manageMode && currentCB.value > 0">
-              <!-- sensor List and sensor value -->
-              <sensor-row
-                v-bind:sensors="setting.sensors"
-                v-bind:value="setting.mode==='Timer'? setting.time: setting.value"
-                v-bind:status="setting.status"
-                v-bind:mode="setting.mode"
-                v-bind:selected="setting.selectedSensor"
-                v-on:update-sensor="onSelectSensor($event, setting.ruleID)"
-              ></sensor-row>
-              <!-- Mode select and actuator name, Undo And Save -->
+              <!-- Actuator Row -->
               <actuator-row
-                v-bind:mode="setting.mode"
                 v-bind:actuator="setting.actuator"
-                v-bind:dirty="setting.dirty"
-                v-bind:sensors="setting.sensors.length"
-                v-bind:status="currentCB.status || maintanance !== -1"
-                v-bind:maintain="maintanance"
-                v-on:update-mode="onSelectMode($event, index)"
-                v-on:undo="onSettingUndoChange(index)"
-                v-on:save="onSettingSaveChange([index])"
+                v-bind:status="setting.status"
               ></actuator-row>
+
+              <!-- Mode select and actuator name, Undo And Save -->
+              <sensor-row
+                v-bind:mode="setting.mode"
+                v-bind:sensor="setting.sensors[setting.selectedSensor]"
+                v-bind:value="setting.mode==='Timer'? setting.time: setting.value"
+                v-bind:dirty="setting.dirty"
+                v-on:update-mode="onSelectMode($event, index)"
+              ></sensor-row>
 
               <!-- Trigger Area -->
               <div class="setting-area" v-if="setting.mode!=='ON' && setting.mode!=='OFF'">
-                <div><b>Trigger</b></div>
+                <div class="mb-2">
+                  <span><b>Trigger</b></span>
+                  <span class="float-right">
+                    <b-button-group v-if="setting.dirty">
+                      <b-button size="sm" variant="secondary" plain v-on:click="onSettingUndoChange(index)">Undo</b-button>
+                      <b-button size="sm" variant="primary" plain v-on:click="onSettingSaveChange([index])">Save</b-button>
+                    </b-button-group>
+                  </span>
+                </div>
 
                 <!-- Sensor settings -->
                 <div v-if="setting.mode==='Sensor'" class="setting-sensor">
@@ -190,7 +193,7 @@
                 </div>
 
                 <!-- Timer setting area -->
-                <!-- <div v-bind:class="[setting.mode !== 'Timer'? 'mt-1': '']">
+                <div v-bind:class="[setting.mode !== 'Timer'? 'mt-1': '']" v-else>
                   <span style="padding-right: 2px;">From</span>
                   <custom-sel
                     v-bind:options="hours"
@@ -233,7 +236,7 @@
                     v-bind:status="currentCB.status || maintanance !== -1"
                     v-on:update-option="onSelectTime($event, index, 5)"
                   ></custom-sel>
-                </div> -->
+                </div>
                 <div>
                   <b-form-group>
                     <b-form-checkbox-group
@@ -276,20 +279,9 @@
                 <b-col v-if="managePage" cols="6"><b>Email</b></b-col>
                 <b-col v-else>
                   <b>ControlBoards</b>
-                  <b-button size="sm" variant="light" v-b-modal="'CreateCB'">
+                  <!-- <b-button size="sm" variant="light" v-b-modal="'CreateCB'">
                     <b-icon icon="plus" aria-hidden="true"></b-icon>
-                  </b-button>
-                  <b-modal id="CreateCB" size="lg" centered title="Create ControlBoard"
-                    hide-backdrop content-class="shadow"
-                    v-on:ok="onCBCreate(1)" v-on:cancel="onCBCreate(0)" v-on:close="onCBCreate(0)"
-                  >
-                    <b-container fluid>
-                      ControlBoard
-                      <b-form-input placeholder="Enter Your IoTtalk Project's Name Here"
-                        size="sm" v-model="newCB"
-                      ></b-form-input>
-                    </b-container>
-                  </b-modal>
+                  </b-button> -->
                 </b-col>
                 <b-col v-if="managePage"><b>Identity</b></b-col>
                 <b-col v-else><b>Actions</b></b-col>
@@ -335,35 +327,62 @@
                   </b-container>
                 </b-modal>
               </b-row>
+              <b-row class="text-left divide-top divide-bottom" v-if="!managePage"> <!-- Add ControlBoard -->
+                <b-col>
+                  <b-link v-b-modal="'CreateCB'" style="font-size:smaller">Add ControlBoard</b-link>
+                </b-col>
+                <b-modal id="CreateCB" title="Create ControlBoard"
+                  hide-backdrop content-class="shadow" hide-footer button-size="sm"
+                  v-on:ok="onCBCreate(1)" v-on:cancel="onCBCreate(0)" v-on:close="onCBCreate(0)"
+                >
+                  <template #modal-header="{ close, ok }">
+                    <h5>Create ControlBoard</h5>
+                    <span class="ml-auto">
+                      <b-button size="sm" v-on:click="ok()" variant="primary">OK</b-button>
+                      <b-button size="sm" variant="light" v-on:click="close()">
+                        <b-icon icon="x" aria-hidden="true"></b-icon>
+                      </b-button>
+                    </span>
+                  </template>
+                    <b-form>
+                      <b-form-input placeholder="Enter Your IoTtalk Project's Name Here"
+                        size="sm" v-model="newCB" autofocus class="mb-2 mr-sm-2 mb-sm-0"
+                      ></b-form-input>
+                    </b-form>
+                </b-modal>
+              </b-row>
 
-              <b-row v-bind:class="['text-left', 'divide-top', 'divide-bottom']"
+              <b-row class="text-left divide-top divide-bottom"
                 v-for="(cb, index) in controlboards" v-if="!managePage"
               >
-                <b-col v-bind:class="cb.value===maintanance?'bg-warning': ''"><% cb.text %></b-col>
-                <b-col v-bind:class="cb.value===maintanance?'bg-warning': ''">
+                <b-col>
+                  <span v-bind:class="cb.value===maintanance?'bg-warning': ''" style="background-clip:content-box"> <% cb.text %> </span>
+                  <span v-if="!cb.status" class="text-danger">(imcomplete)</span>
+                </b-col>
+                <b-col>
                   <b-link v-b-modal="'deleteCB'+index" size="sm" variant="outline-primary" class="mr-3">Delete</b-link>
-                  <b-link class="mr-3">GUI</b-link>
+                  <b-link class="mr-3" v-bind:disabled="!cb.status" v-bind:class="">GUI</b-link>
                   <b-link v-on:click="onCBUpdate(cb)" size="sm" 
                     v-bind:variant="cb.status?'outline-primary' : 'secondary'">Configuration</b-link>
-                  <b-modal v-bind:id="'deleteCB'+index" size="lg" centered title="Delete ControlBoard"
-                    hide-backdrop content-class="shadow" v-on:ok="onCBDelete(cb.value, 1)" 
-                    v-on:cancel="onCBDelete(cb.value, 0)" v-on:close="onCBDelete(cb.value, 0)"
+                  <b-modal v-bind:id="'deleteCB'+index"  title="Delete ControlBoard"
+                    hide-backdrop content-class="shadow" hide-footer body-class="hide-body"
+                    v-on:ok="onCBDelete(cb.value, 1)" v-on:cancel="onCBDelete(cb.value, 0)" v-on:close="onCBDelete(cb.value, 0)"
                   >
-                    Are you sure to delete ControlBoard <b><% cb.text %></b>
+                    <template #modal-header="{ close, ok }">
+                      <h5>Delete ControlBoard <b><% cb.text %></b>?</h5>
+                      <span class="ml-auto">
+                        <b-button size="sm" v-on:click="ok()" variant="primary">OK</b-button>
+                        <b-button size="sm" variant="light" v-on:click="close()">
+                          <b-icon icon="x" aria-hidden="true"></b-icon>
+                        </b-button>
+                      </span>
+                    </template>
                   </b-modal>
                 </b-col>
               </b-row>
             </div>
           </b-card-body>
         </b-card>
-
-        <!-- Confirm/Reset all buttons -->
-        <b-container fluid class="fixed-bottom mb-1" v-if="!manageMode && currentCB.value > 0">
-          <b-row class="text-center">
-            <b-col><b-button size="lg" variant="primary" v-on:click="onSAConfirm">Confirm</b-button></b-col>
-            <b-col><b-button size="lg" variant="secondary" v-on:click="onSAReset">Reset All</b-button></b-col>
-          </b-row>
-        </b-container>
       </div>
       <script type="text/javascript" src="/static/components.js"></script>
       <script type="text/javascript" src="/static/main.js"></script>

@@ -1,5 +1,6 @@
 import logging
 import requests
+import re
 import os
 import uuid
 import json
@@ -16,7 +17,7 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 from config import env_config, reg_config, use_v1
 from exceptions import CCMAPIFailError
-from models import UserRule, CB_Account, CB, CB_Group
+from models import CBElement, CB_Account, CB, CB_Group
 
 
 # used to record AG SA. In format {sa_id: CB_SA entity}
@@ -183,7 +184,7 @@ def test_db(logger):
             pinned=True
         )
 
-        test_rule = UserRule(
+        test_rule = CBElement(
             actuator_alias="test_actuator",
             actuator_df="test_df",
             df_order=0,
@@ -221,18 +222,18 @@ def status_receiver(msgs):
         try:
             status = json.loads(msg.decode("utf-8"))
             rule_id = status["rule_id"]
-            if None is UserRule.get(rule_id=rule_id):  # To filter out messages of deleted UserRules stuck at the queue
+            if None is CBElement.get(rule_id=rule_id):  # To filter out messages of deleted CBElements stuck at the queue
                 continue
             if rule_id in running_status:
                 if running_status[rule_id]["status"] != status["status"]:
                     msg = (
-                        f"UserRule NO.{rule_id}'s status changed to {status['status']}\n"
+                        f"CBElement NO.{rule_id}'s status changed to {status['status']}\n"
                         f"Value: {status['value']}, Previous Triggered Epoch Time: {status['prev_trigger']}"
                     )
                     status_logger.info(msg)
             else:
                 msg = {
-                    f"UserRule NO.{rule_id}'s first status log: {status['status']}\n"
+                    f"CBElement NO.{rule_id}'s first status log: {status['status']}\n"
                     f"Value: {status['value']}, Previous Triggered Epoch Time: {status['prev_trigger']}"
                 }
                 status_logger.info(msg)
@@ -291,7 +292,9 @@ def get_iottalk_info(logger):
         iottalk_info['dm_id'] = response['dm_id']
         iottalk_info['df_id'] = list()
         for df in response["df_list"]:
-            iottalk_info['df_id'].append(df['df_id'])
+            order = int(re.search(r"\d+", df["df_name"]).group(0))
+            if order < 6:
+                iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
 
         data = {

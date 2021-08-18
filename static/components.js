@@ -16,65 +16,21 @@ Vue.component('custom-sel', {
     `
 })
 
-Vue.component('sensor-row', {
-    props: ['sensors', 'value', 'status', 'mode', 'selected'],
-    methods: {
-        onSelectSensor: function(sensor) {
-            var selected = this.sensors.indexOf(sensor);
-            this.$emit("update-sensor", selected);
-            return;
-        },
-        onShow: function(bvEvent) {
-            if (this.mode !== "Sensor") {
-                bvEvent.preventDefault();
-            } else if (this.sensors.length <= 1) {
-                bvEvent.preventDefault();
-            }
-            return;
-        }
-    },
-    computed: {
-        candicateSensors: function() {
-            candicate = [];
-            this.sensors.forEach(element => {
-                if (element !== this.sensors[this.selected]) {
-                    candicate.push(element);
-                }
-            });
-            return candicate;
-        }
-    },
+Vue.component('actuator-row', {
+    props: ['actuator', 'status'],
     template: `
-        <b-row v-bind:class="['sensor-list', status?'triggered':'']" class="text-left">
+        <b-row v-bind:class="['element-status', status?'triggered':'']" class="text-left">
             <b-col align-self="start" text-align="start" class="pl-0">
-                <b-dropdown v-if="mode=='Sensor'" v-bind:text="sensors[selected]" 
-                    v-bind:variant="status?'danger':'success'"
-                    v-bind:class="sensors[1]? '': 'one-item-dropdown'"
-                    v-on:show="onShow"
-                >
-                    <b-dropdown-item 
-                        v-if="sensors.length > 1"
-                        v-for="sensor in candicateSensors"
-                        v-on:click="onSelectSensor(sensor)"
-                    >{{sensor}}</b-dropdown-item>
-                </b-dropdown>
                 <b-dropdown class="one-item-dropdown"
-                    v-if="mode==='Timer'" text='Timer' v-bind:variant="status?'danger':'success'" v-on:show="onShow"
-                ></b-dropdown>
-                <b-dropdown class="one-item-dropdown"
-                    v-if="mode==='ON'" text='Manually Opened' v-bind:variant="status?'danger':'success'" v-on:show="onShow"
-                ></b-dropdown>
-                <b-dropdown class="one-item-dropdown"
-                    v-if="mode==='OFF'" text='Manually Closed' v-bind:variant="status?'danger':'success'" v-on:show="onShow"
+                    v-bind:text="actuator" v-bind:variant="status?'danger':'success'"
                 ></b-dropdown>
             </b-col>
-            <span><b>{{value}}</b></span>
         </b-row>
     `
 })
 
-Vue.component('actuator-row', {
-    props: ['mode', 'actuator', 'dirty', 'sensors', 'status', 'maintain'],
+Vue.component('sensor-row', {
+    props: ['mode', 'sensor', 'value', 'dirty'],
     data: function() {
         return {
             state: (this.mode==="ON")? true: false
@@ -87,44 +43,31 @@ Vue.component('actuator-row', {
             }
             this.$emit("update-mode", nextMode);
             return;
-        },
-        onUndo: function() {
-            this.$emit("undo");
-        },
-        onSave: function() {
-            this.$emit("save")
         }
     },
     template: `
-        <b-row class="text-left actuator-control">
+        <b-row class="text-left sensor-list">
             <b-col>
                 <b-button-group>
                     <b-button size="md" variant="outline-success"
                         v-bind:pressed="mode==='ON' || mode==='OFF'"
-                        v-bind:disabled="!status"
                     >
                         <b-form-checkbox switch
                             v-model="state"
                             v-on:input="onSelectMode(0)"
                         >Manual</b-form-checkbox>
                     </b-button>
-                    <b-button variant="outline-success" 
-                        v-bind:pressed="mode==='Sensor'"
-                        v-bind:disabled="sensors===0 || !status"
-                        v-on:click="onSelectMode(2)"
-                    >Sensor</b-button>
                     <b-button variant="outline-success"
                         v-bind:pressed="mode==='Timer'"
-                        v-bind:disabled="!status"
                         v-on:click="onSelectMode(3)"
                     >Timer</b-button>
+                    <b-button variant="outline-success" 
+                        v-bind:pressed="mode==='Sensor'"
+                        v-on:click="onSelectMode(2)"
+                    >{{sensor}}</b-button>
                 </b-button-group>
-                <span class="setting-test">{{actuator}}</span>
             </b-col>
-            <b-button-group class="ml-auto" v-if="dirty && maintain===-1">
-                <b-button size="sm" variant="secondary" plain v-on:click="onUndo">Undo</b-button>
-                <b-button size="sm" variant="primary" v-on:click="onSave">Save</b-button>
-            </b-button-group>
+            <span class="ml-auto mr-1"><b>{{value}}</b></span>
         </b-row>
     `
 })

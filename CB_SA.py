@@ -19,7 +19,7 @@ class AG_SA():
             sa_name: Name of this CB_SA.
             mac_addr: Mac address of this SA.
             config: Infomation for connecting to Subsystem.
-            rules: UserRules of this SA.
+            rules: CBElements of this SA.
 
         Instance variables:
             sa_id: ID for this SA, used in Database querying.
@@ -70,7 +70,7 @@ class AG_SA():
 
     def recover(self):
         '''
-        Recover SA UserRules & generate Rule status.
+        Recover SA CBElements & generate Rule status.
 
         Args: None.
 
@@ -154,7 +154,7 @@ class AG_SA():
             if (self.times < 5):
                 self.times += 1
         except Exception as err:
-            print("Checking UserRule failed, ", err)
+            print("Checking CBElement failed, ", err)
         return
 
     def time_check_worker(self, df_order):
@@ -226,7 +226,7 @@ class AG_SA():
             else:
                 status["status"] = "GREEN"
         except Exception as err:
-            print("Check Timer UserRule failed", err)
+            print("Check Timer CBElement failed", err)
         return
 
     def sensor_checker(self, df_order, data):
@@ -305,7 +305,7 @@ class AG_SA():
                 status["status"] = "GREEN"
             return
         except Exception as err:
-            print("check Sensor UserRule failed", err)
+            print("check Sensor CBElement failed", err)
 
     @staticmethod
     def bigger(data, threshold, avg):

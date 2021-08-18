@@ -33,7 +33,7 @@ from utils import create_do_ag, delete_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag
 from utils import get_na_ag, delete_na_ag, set_fn_ag
 from models import cb_db
-from models import UserRule, CB_Account, CB, CB_Group
+from models import CBElement, CB_Account, CB, CB_Group
 
 
 api_logger = make_logger('API', 'API')
@@ -47,7 +47,6 @@ def requires_login(f):
         if session.get("token"):
             return f(*args, **kwargs)
         else:
-            # TODO: redirect to AAA to login
             return abort(403)
     return decorated_function
 
@@ -99,8 +98,8 @@ def set_rules(cb_id):
 
     Args:
         cb_id: ID of the requester SA.
-        request: A list of UserRules in json format.
-            each UserRule will contain the following fields
+        request: A list of CBElements in json format.
+            each CBElement will contain the following fields
                 `rule_id`
                 `actuator_alias`
                 `mode`
@@ -148,7 +147,7 @@ def set_rules(cb_id):
 
         api_logger.info('\tStart setting rules')
         accessible_users = [user.account for user in cb.account_set]
-        title = f"ControlBoard {cb.cb_name} has UserRules changed by {session['user']}, detail as follows\n"
+        title = f"ControlBoard {cb.cb_name} has CBElements changed by {session['user']}, detail as follows\n"
 
         for rule_setting in rules:
             actuator = rule_setting["actuator_alias"]
@@ -169,7 +168,7 @@ def set_rules(cb_id):
                 )
                 rule_setting["time_close"] = time_close
 
-            rule = UserRule[rule_setting["rule_id"]]
+            rule = CBElement[rule_setting["rule_id"]]
             rule.set(**rule_setting)
             if rule_setting["mode"] == "Sensor":
                 rule_setting["sensor_alias"] = rule.sensor_alias.split(',')[rule_setting["sensor_index"]]
@@ -227,7 +226,7 @@ def get_rules(cb_id):
         Status code: 200 / 500.
         rule_list: A list containing rules of the specific CB. Each element of this list is a rule in dictionary format.
             Each rule will contain the following information
-                `ruleID`: integer, primary key of the rule in database table `UserRule`.
+                `ruleID`: integer, primary key of the rule in database table `CBElement`.
                 `actuator`: string, indicating user-defined actuator df-alias on IoTtalk GUI.
                 `sensors`: list of strings, indicating user-defined sensor df-alias on IoTtalk GUI.
                 `mode`: string, indicating manual on/off or sensor/timer.
@@ -356,7 +355,7 @@ def refresh_cb(cb_id):
         print(NAs)
         if not len(NAs):
             raise NotFoundError
-        # Create UserRules for each NA
+        # Create CBElements for each NA
         src, dst = dict(), dict()
         na_ids = list()
         for na in NAs:
@@ -371,14 +370,14 @@ def refresh_cb(cb_id):
                         api_logger.Exception("Get Na info failed")
                     set_fn_ag(cb.p_id, data, api_logger)
                     na_ids.append(na[0])
-                    order = int(idf["df_name"][-1])
+                    order = int(idf["df_name"].replace("CBElement-TI", ""))
                     direction = 1
                 idfs.append([idf["df_name"], idf["alias_name"].replace("-TI", "")])
 
             for odf in na_info["output"]:
                 if odf["df_name"].startswith("CBElement-O"):
                     na_ids.append(na[0])
-                    order = int(odf["df_name"][-1])
+                    order = int(odf["df_name"].replace("CBElement-O", ""))
                     direction = 0
                 odfs.append([odf["df_name"], odf["alias_name"].replace("-O", "")])
 
@@ -395,7 +394,7 @@ def refresh_cb(cb_id):
 
         actuators = list()
         for order, actuator in dst.items():
-            old_rule = UserRule.get(df_order=order, cb=cb)
+            old_rule = CBElement.get(df_order=order, cb=cb)
             has_record = False
             if None is not old_rule:
                 if old_rule.actuator_alias == actuator[0][1]:
@@ -414,7 +413,7 @@ def refresh_cb(cb_id):
                     )
                 else:
                     cb.rule_set.add(
-                        UserRule(
+                        CBElement(
                             **default_rules,
                             actuator_alias=actuator[0][1],
                             actuator_df=actuator[0][0],
@@ -434,7 +433,7 @@ def refresh_cb(cb_id):
                     )
                 else:
                     cb.rule_set.add(
-                        UserRule(
+                        CBElement(
                             **default_rules,
                             actuator_alias=actuator[0][1],
                             actuator_df=actuator[0][0],
@@ -481,7 +480,7 @@ def refresh_cb(cb_id):
         cb_db.commit()
         api_logger.info(f"Create New CB, DM Name: {dm_name}")
 
-        title = f"ControlBoard {cb.cb_name} is refreshed by {session['user']}, new UserRules as follows\n"
+        title = f"ControlBoard {cb.cb_name} is refreshed by {session['user']}, new CBElements as follows\n"
         rules = [rule.to_dict() for rule in cb.rule_set]
         users = [user.account for user in cb.account_set]
         email_notifier.notify_user(title, rules, users)
@@ -807,7 +806,7 @@ def createasd_cb():
 @orm.db_session
 def delete_cb234():
     '''
-    Delete CB and corresponding SAs / UserRules with specified cb_id.
+    Delete CB and corresponding SAs / CBElements with specified cb_id.
 
     Args:
         cb_id: ID of the specified retrived from function `get_cb`

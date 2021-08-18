@@ -55,6 +55,11 @@ html, body {
   margin: 0 8px;
 }
 
+/* Hide Model Body */
+.hide-body {  
+  padding: 0;
+}
+
 .custom-select {
   padding-top: 0px;
   padding-bottom: 0px;
@@ -116,7 +121,7 @@ html, body {
   margin-bottom: 15px;
 }
 
-.sensor-list {
+.element-status {
   background-color: #28A745;
   border: 0.1px;
   border-top-right-radius: 5px;
@@ -125,27 +130,27 @@ html, body {
   align-items: center;
 }
 
-.sensor-list.triggered {
+.element-status.triggered {
   background-color: #DC3545;
 }
 
-.actuator-control {
+.sensor-list {
   background-color: rgba(0, 0, 0, 0.03);
   border-bottom: 1.5px solid gainsboro;
   padding: 2px 0px;
 }
 
-.actuator-control > div {
+.sensor-list > div {
   padding-left: 0px;
   padding-right: 1px;
 }
 
-.actuator-control > div > div > button {
+.sensor-list > div > div > button {
   padding-top: 0px;
   padding-bottom: 0px;
 }
 
-.actuator-control > div > span {
+.sensor-list > div > span {
   padding-top: 5px;
   font-weight: bold;
   font-size: 1.1rem;

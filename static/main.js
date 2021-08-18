@@ -360,7 +360,7 @@ var app = new Vue({
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
       this.currentCB = selected;
-      if (this.privilege && this.maintanance !== selected.value) {
+      if (this.maintanance !== selected.value) {
         this.onRefreshCB(selected)
           .then( (res) => {
             this.refreshRuleWorker();
@@ -387,6 +387,7 @@ var app = new Vue({
     *  including create / delete / pin field
     */
     onCBCreate: function(action) {
+      console.log(action);
       if (1 === action) {
         axios
           .post("/cb/create_cb", this.newCB)

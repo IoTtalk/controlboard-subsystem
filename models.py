@@ -12,7 +12,7 @@ from pony.orm import LongStr
 cb_db = Database()
 
 
-class UserRule(cb_db.Entity):
+class CBElement(cb_db.Entity):
     rule_id = PrimaryKey(int, auto=True)  # For AG_SA to write status.
     actuator_alias = Required(str)  # Alias of the actuator in this rule.
     actuator_df = Required(str)  # Device Feature Name of the actuator in this rule.
@@ -46,7 +46,7 @@ class CB(cb_db.Entity):
     status = Required(bool)  # This CB's current status, True => working, False => in maintanance.
     ag_token = Required(LongStr)  # AG-returned token
     mac_addr = Required(LongStr)  # Mac-addr of this SA
-    rule_set = Set(UserRule, cascade_delete=True)
+    rule_set = Set(CBElement, cascade_delete=True)
     account_set = Set("CB_Account")
     cb_group = Set(CB_Group)
     p_id = Required(int)  # project id of this SA

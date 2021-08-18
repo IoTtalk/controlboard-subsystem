@@ -24,7 +24,7 @@ class EmailNotifier():
     @staticmethod
     def notify_user(title, rules, users):
         '''
-        Notify Users when a UserRule has been changed
+        Notify Users when a CBElement has been changed
 
         Args:
             title: String, Title of the email.
