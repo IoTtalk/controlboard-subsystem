@@ -24,7 +24,7 @@ from config import env_config
 from config import icon_extensions
 from config import use_v1
 from email_tracker import email_notifier
-from exceptions import NotAuthorizedError, NotFoundError, WrongSettingError
+from exceptions import NotAuthorizedError, NotFoundError, WrongSettingError, CCMAPIFailError
 from oauth import oauth2_client
 from utils import running_cb, running_status, iottalk_info
 from utils import make_logger
@@ -33,7 +33,7 @@ from utils import create_do_ag, delete_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag
 from utils import get_na_ag, delete_na_ag, set_fn_ag
 from models import cb_db
-from models import CBElement, CB_Account, CB, CB_Group
+from models import CBElement, CB_Account, CB
 
 
 api_logger = make_logger('API', 'API')
@@ -359,8 +359,12 @@ def refresh_cb(cb_id):
         src, dst = dict(), dict()
         na_ids = list()
         for na in NAs:
-            na_info = get_na_ag(cb.p_id, na[0], api_logger)[1]
+            state, na_info = get_na_ag(cb.p_id, na[0], api_logger)
+            if not state:
+                raise CCMAPIFailError
+            print("=============")
             print("na_info: ", na_info)
+            print("=============")
             order, idfs, odfs = 0, list(), list()
             direction = 0  # 0 for src, 1 for dst
             for idf in na_info["input"]:
@@ -489,6 +493,9 @@ def refresh_cb(cb_id):
         api_logger.warning("No NAs found, remind user to create NAs")
         cb = CB[cb_id]
         abort(400, "No NA detected, please create Join point in Project {cb.cb_name}")
+    except CCMAPIFailError:
+        api.logger.exception("CCMAPI failed, check which part of the procedure fails")
+        abort(500, "Internal Server Error")
     except Exception as err:
         api_logger.exception(err)
         abort(500, "Internal Server Error")

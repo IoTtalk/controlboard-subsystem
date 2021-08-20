@@ -87,6 +87,7 @@ def sensor_checker(sensor_val):
 
 
 def run(*args):
+    # -10000 -> Open, -10001 -> Close
     global rule, status, prev_trigger
     data = args[0]
     if "mode" in data:
@@ -104,17 +105,17 @@ def run(*args):
 
     if rule["mode"] == "ON":
         status = 1
-        return 1
+        return 1 - 10001
     elif rule["mode"] == "OFF":
         status = 0
-        return 0
+        return 0 - 10001
     else:
         weekdays = [int(x) for x in rule["weekday"].split(",")] if len(rule["weekday"]) else list()
         if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
             if rule["mode"] == "Sensor":
-                return sensor_checker(data["sensor_val"])
+                return sensor_checker(data["sensor_val"]) - 10001
             elif rule["mode"] == "Timer":
-                return timer_checker()
+                return timer_checker() - 10001
         else:
             status = 0
-            return 0
+            return 0 - 10001

@@ -17,7 +17,7 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 from config import env_config, reg_config, use_v1
 from exceptions import CCMAPIFailError
-from models import CBElement, CB_Account, CB, CB_Group
+from models import CBElement, CB_Account, CB
 
 
 # used to record AG SA. In format {sa_id: CB_SA entity}
@@ -278,6 +278,7 @@ def get_iottalk_info(logger):
         None
     '''
     try:
+        # Get the ID of ControlBoard's device model for automatic initialization.
         data = {
             'api_name': 'devicemodel.get',
             'payload': {
@@ -297,6 +298,7 @@ def get_iottalk_info(logger):
                 iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
 
+        # Get the IDs for the cb_join and cb_transform function for automatic function setup after the admin finishes NA configuration.
         data = {
             "api_name": "function.list",
             "payload": {}
@@ -306,22 +308,15 @@ def get_iottalk_info(logger):
             logger.error("Get function failed")
             raise CCMAPIFailError
         for fn in res["result"]:
-            if fn["fn_name"] == "ControlBoard":
-                iottalk_info["fn_id"] = fn["fn_id"]
-                break
-        if "fn_id" not in iottalk_info:
-            data = {
-                "api_name": "function.create",
-                "payload": {
-                    "fn_name": "ControlBoard",
-                    "code": open('./CB_join.py', 'r').read()
-                }
-            }
-            state, res = _post("ccm_api", data, logger)
-            if not state:
-                logger.error("Create fn failed")
-                raise CCMAPIFailError
-            iottalk_info["fn_id"] = res["result"]
+            if fn["fn_name"] == "cb_join":
+                iottalk_info["fn_join"] = fn["fn_id"]
+            elif fn["fn_name"] == "cb_transform":
+                iottalk_info["fn_transform"] = fn["fn_id"]
+
+        if "fn_join" not in iottalk_info:
+            iottalk_info["fn_join"] = create_fn_ag("./CB_join.py", "cb_join", logger)
+        if "fn_transform" not in iottalk_info:
+            iottalk_info["fn_transform"] = create_fn_ag("./CB_transform.py", "cb_transform", logger)
         logger.info(iottalk_info)
     except CCMAPIFailError:
         logger.exception("Getting IoTtalk info failed. check log")
@@ -653,6 +648,54 @@ def get_na_ag(p_id, na_id, logger):
     }
     try:
         state, res = _post("ccm_api", data, logger)
+        '''
+        the returned json will have the following format
+        refer to api/v0/project/`p_id`/na/`na_id` for example
+        {
+            "result":
+            {
+                "fn_list": [],
+                "multiple": [],
+                "na_id": integer,
+                "na_idx": integer,
+                "na_name": string,
+                "p_id": integer
+                "input":
+                [
+                    {
+                        "alias_name",
+                        "df_id",
+                        "df_name",
+                        "df_type",
+                        "dfmp": [   // stands for Device Feature Modular parameters
+                            {
+                                "color",
+                                "dfo_id",
+                                "fn_id",
+                                "idf_type",
+                                "max",
+                                "min",
+                                "na_id",
+                                "normalization",
+                                "param_i"
+                            }
+                        ],
+                        "dfo_id",
+                        "dm_name",
+                        "fn_list":
+                        [
+                            {
+                                "fn_id",
+                                "fn_name"
+                            }
+                        ],
+                        "mac_addr"
+                    }
+                ],
+                output: same as input
+            }
+        }
+        '''
         if not state:
             raise CCMAPIFailError
         return state, res["result"]
@@ -696,6 +739,37 @@ def delete_na_ag(na_id, p_id, logger):
         return False, "Send request to query NA failed, check API log."
 
 
+def create_fn_ag(file_name, fn_name, logger):
+    '''
+    Create a IoTtalk function with its content identical to the code in `file_name`
+
+    Args:
+        file_name: The file path to be uploaded as a function to the IoTtalk server.
+        fn_name: The name of the function.
+
+    Returns:
+        fn_id: The id of the newly created function.
+    '''
+    data = {
+        "api_name": "function.create",
+        "payload": {
+            "fn_name": fn_name,
+            "code": open(file_name, 'r').read()
+        }
+    }
+    try:
+        state, res = _post("ccm_api", data, logger)
+        if not state:
+            raise CCMAPIFailError
+        return res["result"]
+    except CCMAPIFailError:
+        logger.error("Create fn failed")
+        return -1
+    except Exception as err:
+        logger.exception(err)
+        return -1
+
+
 def set_fn_ag(p_id, na_info, logger):
     '''
     Set specified na's join function to CB's function
@@ -704,12 +778,16 @@ def set_fn_ag(p_id, na_info, logger):
         na_info: result from `get_na_ag`
     '''
     dfm_list = list()
-    for index in na_info['input']:
-        dfm_list.append({"dfo_id": index['dfo_id'], "dfmp_list": index['dfmp']})
+    for index in na_info["input"]:
+        dfm_list.append({"dfo_id": index["dfo_id"], "dfmp_list": index["dfmp"]})
+
     for index in na_info['output']:
-        dfm_list.append({"dfo_id": index['dfo_id'], "dfmp_list": index['dfmp']})
-    dfm_list[1]['dfmp_list'][0]['fn_id'] = iottalk_info["fn_id"]
-    print("helloooooooooo", dfm_list)
+        if index["dm_name"] != "ControlBoard":  # The ODF is an output device.
+            index["dfmp"][0]["fn_id"] = iottalk_info["fn_transform"]
+        dfm_list.append({"dfo_id": index["dfo_id"], "dfmp_list": index["dfmp"]})
+
+    dfm_list[0]['dfmp_list'][0]['fn_id'] = iottalk_info["fn_join"]  # Set the IDF function of IDF CBElement-I to ControlBoard
+
     data = {
         "api_name": "networkapplication.update",
         "payload": {
