@@ -7,7 +7,6 @@ var app = new Vue({
     mainPage: true,    // In main page or pop-uped maintain page
     manageMode: false,  // Switch bwtween CB page & manage page
     managePage: false, // Used to switch active state between User/CB management
-    maintanance: -1,
     privilege: privilege,  // Whether current user is a superuser.
     IoTtalkURL: "",
     newCBIcon: null,
@@ -68,7 +67,6 @@ var app = new Vue({
     // get CBs -> get Rules -> get Status
     this.width = window.innerWidth;
     window.addEventListener("resize", this.onWindowResize);
-    var cb = window.localStorage.getItem("cb");
     this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
     axios
       .get("/subsystem/infos")
@@ -78,14 +76,12 @@ var app = new Vue({
       .catch( (err) => {
         console.log(err);
       })
-    if (cb !== null) {  // Create page for maintanance
-      console.log("hello world");
+    
+    // there are two strategy: local storage and postMessage, where postMessage is not available in this scenario.
+    // ref: https://stackoverflow.com/questions/57503980/pass-data-between-components-in-a-new-tab
+    var cb = window.localStorage.getItem("cb");  
+    if (cb !== null) {  // Create a new tab for the admin to view the CB Elements
       cb = JSON.parse(cb);
-      if (cb.status) {
-        this.maintanance = cb.value;
-      } else {
-        this.maintanance = -1;
-      }
       this.controlboards = [cb];
       this.privilege = 0;
       this.currentCB = cb;
@@ -93,13 +89,11 @@ var app = new Vue({
       this.refreshRuleWorker();
 
       window.addEventListener("beforeunload", function() {
+        // clear the cb stored in local storage
         window.localStorage.clear();
       })
 
     } else {  // Main page
-      window.addEventListener("storage", function(event) {
-        this.maintanance
-      });
       if (this.privilege) {
         this.manageMode = true;
         console.log("get user");
@@ -284,7 +278,7 @@ var app = new Vue({
       }
       return;
     },
-    /* API data parser for SA(Field) and Status*/
+    /* API data parser for ControlBoard and Status*/
     setupFields: function(fields) {
       fields.sort((a, b) => b.value - a.value);
       pinnedFieldObjects = [];
@@ -319,9 +313,6 @@ var app = new Vue({
       });
       return;
     },
-    /* System related handler, 
-    *  including manage page switching handlers and CB(Project)/SA(Field) selecting.
-    */
     onSwitchManage: function() {
       if (this.manageMode === false) {
         window.clearInterval(this.statusTrackWorker);
@@ -352,6 +343,23 @@ var app = new Vue({
       }
       return;
     },
+    onGUIOpen: function(cb) {
+      console.log("test");
+      this.onRefreshCB(cb)
+        .then( (res) => {
+          console.log(res);
+          this.refreshCBWorker(cb);
+          window.localStorage.setItem("cb",JSON.stringify(cb));
+          window.open("/");
+        })
+        .catch( (err) => {
+          if (err.response.status === 400) {
+            window.open(this.projectURL(cb.text));
+          } else {
+            console.log(err);
+          }
+        })
+    },
     onSwitchManagePage: function() {
       this.managePage = !this.managePage;
       return;
@@ -360,17 +368,6 @@ var app = new Vue({
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
       this.currentCB = selected;
-      if (this.maintanance !== selected.value) {
-        this.onRefreshCB(selected)
-          .then( (res) => {
-            this.refreshRuleWorker();
-            this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
-            console.log(res);
-          })
-          .catch( (err) => {
-            console.log(err);
-          })
-      }
       return;
     },
     onSelectProject: function(selected) {
@@ -422,63 +419,16 @@ var app = new Vue({
         });
       }
     },
-    onCBUpdate: function(cb) {
+    onCBConfig: function(cb) {
       axios
-        .put("/cb/update_cb/" + cb.value.toString())
+        .put("/cb/disable_cb/" + cb.value.toString())
         .then( () => {
-          if (cb.status) {  // has settings available now
-            cb.status = false;
-            this.maintanance = cb.value;
-
-            // TODO: POP CB element page
-            window.localStorage.setItem("cb",JSON.stringify(cb));
-            window.open("/");
-          } else {
-            this.onRefreshCB(cb)
-              .then( (res) => {
-                console.log(res);
-                this.maintanance = -1;
-                this.refreshCBWorker(cb);
-              })
-              .catch( (err) => {
-                if (err.response.status === 400) {
-                  this.maintanance = cb.value;
-                  window.open(this.projectURL(cb.text));
-                } else {
-                  console.log(err);
-                }
-              })
-            }
+          this.onSAReset();
+          window.setTimeout(() => { window.open(this.projectURL(cb.text)) }, 2000);
         })
         .catch( (err) => {
           console.log(err.response);
         })
-    },
-    onPinFields: function(action) {
-      if (action && this.currentProject) {
-        data = {
-          "cb_id": this.currentProject,
-          "to_pinned": this.pinnedFields
-        };
-        axios.post("/subsystem/set_pinned_field", data)
-          .then( (res) => {
-            console.log(res);
-            this.getAvailableSAs(this.currentProject)
-              .then( (fields) => {
-                this.setupFields(fields);
-              })
-              .catch( (err) => {
-                if (err.response) {
-                  alert(err.response.data);
-                }
-              })
-          })
-          .catch( (err) => {
-            if (err.response) {
-              alert(err.response.data);
-            }
-          })
-      }
     },
     /* SA(Field) related procedures 
     *  including create / delete / refresh / confirm / reset / undo / Resize pinned SA
@@ -538,11 +488,6 @@ var app = new Vue({
       console.log(ruleIDs);
       this.onSettingSaveChange(ruleIDs);
       this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
-      if (this.maintanance !== -1) {
-        this.maintanance = -1;
-        window.open(this.projectURL(this.currentCB.text)).focus();
-        window.close();
-      }
       return;
     },
     onSAReset: function() {
@@ -556,23 +501,9 @@ var app = new Vue({
       console.log(ruleIDs);
       this.onSettingSaveChange(ruleIDs);
       this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
-      if (this.maintanance !== -1) {
-        this.maintanance = -1;
-        this.manageMode = true;
-        this.onRefreshCB()
-          .then( (res) => {
-            console.log(res);
-            window.open(this.projectURL(this.currentCB.text)).focus();
-            window.close();
-          })
-          .catch( (err) => {
-            console.log(err);
-          })
-      }
       return;
     },
     onSettingSaveChange: function(ruleIdx) {
-      console.log(ruleIdx);
       toChange = [];
       ruleIdx.forEach( idx => {
         var setting = this.settings[idx];
@@ -743,9 +674,6 @@ var app = new Vue({
         return "NEG";
       }
     },
-    /* Managing page related procedures 
-    *  including user privilege / CB Icon / Accessible CB(Project) / Logout
-    */
     lvlToText: function(userLvl) {
       if (userLvl === 1) {
         return "Admin";
@@ -783,30 +711,6 @@ var app = new Vue({
             }
           });
       }
-    },
-    onIconUpload: function(cbID, action) {
-      console.log(cbID, action);
-      if (1 === action) {
-        let formData = new FormData();
-        formData.append("file", this.newCBIcon);
-        formData.append("cb_id", cbID);
-        axios
-          .put("/subsystem/cb_icon/" + cbID.toString(), formData, {
-            headers: {
-              "Content-Type": "multipart/form-data"
-            }
-          })
-          .then( (res) => {
-            console.log(res);
-            this.refreshCBWorker();
-          })
-          .catch(function(err) {
-            if (err.response) {
-              alert(err.response.data);
-            }
-          });
-      }
-      this.newCBIcon = null;
     },
     onAccessibleCB: function(userName) {
       this.getAvailableCBs(userName)

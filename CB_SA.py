@@ -114,6 +114,10 @@ class AG_SA():
                         data = data[0]
                     else:
                         data = data[0][self.rules[df_order]["sensor_index"]]
+                    if data <= -10000:
+                        data += 10001
+                        status["status"] = "RED" if data else "GREEN"
+                        continue
                 if self.times < 5:
                     temp_rule = {{
                         "threshold_open": rule["threshold_open"],

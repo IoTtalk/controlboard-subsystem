@@ -36,42 +36,12 @@
           <div class="ml-auto">
             <b-navbar-nav>
               <!-- <b-nav-item class="system-button" v-if="privilege" v-on:click="onSwitchManage"><b><% manageMode? "Admin": "User" %></b></b-nav-item> -->
-              <b-nav-item class="system-button custom-nav-item" v-on:click="onSAConfirm"><b>Save</b></b-nav-item>
-              <b-nav-item class="system-button custom-nav-item" v-on:click="onSAReset"><b>Reset</b></b-nav-item>
+              <b-nav-item v-if="!privilege" class="system-button custom-nav-item" v-on:click="onSAConfirm"><b>Save</b></b-nav-item>
+              <b-nav-item v-if="!privilege" class="system-button custom-nav-item" v-on:click="onSAReset"><b>Reset</b></b-nav-item>
               <b-nav-item class="system-button custom-nav-item" v-on:click="onLogout"><b>Logout</b></b-nav-item>
             </b-navbar-nav>
           </div>
         </b-navbar>
-        <!-- Add/delete field button -->
-        <div v-if="!manageMode">
-          <div class="field-manage" v-if="privilege">
-            <div class="d-flex justify-content-between">
-              <div>
-                <!-- <b-button size="sm" variant="success" v-b-modal="'CreateSA'" v-if="currentProject>0" class="create-field">+ New CB</b-button> -->
-                <!-- <b-button size="sm" variant="secondary" class="ml-sm-1" v-if="currentField>0" v-on:click="onRefreshSA()">Refresh</b-button> -->
-              </div>
-              <!-- <b-button size="sm" variant="danger" v-if="currentField>0" v-b-modal="'CancelSA'">Delete CB</b-button> -->
-              <!-- <b-modal id="CreateSA" size="lg" centered title="Create New ControlBoard"
-                hide-backdrop content-class="shadow"
-                v-on:ok="onSACreate(1)" v-on:cancel="onSACreate(0)" v-on:close="onSACreate(0)"
-              >
-                <b-container fluid>
-                  CB Name
-                  <b-form-input placeholder="Enter Your ControlBoard's Name Here"
-                    size="sm" v-model="newSA.text" id="input-fieldName"
-                  ></b-form-input>
-                  <b-form-text id="input-fieldName">This name will be 
-                    used to create project on IoTtalk Server.</b-form-text>
-                </b-container>
-              </b-modal> -->
-              <!-- <b-modal id="CancelSA" size="lg" centered title="Delete ControlBoard"
-                hide-backdrop content-class="shadow"
-                v-on:ok="onSADelete(1)" v-on:cancel="onSADelete(0)" v-on:close="onSADelete(0)"
-              > Are you sure to delete ControlBoard <b><% currentFieldName %></b>?
-              </b-modal> -->
-            </div>
-          </div>
-        </div>
 
         <!-- ControlBoard tabs -->
         <b-card title="Card Title" no-body class="card mb-3">
@@ -101,18 +71,9 @@
                     align-self="start"
                   > <%cb.text%> </b-dropdown-item>
                 </b-dropdown-group>
-                <!-- <b-dropdown-divider v-if="unPinnedFields.length"></b-dropdown-divider>
-                <b-dropdown-group id="dropdown-group-2" header="Other CBs" 
-                  v-if="unPinnedFields.length">
-                  <b-dropdown-item
-                    v-for="field in unPinnedFields"
-                    v-bind:active="field.value===currentField"
-                    v-on:click="onSwitchField(field.value)"
-                    align-self="start"
-                  > <%field.text%> </b-dropdown-item> -->
-                </b-dropdown-group>
               </b-nav-item-dropdown>
 
+              <!-- Admin Page Card Title -->
               <b-nav-item v-if="manageMode" v-bind:active="managePage" v-on:click="onSwitchManagePage">
                 User
               </b-nav-item>
@@ -124,17 +85,6 @@
           </b-card-header>
 
           <b-card-body class="text-center custom-card-body">
-            <div v-if="settings.length===0 && !manageMode" class="text-left">
-              <span v-if="privilege">Please Select I/O Devices at the IoTtalk GUI First!</span>
-            </div>
-            <div style="color:crimson; text-align: left;" class="mb-1">
-              <b v-if="maintanance===currentCB.value && !manageMode">
-                Modify settings to safe state and press "Confirm".
-              </b>
-              <b v-if="!manageMode && maintanance===-1 && !currentCB.status">
-                This ControlBoard is in maintanance.
-              </b>
-            </div>
             <div v-for="(setting, index) in settings" class="setting-card" 
               v-if="!manageMode && currentCB.value > 0">
               <!-- Actuator Row -->
@@ -169,7 +119,7 @@
                   <custom-sel
                     v-bind:options="comparisons"
                     v-bind:select="setting.content.openSensor"
-                    v-bind:status="currentCB.status || maintanance !== -1"
+                    v-bind:status="currentCB.status"
                     v-on:update-option="onSelectCompare($event, index, 'open')"
                   ></custom-sel>
                   <b-form-input size="sm" class="custom-input"
@@ -181,7 +131,7 @@
                   <custom-sel
                     v-bind:options="comparisons"
                     v-bind:select="setting.content.closeSensor"
-                    v-bind:status="currentCB.status || maintanance !== -1"
+                    v-bind:status="currentCB.status"
                     v-on:update-option="onSelectCompare($event, index, 'close')"
                   ></custom-sel> 
                   <b-form-input size="sm" class="custom-input"
@@ -198,52 +148,54 @@
                   <custom-sel
                     v-bind:options="hours"
                     v-bind:select="setting.content.openTimer[0]"
-                    v-bind:status="currentCB.status || maintanance !== -1"
+                    v-bind:status="currentCB.status"
                     v-on:update-option="onSelectTime($event, index, 0)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="minutes"
                     v-bind:select="setting.content.openTimer[1]"
-                    v-bind:status="currentCB.status || maintanance !== -1"
+                    v-bind:status="currentCB.status"
                     v-on:update-option="onSelectTime($event, index, 1)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="seconds"
                     v-bind:select="setting.content.openTimer[2]"
-                    v-bind:status="currentCB.status || maintanance !== -1"
+                    v-bind:status="currentCB.status"
                     v-on:update-option="onSelectTime($event, index, 2)"
                   ></custom-sel>
                   <span style="padding-left: 10px; padding-right: 2px;">To</span>
                   <custom-sel
                     v-bind:options="hours"
                     v-bind:select="setting.content.closeTimer[0]"
-                    v-bind:status="currentCB.status || maintanance !== -1"
+                    v-bind:status="currentCB.status"
                     v-on:update-option="onSelectTime($event, index, 3)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="minutes"
                     v-bind:select="setting.content.closeTimer[1]"
-                    v-bind:status="currentCB.status || maintanance !== -1"
+                    v-bind:status="currentCB.status"
                     v-on:update-option="onSelectTime($event, index, 4)"
                   ></custom-sel>
                   <span>:</span>
                   <custom-sel
                     v-bind:options="seconds"
                     v-bind:select="setting.content.closeTimer[2]"
-                    v-bind:status="currentCB.status || maintanance !== -1"
+                    v-bind:status="currentCB.status"
                     v-on:update-option="onSelectTime($event, index, 5)"
                   ></custom-sel>
                 </div>
+
+                <!-- Weekdays Setting Area -->
                 <div>
                   <b-form-group>
                     <b-form-checkbox-group
                       :options="weekdays" size="sm" plain
                       v-on:change="onSelectWeekdays($event, index)"
                       v-bind:checked="setting.content.weekdays"
-                      v-bind:disabled="!(currentCB.status || maintanance !== -1)"
+                      v-bind:disabled="!currentCB.status"
                     ></b-form-checkbox-group>
                   </b-form-group>
                 </div>
@@ -259,7 +211,7 @@
                     <b-form-input placeholder="Seconds" size="sm" class="custom-input"
                       v-model="setting.content.dutyPos"
                       v-on:input="setting.dirty=true"
-                      v-bind:disabled="!(currentCB.status || maintanance  !== -1)"
+                      v-bind:disabled="!currentCB.status"
                     ></b-form-input>
                     <span class="setting-text-mid">Seconds.</span>
                     <span class="setting-text-start">OFF</span>
@@ -273,26 +225,25 @@
                 </div>
               </div>
             </div>
+
+            <!-- Admin Page -->
             <div v-if="manageMode && privilege">
               <b-row class="text-left">
+                <!-- User Tab -->
                 <b-col v-if="managePage"><b>User</b></b-col>
                 <b-col v-if="managePage" cols="6"><b>Email</b></b-col>
-                <b-col v-else>
-                  <b>ControlBoards</b>
-                  <!-- <b-button size="sm" variant="light" v-b-modal="'CreateCB'">
-                    <b-icon icon="plus" aria-hidden="true"></b-icon>
-                  </b-button> -->
-                </b-col>
+
+                <!-- ControlBoard Tab -->
+                <b-col v-else><b>ControlBoards</b></b-col>
                 <b-col v-if="managePage"><b>Identity</b></b-col>
                 <b-col v-else><b>Actions</b></b-col>
               </b-row>
-              <b-row class="text-left divide-top divide-bottom"
-                v-for="(user, index) in users" v-if="managePage"
-              >
+
+              <b-row class="text-left divide-top divide-bottom" v-for="(user, index) in users" v-if="managePage">
+                <!-- User Tab Content -->
                 <b-col>
-                  <b-link v-b-modal="'modal'+index" size="sm" 
-                    variant="outline-primary" v-on:click="onAccessibleCB(user.email)"
-                  ><% user.username %>
+                  <b-link v-b-modal="'modal'+index" size="sm" variant="outline-primary" v-on:click="onAccessibleCB(user.email)">
+                    <% user.username %>
                   </b-link>
                 </b-col>
                 <b-col cols="6"> <% user.email %></b-col>
@@ -327,12 +278,13 @@
                   </b-container>
                 </b-modal>
               </b-row>
-              <b-row class="text-left divide-top divide-bottom" v-if="!managePage"> <!-- Add ControlBoard -->
+
+              <!-- ControlBoard Tab Content -->
+              <b-row class="text-left divide-top divide-bottom" v-if="!managePage">
                 <b-col>
                   <b-link v-b-modal="'CreateCB'" style="font-size:smaller">Add ControlBoard</b-link>
                 </b-col>
-                <b-modal id="CreateCB" title="Create ControlBoard"
-                  hide-backdrop content-class="shadow" hide-footer button-size="sm"
+                <b-modal id="CreateCB" title="Create ControlBoard" hide-backdrop content-class="shadow" hide-footer button-size="sm"
                   v-on:ok="onCBCreate(1)" v-on:cancel="onCBCreate(0)" v-on:close="onCBCreate(0)"
                 >
                   <template #modal-header="{ close, ok }">
@@ -352,17 +304,16 @@
                 </b-modal>
               </b-row>
 
-              <b-row class="text-left divide-top divide-bottom"
-                v-for="(cb, index) in controlboards" v-if="!managePage"
-              >
+              <b-row class="text-left divide-top divide-bottom" v-for="(cb, index) in controlboards" v-if="!managePage">
                 <b-col>
-                  <span v-bind:class="cb.value===maintanance?'bg-warning': ''" style="background-clip:content-box"> <% cb.text %> </span>
-                  <span v-if="!cb.status" class="text-danger">(imcomplete)</span>
+                  <!-- <span v-bind:class="cb.value===maintanance?'bg-warning': ''" style="background-clip:content-box"> <% cb.text %> </span> -->
+                  <span><% cb.text %></span>
+                  <span v-if="!cb.status" class="text-danger">(incomplete)</span>
                 </b-col>
                 <b-col>
                   <b-link v-b-modal="'deleteCB'+index" size="sm" variant="outline-primary" class="mr-3">Delete</b-link>
-                  <b-link class="mr-3" v-bind:disabled="!cb.status" v-bind:class="">GUI</b-link>
-                  <b-link v-on:click="onCBUpdate(cb)" size="sm" 
+                  <b-link class="mr-3" v-bind:disabled="!cb.status" v-on:click=onGUIOpen(cb)>GUI</b-link>
+                  <b-link v-on:click="onCBConfig(cb)" size="sm" 
                     v-bind:variant="cb.status?'outline-primary' : 'secondary'">Configuration</b-link>
                   <b-modal v-bind:id="'deleteCB'+index"  title="Delete ControlBoard"
                     hide-backdrop content-class="shadow" hide-footer body-class="hide-body"

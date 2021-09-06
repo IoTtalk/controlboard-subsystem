@@ -3,7 +3,6 @@ from functools import wraps
 import json
 import requests
 import time
-import os
 import uuid
 
 
@@ -15,13 +14,11 @@ from flask import request
 from flask import session
 from flask import redirect
 from flask import url_for
-from werkzeug.utils import secure_filename
 from pony import orm
 
 
 from config import default_rules, default_status
 from config import env_config
-from config import icon_extensions
 from config import use_v1
 from email_tracker import email_notifier
 from exceptions import NotAuthorizedError, NotFoundError, WrongSettingError, CCMAPIFailError
@@ -31,7 +28,7 @@ from utils import make_logger
 from utils import create_proj_ag, delete_proj_ag, get_proj_ag
 from utils import create_do_ag, delete_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag
-from utils import get_na_ag, delete_na_ag, set_fn_ag
+from utils import get_na_ag, delete_na_ag, set_fn_ag, create_na_ag
 from models import cb_db
 from models import CBElement, CB_Account, CB
 
@@ -501,10 +498,10 @@ def refresh_cb(cb_id):
         abort(500, "Internal Server Error")
 
 
-@apis.route('/cb/update_cb/<int:cb_id>', methods=['PUT'])
+@apis.route('/cb/disable_cb/<int:cb_id>', methods=['PUT'])
 @requires_login
 @orm.db_session
-def update_cb(cb_id):
+def disable_cb(cb_id):
     '''
     Set specified CB's status to false, indicating it's in maintanance.
 
@@ -540,7 +537,7 @@ def create_cb():
     mac_addr = str(uuid.uuid4())
 
     cb = CB(cb_name=new_cb, ag_token="NotCreated", mac_addr=mac_addr,
-            p_id=-1, do_id="-1", status=False, na_id="-1")
+            p_id=-1, do_id="-1", status=False, na_id="-1", dedicated=True)
 
     cb_db.commit()
     api_logger.info("Start Creating CB")
@@ -550,20 +547,18 @@ def create_cb():
         # Create Project
         status, p_id = create_proj_ag(new_cb, api_logger)
         if not status:  # Project already exists
-            status, project_info = get_proj_ag(new_cb, api_logger)
             new_project = False
-            print(project_info)
-            if not status:
-                cb.delete()
-                cb_db.commit()
-                abort(400, "Create CB failed at getting project, project with the same name already exists.")
-            cb.p_id = project_info["p_id"]
-            p_id = project_info["p_id"]
-        else:
-            cb.p_id = p_id
+            cb.dedicated = False
+        status, project_info = get_proj_ag(new_cb, api_logger)
+        if not status:
+            cb.delete()
+            cb_db.commit()
+            abort(400, "Create CB failed at getting project information")
+        cb.p_id = project_info["p_id"]
+        p_id = project_info["p_id"]
 
         do_id = list()
-        if not new_project:
+        if not new_project:  # Check if the DM of ControlBoard exists in the assigned project
             if use_v1:
                 for do in project_info["ido"]:
                     if do["dm_name"] == "ControlBoard":
@@ -578,6 +573,25 @@ def create_cb():
                 cb.delete()
                 cb_db.commit()
                 abort(500, "Create CB failed at creating DO, check api log files and IoTtalk CCM.")
+
+        status, project_info = get_proj_ag(new_cb, api_logger)
+        # Fetch dfo ids
+        dfo_ids = list()
+        for ido in project_info["ido"]:
+            if ido["dm_name"] == "ControlBoard":
+                cb_idf = ido["dfo"]
+                cb_ido = ido["do_id"]
+                break
+        for odo in project_info["odo"]:
+            if odo["dm_name"] == "ControlBoard":
+                cb_odf = odo["dfo"]
+                cb_odo = odo["do_id"]
+                break
+        for idf, odf in zip(cb_idf, cb_odf):
+            dfo_ids.append([(cb_ido, idf["df_id"]), (cb_odo, odf["df_id"])])
+        for i, dfo_pair in enumerate(dfo_ids):
+            state, res = create_na_ag(p_id, f"test{i}", i, dfo_pair, api_logger)
+
         if use_v1:
             cb.do_id = str(do_id[0]) + ',' + str(do_id[1])
         else:
@@ -638,6 +652,11 @@ def delete_cb(cb_id=None):
             if not status:
                 api_logger.exception(f"Error delete CB {cb.cb_name}, Deregister SA failed, check api log file")
                 return "Delete CB failed, check api log files", 500
+        if cb.dedicated:
+            status, res = delete_proj_ag(cb.p_id, api_logger)
+            if not status:
+                api_logger.exception(f"Error delete Project {cb.cb_name}, Reason: {res} , check api log file")
+                return "Delete CB failed, check api log files", 500
         cb.delete()
         if cb_id in running_cb:
             del running_cb[cb_id]
@@ -650,199 +669,6 @@ def delete_cb(cb_id=None):
     except Exception as err:
         api_logger.exception(err)
         abort(500)
-
-
-@apis.route('/sa/get_sa/<int:cb_id>', methods=['GET'])
-@requires_login
-@orm.db_session()
-def get_sa(cb_id):
-    '''
-    Get SA infos in the specified CB. Called when rendering available SAs to the user.
-
-    Args:
-        cb_id: The ID of the requested CB.
-
-    Returns:
-        Status code: 200 / 403
-        available_sa: A list of CB SAs, each element is composed of sa_id and sa_name of the corresponging SA.
-    '''
-    available_sa = list()
-    if 0 == cb_id:
-        return jsonify(list()), 200
-    try:
-        account = CB_Account.get(account=session["user"])
-        if CB[cb_id] not in account.cb_set:
-            raise NotAuthorizedError
-        for sa in CB[cb_id].sa_set:
-            available_sa.append({
-                "text": sa.sa_name,
-                "value": sa.sa_id,
-                "pin": sa.pinned
-            })
-        return jsonify(available_sa), 200
-    except NotAuthorizedError:
-        api_logger.exception("Error getting SA, Requested CB is not shared with this user.")
-        abort(403, "Not a superuser!")
-
-
-@apis.route('/subsystem/set_pinned_field', methods=['POST'])
-@requires_login
-@orm.db_session
-def set_pinned_field():
-    '''
-    Set SA(Fields) to pinned in CB given `cb_id` and `sa_id`.
-
-    Args:
-        cb_id: Int, the CB's primary key.
-        to_pinned: List, SA_id of SAs to be pinned.
-
-    Returns:
-        Status code: 200 / 400 / 500
-        Msg: Corresponding execution status.
-    '''
-    try:
-        data = request.json
-        cb_id, pinned_list = data["cb_id"], data["to_pinned"]
-        sa_ids = set()
-        # Check `sa_id`s contained in `pinned_list` are all belong to the CB given `cb_id`
-        for sa in CB[cb_id].sa_set:
-            sa_ids.add(sa.sa_id)
-        for to_pinned in pinned_list:
-            if to_pinned not in sa_ids:
-                raise NotFoundError
-
-        for sa_id in sa_ids:
-            if sa_id in pinned_list:
-                CB_SA[sa_id].pinned = True
-            else:
-                CB_SA[sa_id].pinned = False
-        cb_db.commit()
-        return "okay", 200
-    except NotFoundError:
-        api_logger.exception("Unrelated SA involved, abort request")
-        abort(400, "Unrelated SA involved, abort request")
-    except Exception as err:
-        api_logger.exception(err)
-        abort(500)
-
-
-@apis.route('/subsystem/cb_icon/<int:cb_id>', methods=["PUT"])
-@requires_login
-@orm.db_session
-def manage_icon(cb_id):
-    '''
-    Change specified CB's icon given `cb_id` and `file` from request.
-
-    Args:
-        cb_id: Specified CB's unique id.
-        file: Image body to change.
-
-    Returns:
-        Status code: 200 / 400 / 401 / 403 / 500
-        Message: Corresponding execution result.
-    '''
-    print(icon_extensions)
-    try:
-        account = CB_Account.get(account=session["user"])
-        if not account.privilege:
-            raise NotAuthorizedError
-        icon = request.files["file"]
-        icon_name = secure_filename(icon.filename).rsplit(".", 1)
-        if "." in icon.filename and icon_name[1] in icon_extensions:
-            print(icon_name)
-            icon_path = str(cb_id) + "_" + icon_name[0] + "." + icon_name[1]
-            old_path = CB[cb_id].icon
-            if old_path != env_config["env"]["default_icon"]:
-                os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), old_path))
-            CB[cb_id].icon = icon_path
-            icon_path = os.path.join(env_config["env"]["icon_path"], icon_path)
-            icon.save(icon_path)
-        else:
-            raise TypeError
-        cb_db.commit()
-        return "Icon change finished", 200
-    except NotAuthorizedError:
-        api_logger.exception("Error Changing Icon, User is not a superuser.")
-        abort(403, "Not a superuser!")
-    except TypeError:
-        api_logger.exception("Error Changing Icon, Unsupported Icon extensions.")
-        abort(400, "Non-supported icon format")
-    except Exception as err:
-        api_logger.exception("Unknown Error in Changing Icon.")
-        api_logger.exception(err)
-        abort(500, "Internal Server Error")
-
-
-@apis.route('/subsystem/create_cb', methods=['POST'])
-@requires_login
-@orm.db_session
-def createasd_cb():
-    '''
-    Create a Empty ControlBoard that contains no SA(Field).
-
-    Args:
-        text: cb_name of this ControlBoard.
-
-    Returns:
-        Status Code: 200 / 400 / 401 / 500.
-        Message: Corresponding execution result.
-    '''
-    new_cb = request.get_data().decode("utf-8")
-    try:
-        owner = CB_Account.get(account=session["user"])
-        if None is owner:
-            raise NotFoundError
-        cb = CB(
-            cb_name=new_cb,
-            icon=env_config["env"]["default_icon"]
-        )
-        cb.account_set.add(owner)
-        cb_db.commit()
-        api_logger.info(f"Create ControlBoard by User {owner.account}, CB ID:  {cb.cb_id}")
-    except NotFoundError:
-        api_logger.exception("Error Create CB, No Such User!")
-        abort(400, "Non-existed User!")
-    except Exception as err:
-        api_logger.exception(err)
-        abort(500, "Unknown Error occurred, contact subsystem-admin to check error log!")
-    return "Success", 200
-
-
-@apis.route('/subsystem/delete_cb', methods=['POST'])
-@requires_login
-@orm.db_session
-def delete_cb234():
-    '''
-    Delete CB and corresponding SAs / CBElements with specified cb_id.
-
-    Args:
-        cb_id: ID of the specified retrived from function `get_cb`
-
-    Returns:
-        Status Code: 200 / 403 / 500.
-        Message: Corresponding execution result.
-    '''
-    try:
-        cb_id = request.get_data().decode("utf-8")
-        account = CB_Account.get(account=session["user"])
-        api_logger.info(f"Delete ControlBoard {cb_id} by User {account.account}")
-        if not account.privilege:
-            raise NotAuthorizedError
-        if CB[cb_id].icon != env_config["env"]["default_icon"]:
-            os.remove(os.path.join(os.path.normpath(env_config["env"]["icon_path"]), CB[cb_id].icon))
-        for sa in CB[cb_id].sa_set:
-            delete_sa(sa.sa_id)
-
-        CB[cb_id].delete()  # By applying cascade deleting.
-        cb_db.commit()
-        return "Specified ControlBoard and subsequent Fields deleted."
-    except NotAuthorizedError:
-        api_logger.exception("Error Deleting ControlBoard, User is not a superuser.")
-        abort(403, "Not a superuser!")
-    except Exception as err:
-        api_logger.exception("Unknown error occurred, error message as belows")
-        api_logger.exception(err)
-        abort(500, "Internal error occurred")
 
 
 @apis.route('/cb/get_cb/<string:usr_account>', methods=['GET'])

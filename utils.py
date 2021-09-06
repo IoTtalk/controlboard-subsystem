@@ -376,7 +376,7 @@ def get_proj_ag(cb_name, logger):
         state, response = _post('ccm_api', data, logger)
         if not state:
             raise CCMAPIFailError
-        logger.info('\tCreate Project\t......done')
+        logger.info('Get Project\t......done')
         return state, response["result"]
     except Exception as err:
         logger.exception(err)
@@ -466,6 +466,7 @@ def create_do_ag(p_id, df_id, dm_name, logger):
         if not status:
             raise CCMAPIFailError
         logger.info('\tCreate DO\t......done')
+        print("hello                ", response["result"])
         return status, response["result"]
     except CCMAPIFailError:
         logger.exception("CCM API request failed")
@@ -627,12 +628,45 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
         return False, "DM not found"
 
 
+def create_na_ag(p_id, na_name, na_idx, dfo_ids, logger):
+    '''
+    Create a join node with given dfo_ids
+
+    Args:
+        p_id: The Project ID
+        na_name: The name of the desired join node.
+        na_idx: The index of the na.
+        dfo_ids: The device feature objects to be connected.
+
+    Returns:
+
+    '''
+    data = {
+        "api_name": "networkapplication.create",
+        "payload": {
+            "p_id": p_id,
+            "joins": dfo_ids
+        }
+    }
+    try:
+        state, res = _post("ccm_api", data, logger)
+        if not state:
+            raise CCMAPIFailError
+        return state, res["result"]
+    except CCMAPIFailError:
+        logger.exception("Create NA failed")
+        return False, "AG returned bad response"
+    except Exception as err:
+        logger.exception(err)
+        return False, "Send request to create NA failed, check API log."
+
+
 def get_na_ag(p_id, na_id, logger):
     '''
     Get a specific NetworkApplication given p_id and na_id.
 
     Args:
-        p_id: Integer indicating which SA to query.
+        p_id: The Project ID.
         na_id: Integer indicating which NA to query.
 
     Returns:

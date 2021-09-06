@@ -33,13 +33,6 @@ class CBElement(cb_db.Entity):
     cb = Required("CB")  # which CB this rule belongs to.
 
 
-class CB_Group(cb_db.Entity):
-    group_id = PrimaryKey(int, auto=True)
-    group_name = Required(str)
-    cb_set = Set("CB")
-    account = Required("CB_Account")
-
-
 class CB(cb_db.Entity):
     cb_id = PrimaryKey(int, auto=True)  # id of this SA.
     cb_name = Required(str)  # User-defined cb_name. Can't be repeated.
@@ -48,16 +41,15 @@ class CB(cb_db.Entity):
     mac_addr = Required(LongStr)  # Mac-addr of this SA
     rule_set = Set(CBElement, cascade_delete=True)
     account_set = Set("CB_Account")
-    cb_group = Set(CB_Group)
     p_id = Required(int)  # project id of this SA
     do_id = Required(str)  # device object id for this SA.
     na_id = Required(str)  # na_ids used in delete CB
+    dedicated = Required(bool)  # If this CB is created for ControlBoard
 
 
 class CB_Account(cb_db.Entity):
     account = Required(str)  # Account/Email of this user.
     user_name = Required(str)  # UserName of this user
-    privilege = Required(int)  # User level of this user.
+    privilege = Required(int)  # User level of this user. Note that the managers call this column `identity`
     access_token = Required(str)  # Account Access token for this user.
     cb_set = Set(CB)  # CBs this user can see.
-    group_set = Set(CB_Group)
