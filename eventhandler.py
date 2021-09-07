@@ -356,40 +356,38 @@ def refresh_cb(cb_id):
         src, dst = dict(), dict()
         na_ids = list()
         for na in NAs:
+            # na: [<na_id>, <na_name>, <na_idx>]
             state, na_info = get_na_ag(cb.p_id, na[0], api_logger)
             if not state:
                 raise CCMAPIFailError
-            print("=============")
-            print("na_info: ", na_info)
-            print("=============")
-            order, idfs, odfs = 0, list(), list()
-            direction = 0  # 0 for src, 1 for dst
-            for idf in na_info["input"]:
-                if idf["df_name"].startswith("CBElement-TI"):
-                    status, data = get_na_ag(cb.p_id, na[0], api_logger)
-                    if not status:
-                        api_logger.Exception("Get Na info failed")
-                    set_fn_ag(cb.p_id, data, api_logger)
-                    na_ids.append(na[0])
-                    order = int(idf["df_name"].replace("CBElement-TI", ""))
-                    direction = 1
-                idfs.append([idf["df_name"], idf["alias_name"].replace("-TI", "")])
+            # print("=============")
+            # print("na_info: ", na_info)
+            # print("=============")
+            order, input_device, output_device = 0, list(), list()
 
-            for odf in na_info["output"]:
-                if odf["df_name"].startswith("CBElement-O"):
-                    na_ids.append(na[0])
-                    order = int(odf["df_name"].replace("CBElement-O", ""))
-                    direction = 0
-                odfs.append([odf["df_name"], odf["alias_name"].replace("-O", "")])
+            idf = na_info["input"][0]
+            if idf["df_name"].startswith("CBElement"):
+                set_fn_ag(cb.p_id, na_info, api_logger)
+                na_ids.append(na[0])
+                order = int(idf["df_name"].replace("CBElement-TI", ""))
 
-            # Not a CB related NA.
-            if 0 == order:
-                continue
-            if direction:
-                dst[order] = odfs
+                for odf in na_info["output"]:
+                    if not odf["df_name"].startswith("CBElement"):
+                        output_device.append([odf["df_name"], odf["alias_name"].replace("-O", "")])
             else:
-                src[order] = idfs
-        print(na_ids)
+                cb_related = False
+                for odf in na_info["output"]:
+                    if odf["df_name"].startswith("CBElement"):
+                        cb_related = True
+                        order = int(odf["df_name"].replace("CBElement-O", ""))
+                        break
+                if cb_related:
+                    input_device.append([idf["df_name"], idf["alias_name"].replace("-I", "")])
+            if len(input_device):
+                src[order] = input_device
+            if len(output_device):
+                dst[order] = output_device
+        print(src, dst)
         nas = ",".join(str(na_id) for na_id in na_ids)
         cb.na_id = nas
 

@@ -1,6 +1,5 @@
 import time
 import uuid
-import datetime
 
 
 import zmq
@@ -38,7 +37,6 @@ class AG_SA():
         self.sa_id = int(sa_id)
         self.config = config
         self.rules = rules
-        self.times = 0
         if mac_addr != 'None':
             self.mac_addr = mac_addr
         else:
@@ -78,7 +76,6 @@ class AG_SA():
         '''
         self.status = dict()
         print("print sa's rules")
-        DAN.state = "RESUME"
         for (df_order, rule) in self.rules.items():
             rule_id = rule["rule_id"]
             self.status[rule_id] = {{
@@ -118,307 +115,32 @@ class AG_SA():
                         data += 10001
                         status["status"] = "RED" if data else "GREEN"
                         continue
-                if self.times < 5:
-                    temp_rule = {{
-                        "threshold_open": rule["threshold_open"],
-                        "threshold_close": rule["threshold_close"],
-                        "comparison_open": rule["comparison_open"],
-                        "comparison_close": rule["comparison_close"],
-                        "time_open": [rule["time_open"].hour, rule["time_open"].minute, rule["time_open"].second],
-                        "time_close": [rule["time_close"].hour, rule["time_close"].minute, rule["time_close"].second],
-                        "mode": rule["mode"],
-                        "weekday": rule["weekday"],
-                        "duty_pos": rule["duty_pos"],
-                        "duty_neg": rule["duty_neg"],
-                        "sensor_val": data
-                    }}
-                    DAN.push(actuator_df, temp_rule)
-                else:
-                    DAN.push(actuator_df, {{"sensor_val": data}})
+                temp_rule = {{
+                    "threshold_open": rule["threshold_open"],
+                    "threshold_close": rule["threshold_close"],
+                    "comparison_open": rule["comparison_open"],
+                    "comparison_close": rule["comparison_close"],
+                    "time_open": [rule["time_open"].hour, rule["time_open"].minute, rule["time_open"].second],
+                    "time_close": [rule["time_close"].hour, rule["time_close"].minute, rule["time_close"].second],
+                    "mode": rule["mode"],
+                    "weekday": rule["weekday"],
+                    "duty_pos": rule["duty_pos"],
+                    "duty_neg": rule["duty_neg"],
+                    "sensor_val": data
+                }}
+                print(temp_rule)
+                DAN.push(actuator_df, temp_rule)
+
                 status["value"] = data if data is not None else status["value"]
-                if rule["mode"] == "ON":
-                    if status["status"] != "RED":
-                        status["status"] = "RED"
-                elif rule["mode"] == "OFF":
-                    if status["status"] == "RED":
-                        status["status"] = "GREEN"
-                # auto mode
-                else:
-                    weekdays = [int(x) for x in rule["weekday"].split(",")] \
-                        if len(rule["weekday"]) else list()
-                    if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
-                        if rule["mode"] == "Sensor" and data is not None:
-                            self.sensor_checker(df_order, data)
-                        elif rule["mode"] == "Timer":
-                            self.timer_checker(df_order)
-                    else:
-                        if status["status"] == "RED":
-                            status["status"] = "GREEN"
                 self.socket.send_json(status)
-            if (self.times < 5):
-                self.times += 1
         except Exception as err:
             print("Checking CBElement failed, ", err)
         return
 
-    def time_check_worker(self, df_order):
-        """
-        Work function for timing check, added for sensor-type's timing checking feature
-
-        Args:
-            df_order: The IDF/ODF pair of ControlBoard to pull/push data.
-
-        Returns:
-            satisfied: Boolean, whether timing correct.
-        """
-        rule = self.rules[df_order]
-        current = datetime.datetime.now()
-        time_open = datetime.datetime.combine(datetime.date.today(), rule["time_open"])
-        time_close = datetime.datetime.combine(datetime.date.today(), rule["time_close"])
-        if time_open > time_close:
-            time_close = time_close + datetime.timedelta(days=1)
-        return (current > time_open and current < time_close)
-
-    def timer_checker(self, df_order):
-        """
-        Timer-type rule checking handler. Push to IoTTalk server accordingly.
-
-        Args:
-            df_order: The IDF/ODF pair of ControlBoard to pull/push data.
-
-        Returns:
-            None
-        """
-        rule = self.rules[df_order]
-        status = self.status[rule["rule_id"]]
-
-        current = datetime.datetime.now()
-        current_epoch = time.time()
-        time_open = datetime.datetime.combine(datetime.date.today(), rule["time_open"])
-        time_close = datetime.datetime.combine(datetime.date.today(), rule["time_close"])
-
-        if time_open > time_close:
-            time_close = time_close + datetime.timedelta(days=1)
-
-        satisfied = (current > time_open and current < time_close)
-        about2trigger = (abs((time_open - current).total_seconds()) < 600 and time_open > current)
-        duty = current_epoch < (status["prev_trigger"] + rule["duty_pos"]) \
-            or current_epoch > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"])  # Pos -> True, Neg -> False
-        try:
-            if duty:
-                if status["status"] == "RED":
-                    if satisfied:
-                        pass
-                    else:
-                        status["status"] = "GREEN"
-                elif status["status"] == "YELLOW":
-                    if satisfied:
-                        status["status"] = "RED"
-                        status["prev_trigger"] = current_epoch
-                    elif about2trigger:
-                        status["status"] = "YELLOW"
-                    else:
-                        status["status"] = "GREEN"
-                elif status["status"] == "GREEN":
-                    if satisfied:
-                        status["status"] = "RED"
-                        status["prev_trigger"] = current_epoch
-                    elif about2trigger:
-                        status["status"] = "YELLOW"
-                    else:
-                        status["status"] = "GREEN"
-            else:
-                status["status"] = "GREEN"
-        except Exception as err:
-            print("Check Timer CBElement failed", err)
-        return
-
-    def sensor_checker(self, df_order, data):
-        """
-        Sensor-type rule checking handler. Push to IoTTalk server accordingly.
-
-        Args:
-            df_order: The IDF/ODF pair of ControlBoard to pull/push data.
-            data: Pulled data.
-
-        Returns:
-            None
-        """
-        rule = self.rules[df_order]
-        print("Data received:", data)
-        sensor_alias = rule["sensor_alias"].split(",")[rule["sensor_index"]]
-        status = self.status[rule["rule_id"]]
-        status["value"] = data
-        if sensor_alias not in self.df_hist_val:
-            self.df_hist_val[sensor_alias] = list()
-        self.df_hist_val[sensor_alias].append(data)
-        try:
-            avg = sum(self.df_hist_val[sensor_alias]) / len(self.df_hist_val[sensor_alias])
-            if "notset" in rule["comparison_open"] and "notset" in rule["comparison_close"]:
-                status["status"] = "GREEN"
-                return
-            elif not self.time_check_worker(df_order):
-                status["status"] = "GREEN"
-                return
-            elif "notset" in rule["comparison_open"]:
-                action = "CLOSE"
-                satisfied, next_action = self.condition_handler[rule["comparison_close"]](data, rule["threshold_close"], avg)
-            elif "notset" in rule["comparison_close"]:
-                action = "OPEN"
-                satisfied, next_action = self.condition_handler[rule["comparison_open"]](data, rule["threshold_open"], avg)
-            else:
-                satisfied, next_action = self.condition_handler[rule["comparison_open"]](data, rule["threshold_open"], avg)
-                action = "OPEN"
-                if not satisfied:
-                    action = "CLOSE"
-                    satisfied, next_action = self.condition_handler[rule["comparison_close"]](data, rule["threshold_close"], avg)
-            current = time.time()
-            has_duty = rule["duty_pos"] != 0
-            if has_duty:
-                duty = (current < (status["prev_trigger"] + rule["duty_pos"])) or (current > (status["prev_trigger"] + rule["duty_pos"] + rule["duty_neg"]))  # Pos -> True, Neg -> False
-            else:
-                duty = True
-            if duty:
-                if status["status"] == "RED":
-                    if action == "CLOSE":
-                        if satisfied:
-                            if next_action == "YELLOW":
-                                status["status"] = "YELLOW"
-                            else:
-                                status["status"] = "GREEN"
-                elif status["status"] == "GREEN":
-                    if action == "OPEN":
-                        if satisfied:
-                            status["status"] = "RED"
-                            status["prev_trigger"] = current
-                        else:
-                            if next_action == "YELLOW":
-                                status["status"] = "YELLOW"
-                else:
-                    if action == "OPEN":
-                        if satisfied:
-                            status["status"] = "RED"
-                            status["prev_trigger"] = current
-                        else:
-                            if next_action != "YELLOW":
-                                status["status"] = "GREEN"
-                    else:
-                        if next_action != "YELLOW":
-                            status["status"] = "GREEN"
-            else:
-                status["status"] = "GREEN"
-            return
-        except Exception as err:
-            print("check Sensor CBElement failed", err)
-
-    @staticmethod
-    def bigger(data, threshold, avg):
-        """
-        Check if data > threshold. Return comparison results as boolean, string.
-
-        Args:
-            data: data pulled from IoTTalk server.
-            threshold: threshold settings from rule_info in memory.
-            avg: the average of history data stored in memory.
-
-        Returns:
-            satisfied: True/False, whether the rule is satisfied by arg data
-            status: RED/YELLOW/UNCHANGED, Card status in UI.
-        """
-        if data > threshold:
-            satisfied = True
-            status = 'RED'
-        else:
-            satisfied = False
-            print('bigger', 0.78 * (threshold - avg) + avg)
-            if data > 0.78 * (threshold - avg) + avg:
-                status = 'YELLOW'
-            else:
-                status = 'UNCHANGED'
-
-        return satisfied, status
-
-    @staticmethod
-    def smaller(data, threshold, avg):
-        """Check if data < threshold. Return comparison results as boolean, string.
-
-        Args:
-            data: data pulled from IoTTalk server.
-            threshold: threshold settings from rule_info in memory.
-            avg: the average of history data stored in memory.
-
-        Returns:
-            satisfied: whether the rule is satisfied by arg data
-            status: Card status in UI.
-        """
-        if data < threshold:
-            satisfied = True
-            status = 'RED'
-        else:
-            satisfied = False
-            print('smaller', 0.22 * (avg - threshold) + threshold)
-            if data < 0.22 * (avg - threshold) + threshold:
-                print(data, 'yellow')
-                status = 'YELLOW'
-            else:
-                status = 'UNCHANGED'
-        return satisfied, status
-
-    @staticmethod
-    def bigger_equal(data, threshold, avg):
-        """Check if data >= threshold. Return comparison results as boolean, string.
-
-        Args:
-            data: data pulled from IoTTalk server.
-            threshold: threshold settings from rule_info in memory.
-            avg: the average of history data stored in memory.
-
-        Returns:
-            satisfied: whether the rule is satisfied by arg data
-            status: Card status in UI.
-        """
-        if data >= threshold:
-            satisfied = True
-            status = 'RED'
-        else:
-            print('biggerequal', 0.78 * (threshold - avg) + avg)
-            satisfied = False
-            if data > 0.78 * (threshold - avg) + avg:
-                status = 'YELLOW'
-            else:
-                status = 'UNCHANGED'
-
-        return satisfied, status
-
-    @staticmethod
-    def smaller_equal(data, threshold, avg):
-        """Check if data <= threshold. Return comparison results as boolean, string.
-
-        Args:
-            data: data pulled from IoTTalk server.
-            threshold: threshold settings from rule_info in memory.
-            avg: the average of history data stored in memory.
-
-        Returns:
-            satisfied: whether the rule is satisfied by arg data
-            status: Card status in UI.
-        """
-        if data <= threshold:
-            satisfied = True
-            status = 'RED'
-        else:
-            satisfied = False
-            print('smallerequal', 0.22 * (avg - threshold) + threshold)
-            if data < 0.22 * (avg - threshold) + threshold:
-                status = 'YELLOW'
-            else:
-                status = 'UNCHANGED'
-        return satisfied, status
-
 
 sa = AG_SA('{sa_id}', {config}, '{mac_addr}', '{sa_name}', {rules})
 sa.recover()
-
+DAN.state = "RESUME"
 
 while True:
     print('start checking rules of', sa.sa_id)

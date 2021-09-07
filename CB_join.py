@@ -31,8 +31,10 @@ def timer_checker():
 
     current = datetime.datetime.now()
     current_epoch = time.time()
-    time_open = datetime.datetime.combine(datetime.date.today(), rule["time_open"])
-    time_close = datetime.datetime.combine(datetime.date.today(), rule["time_close"])
+    temp_open = datetime.time(hour=rule["time_open"][0], minute=rule["time_open"][1], second=rule["time_open"][2])
+    temp_close = datetime.time(hour=rule["time_close"][0], minute=rule["time_close"][1], second=rule["time_close"][2])
+    time_open = datetime.datetime.combine(datetime.date.today(), temp_open)
+    time_close = datetime.datetime.combine(datetime.date.today(), temp_close)
 
     if time_open > time_close:
         time_close = time_close + datetime.timedelta(days=1)
@@ -92,13 +94,6 @@ def run(*args):
     data = args[0]
     if "mode" in data:
         rule = data
-        if len(rule["time_open"]):
-            temp = rule["time_open"]
-            rule["time_open"] = datetime.time(hour=temp[0], minute=temp[1], second=temp[2])
-        if len(rule["time_close"]):
-            temp = rule["time_close"]
-            rule["time_close"] = datetime.time(hour=temp[0], minute=temp[1], second=temp[2])
-
     if "sensor_val" not in data or data["sensor_val"] is None:
         if rule["mode"] == "Sensor":
             return status

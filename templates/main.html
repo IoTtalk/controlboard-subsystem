@@ -312,7 +312,7 @@
                 </b-col>
                 <b-col>
                   <b-link v-b-modal="'deleteCB'+index" size="sm" variant="outline-primary" class="mr-3">Delete</b-link>
-                  <b-link class="mr-3" v-bind:disabled="!cb.status" v-on:click=onGUIOpen(cb)>GUI</b-link>
+                  <b-link class="mr-3" v-on:click=onGUIOpen(cb)>GUI</b-link>
                   <b-link v-on:click="onCBConfig(cb)" size="sm" 
                     v-bind:variant="cb.status?'outline-primary' : 'secondary'">Configuration</b-link>
                   <b-modal v-bind:id="'deleteCB'+index"  title="Delete ControlBoard"
