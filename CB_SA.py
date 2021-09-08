@@ -1,5 +1,6 @@
 import time
 import uuid
+import datetime
 
 
 import zmq
@@ -41,13 +42,6 @@ class AG_SA():
             self.mac_addr = mac_addr
         else:
             self.mac_addr = str(uuid.uuid4())
-
-        self.condition_handler = {{
-            'bigger': self.bigger,
-            'smaller': self.smaller,
-            'biggerandequal': self.bigger_equal,
-            'smallerandequal': self.smaller_equal
-        }}
 
         ctlboard_profile = {{
             "d_name": "Controlboard",

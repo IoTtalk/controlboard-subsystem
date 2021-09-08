@@ -547,6 +547,7 @@ def create_cb():
         if not status:  # Project already exists
             new_project = False
             cb.dedicated = False
+
         status, project_info = get_proj_ag(new_cb, api_logger)
         if not status:
             cb.delete()
@@ -575,6 +576,8 @@ def create_cb():
         status, project_info = get_proj_ag(new_cb, api_logger)
         # Fetch dfo ids
         dfo_ids = list()
+        dfo_mapping = dict()  # dfo_id mapping of CBElement-I to CBElement-O
+        dfo_df_mapping = dict()  # mapping of dfo_id to df_id
         for ido in project_info["ido"]:
             if ido["dm_name"] == "ControlBoard":
                 cb_idf = ido["dfo"]
@@ -589,6 +592,13 @@ def create_cb():
             dfo_ids.append([(cb_ido, idf["df_id"]), (cb_odo, odf["df_id"])])
         for i, dfo_pair in enumerate(dfo_ids):
             state, res = create_na_ag(p_id, f"test{i}", i, dfo_pair, api_logger)
+
+        status, project_info = get_proj_ag(new_cb, api_logger)
+        na_ids = list()
+        for na in project_info["na"]:
+            na_ids.append(na["na_id"])
+        nas = ",".join(str(na_id) for na_id in na_ids)
+        cb.na_id = nas
 
         if use_v1:
             cb.do_id = str(do_id[0]) + ',' + str(do_id[1])

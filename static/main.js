@@ -83,7 +83,7 @@ var app = new Vue({
     if (cb !== null) {  // Create a new tab for the admin to view the CB Elements
       cb = JSON.parse(cb);
       this.controlboards = [cb];
-      this.privilege = 0;
+      this.privilege = window.localStorage.getItem("privilege");
       this.currentCB = cb;
       this.mainPage = false;
       this.refreshRuleWorker();
@@ -350,6 +350,7 @@ var app = new Vue({
           console.log(res);
           this.refreshCBWorker(cb);
           window.localStorage.setItem("cb",JSON.stringify(cb));
+          window.localStorage.setItem("privilege", this.privilege);
           window.open("/");
         })
         .catch( (err) => {
