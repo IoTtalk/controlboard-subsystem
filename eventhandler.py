@@ -723,6 +723,7 @@ def get_cb(usr_account):
                     "text": cb.cb_name,
                     "status": cb.status
                 })
+        print("accessible_cb", accessible_cb)
         return jsonify(accessible_cb), 200
     except NotAuthorizedError:
         api_logger.exception("Error Getting ControlBoard, Permission denied.")

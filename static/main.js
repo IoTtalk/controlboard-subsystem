@@ -115,6 +115,15 @@ var app = new Vue({
   computed: {
     maxPinnedCBs: function() {
       return Math.floor(this.width / 80) - 1;
+    },
+    hasIncompleteCBs: function() {
+      var status = false;
+      this.controlboards.forEach( (cb) => {
+        if (!cb.status) {
+          status = true;
+        }
+      });
+      return status;
     }
   },
   methods: {
@@ -204,7 +213,11 @@ var app = new Vue({
             };
           }
           if (next_currentCB !== undefined) {
-            this.currentCB = next_currentCB;
+            controlboards.forEach((cb) => {
+              if (cb.text===next_currentCB.text) {
+                this.currentCB = cb;
+              }
+            })
           }
           else if (controlboards.length) {
             this.currentCB = controlboards[0];
@@ -349,6 +362,7 @@ var app = new Vue({
         .then( (res) => {
           console.log(res);
           this.refreshCBWorker(cb);
+          cb.status = true;
           window.localStorage.setItem("cb",JSON.stringify(cb));
           window.localStorage.setItem("privilege", this.privilege);
           window.open("/");

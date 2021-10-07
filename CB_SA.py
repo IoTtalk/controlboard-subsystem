@@ -44,7 +44,7 @@ class AG_SA():
             self.mac_addr = str(uuid.uuid4())
 
         ctlboard_profile = {{
-            "d_name": "Controlboard",
+            "d_name": sa_name,
             "dm_name": "ControlBoard",
             "u_name": "yb",
             "is_sim": False,
@@ -97,6 +97,7 @@ class AG_SA():
                 actuator_df = "CBElement-TI" + str(df_order)
                 sensor_df = "CBElement-O" + str(df_order)
                 data = DAN.pull(sensor_df)
+                print(data)
                 if data is None:
                     print("No sensor data pulled")
                 else:

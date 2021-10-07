@@ -36,9 +36,9 @@
           <div class="ml-auto">
             <b-navbar-nav>
               <!-- <b-nav-item class="system-button" v-if="privilege" v-on:click="onSwitchManage"><b><% manageMode? "Admin": "User" %></b></b-nav-item> -->
-              <b-nav-item v-if="!privilege" class="system-button custom-nav-item" v-on:click="onSAConfirm"><b>Save</b></b-nav-item>
-              <b-nav-item v-if="!privilege" class="system-button custom-nav-item" v-on:click="onSAReset"><b>Reset</b></b-nav-item>
-              <b-nav-item class="system-button custom-nav-item" v-on:click="onLogout"><b>Logout</b></b-nav-item>
+              <b-nav-item class="system-button custom-nav-item" v-on:click="onSAConfirm"><b>Save</b></b-nav-item>
+              <b-nav-item class="system-button custom-nav-item" v-on:click="onSAReset"><b>Reset</b></b-nav-item>
+              <b-nav-item v-if="mainPage" class="system-button custom-nav-item" v-on:click="onLogout"><b>Logout</b></b-nav-item>
             </b-navbar-nav>
           </div>
         </b-navbar>
@@ -106,12 +106,12 @@
               <div class="setting-area" v-if="setting.mode!=='ON' && setting.mode!=='OFF'">
                 <div class="mb-2">
                   <span><b>Trigger</b></span>
-                  <span class="float-right">
+                  <!-- <span class="float-right">
                     <b-button-group v-if="setting.dirty">
                       <b-button size="sm" variant="secondary" plain v-on:click="onSettingUndoChange(index)">Undo</b-button>
                       <b-button size="sm" variant="primary" plain v-on:click="onSettingSaveChange([index])">Save</b-button>
                     </b-button-group>
-                  </span>
+                  </span> -->
                 </div>
 
                 <!-- Sensor settings -->
@@ -282,7 +282,7 @@
               <!-- ControlBoard Tab Content -->
               <b-row class="text-left divide-top divide-bottom" v-if="!managePage">
                 <b-col>
-                  <b-link v-b-modal="'CreateCB'" style="font-size:smaller">Add ControlBoard</b-link>
+                  <b-link v-bind:disabled="hasIncompleteCBs" v-b-modal="'CreateCB'" style="font-size:smaller">Add ControlBoard</b-link>
                 </b-col>
                 <b-modal id="CreateCB" title="Create ControlBoard" hide-backdrop content-class="shadow" hide-footer button-size="sm"
                   v-on:ok="onCBCreate(1)" v-on:cancel="onCBCreate(0)" v-on:close="onCBCreate(0)"
