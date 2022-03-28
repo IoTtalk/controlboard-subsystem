@@ -36,6 +36,9 @@ from models import CBElement, CB_Account, CB
 api_logger = make_logger('API', 'API')
 apis = Blueprint('api', __name__)
 
+@apis.before_request
+def setup():
+    session.permanent = True
 
 def requires_login(f):
     @wraps(f)

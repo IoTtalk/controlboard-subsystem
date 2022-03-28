@@ -17,6 +17,7 @@ from utils import connect_db, connect_zmq
 from utils import make_logger, register_ag, deregister_ag, get_iottalk_info
 from utils import running_cb, running_status
 from werkzeug.middleware.proxy_fix import ProxyFix
+from datetime import timedelta
 # from utils import test_db
 
 
@@ -69,10 +70,12 @@ if __name__ == "__main__":
     app.config.update(
         SESSION_COOKIE_SAMESITE=None,
         # SESSION_COOKIE_SECURE=True,  # for https only
-        SESSION_COOKIE_HTTPONLY=True
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_PERMANENT = True
     )
     app.secret_key = 'asdaldkjalskdjllkd'
     system_logger.info('\tCreating Server\t\t......done')
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=31)
 
     oauth2_client.init_app(app)
     oauth2_client.register(
