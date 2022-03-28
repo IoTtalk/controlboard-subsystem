@@ -16,6 +16,7 @@ from oauth import oauth2_client
 from utils import connect_db, connect_zmq
 from utils import make_logger, register_ag, deregister_ag, get_iottalk_info
 from utils import running_cb, running_status
+from werkzeug.middleware.proxy_fix import ProxyFix
 # from utils import test_db
 
 
@@ -64,6 +65,7 @@ if __name__ == "__main__":
     system_logger.info('Start Launching ControlBoard Subsystem......')
 
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
     app.config.update(
         SESSION_COOKIE_SAMESITE=None,
         # SESSION_COOKIE_SECURE=True,  # for https only
