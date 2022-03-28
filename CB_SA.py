@@ -97,7 +97,7 @@ class AG_SA():
                 actuator_df = "CBElement-TI" + str(df_order)
                 sensor_df = "CBElement-O" + str(df_order)
                 data = DAN.pull(sensor_df)
-                print(data)
+                #print(data)
                 if data is None:
                     print("No sensor data pulled")
                 else:
