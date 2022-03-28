@@ -69,7 +69,7 @@ def sensor_checker(sensor_val):
         action = "OPEN"
         if not satisfied:
             action = "CLOSE"
-            satisfied = condition_handler[rule["comparison_close"]](data, rule["threshold_close"], avg)
+            satisfied = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"])
     current = time.time()
     has_duty = rule["duty_pos"] != 0
     if has_duty:
