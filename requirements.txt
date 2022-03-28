@@ -16,7 +16,7 @@ MarkupSafe==1.1.1
 mccabe==0.6.1
 more-itertools==8.7.0
 packaging==20.9
-pkg-resources==0.0.0
+#pkg-resources==0.0.0
 pluggy==0.13.1
 pony==0.7.10
 py==1.10.0
