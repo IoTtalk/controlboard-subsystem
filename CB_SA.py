@@ -50,7 +50,9 @@ class AG_SA():
             "is_sim": False,
             "df_list": ["CBElement-O1", "CBElement-TI1", "CBElement-O2", "CBElement-TI2",
                         "CBElement-O3", "CBElement-TI3", "CBElement-O4", "CBElement-TI4",
-                        "CBElement-O5", "CBElement-TI5"]
+                        "CBElement-O5", "CBElement-TI5", "CBElement-O6", "CBElement-TI6",
+                        "CBElement-O7", "CBElement-TI7", "CBElement-O8", "CBElement-TI8",
+                        "CBElement-O9", "CBElement-TI9"]
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
@@ -92,12 +94,15 @@ class AG_SA():
         Returns: None
         '''
         try:
+            print("self.rules.items() : ",self.rules.items())
             for df_order, rule in self.rules.items():
                 status = self.status[rule["rule_id"]]
+                print("\n\nAAA status : ",status,"\n\n")
+                print("\n\nBBB rule : ",rule,"\n\n")
                 actuator_df = "CBElement-TI" + str(df_order)
                 sensor_df = "CBElement-O" + str(df_order)
                 data = DAN.pull(sensor_df)
-                #print(data)
+                print("\n???????? : ",data,"\n")
                 if data is None:
                     print("No sensor data pulled")
                 else:
@@ -108,7 +113,10 @@ class AG_SA():
                         data = data[0][self.rules[df_order]["sensor_index"]]
                     if data <= -10000:
                         data += 10001
+                        print("in !!!! \n", data)
+                        print(status["status"])
                         status["status"] = "RED" if data else "GREEN"
+                        print("bbb : ",status)
                         continue
                 temp_rule = {{
                     "threshold_open": rule["threshold_open"],
@@ -123,10 +131,11 @@ class AG_SA():
                     "duty_neg": rule["duty_neg"],
                     "sensor_val": data
                 }}
-                print(temp_rule)
+                print("temp rule : ", temp_rule)
                 DAN.push(actuator_df, temp_rule)
 
                 status["value"] = data if data is not None else status["value"]
+                print("CCC status", status)
                 self.socket.send_json(status)
         except Exception as err:
             print("Checking CBElement failed, ", err)
