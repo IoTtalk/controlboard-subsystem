@@ -2,9 +2,8 @@ import time
 import datetime
 
 rule = {}
-prev_trigger = -10000
+prev_trigger = -10000 # duty trigger time 
 status = 0  # 1 for open, 0 for close
-
 
 def bigger(data, threshold):
     if data > threshold:
@@ -36,10 +35,38 @@ def timer_checker():
     time_open = datetime.datetime.combine(datetime.date.today(), temp_open)
     time_close = datetime.datetime.combine(datetime.date.today(), temp_close)
 
+    # next day e.g. 23:00-1:00
     if time_open > time_close:
         time_close = time_close + datetime.timedelta(days=1)
 
     satisfied = (current > time_open and current < time_close)
+    
+    # if setup <10 it will not work because CB_SA.py time.sleep
+    # rule["duty_pos"] + rule["duty_neg"] > 10s o.w. it will trigger line here, and line here2 will make it always red
+
+    has_duty = rule["duty_pos"] != 0
+
+    if not satisfied:
+        status = 0
+        return 0
+    else:
+        if has_duty:
+            if prev_trigger == -10000: 
+                prev_trigger = current_epoch
+            elif prev_trigger + rule["duty_pos"] + rule["duty_neg"] < current_epoch: # line here
+                prev_trigger = current_epoch
+
+            if current_epoch - prev_trigger < rule["duty_pos"]: # line here2
+                status = 1
+                return 1
+            else:
+                status = 0
+                return 0
+        else:
+            status = 1
+            return 1
+    
+    '''
     duty = current_epoch < (prev_trigger + rule["duty_pos"]) \
         or current_epoch > (prev_trigger + rule["duty_pos"] + rule["duty_neg"])  # Pos -> True, Neg -> False
     if duty:
@@ -51,19 +78,23 @@ def timer_checker():
             status = 1
             return 1
     return 0
-
+    '''
 
 def sensor_checker(sensor_val):
     global rule, status, prev_trigger
+    # both not set -> status = 0, close, GREEN
     if "notset" in rule["comparison_open"] and "notset" in rule["comparison_close"]:
         status = 0
         return 0
+    # open not set -> means only set close
     elif "notset" in rule["comparison_open"]:
         action = "CLOSE"
         satisfied = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"])
+    # close not set -> means only set open
     elif "notset" in rule["comparison_close"]:
         action = "OPEN"
         satisfied = condition_handler[rule["comparison_open"]](sensor_val, rule["threshold_open"])
+    # else -> means both open and close are set
     else:
         satisfied = condition_handler[rule["comparison_open"]](sensor_val, rule["threshold_open"])
         action = "OPEN"
@@ -72,6 +103,32 @@ def sensor_checker(sensor_val):
             satisfied = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"])
     current = time.time()
     has_duty = rule["duty_pos"] != 0
+
+    if not satisfied:
+        status = 0
+        return 0
+    else:
+        if has_duty:
+            if action == "OPEN":
+                if prev_trigger == -10000: # the first time
+                    prev_trigger = current
+                elif prev_trigger + rule["duty_pos"] + rule["duty_neg"] < current:
+                    prev_trigger = current
+
+                if current - prev_trigger < rule["duty_pos"]: # still in the cycle
+                    status = 1
+                    return 1
+                else:
+                    status = 0
+                    return 0
+            else: # action == "CLOSE"
+                status = 0
+                return 0
+        else:
+            status = 1
+            return 1
+
+    '''
     if has_duty:
         duty = (current < (prev_trigger + rule["duty_pos"])) or (current > (prev_trigger + rule["duty_pos"] + rule["duty_neg"]))  # Pos -> True, Neg -> False
     else:
@@ -86,7 +143,7 @@ def sensor_checker(sensor_val):
             return 1
     status = 0
     return 0
-
+    '''
 
 def run(*args):
     # -10000 -> Open, -10001 -> Close
