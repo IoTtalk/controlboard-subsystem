@@ -94,15 +94,11 @@ class AG_SA():
         Returns: None
         '''
         try:
-            print("self.rules.items() : ",self.rules.items())
             for df_order, rule in self.rules.items():
                 status = self.status[rule["rule_id"]]
-                print("\n\nAAA status : ",status,"\n\n")
-                print("\n\nBBB rule : ",rule,"\n\n")
                 actuator_df = "CBElement-TI" + str(df_order)
                 sensor_df = "CBElement-O" + str(df_order)
                 data = DAN.pull(sensor_df)
-                print("\n???????? : ",data,"\n")
                 if data is None:
                     print("No sensor data pulled")
                 else:
@@ -113,10 +109,7 @@ class AG_SA():
                         data = data[0][self.rules[df_order]["sensor_index"]]
                     if data <= -10000:
                         data += 10001
-                        print("in !!!! \n", data)
-                        print(status["status"])
                         status["status"] = "RED" if data else "GREEN"
-                        print("bbb : ",status)
                         continue
                 temp_rule = {{
                     "threshold_open": rule["threshold_open"],
@@ -135,7 +128,6 @@ class AG_SA():
                 DAN.push(actuator_df, temp_rule)
 
                 status["value"] = data if data is not None else status["value"]
-                print("CCC status", status)
                 self.socket.send_json(status)
         except Exception as err:
             print("Checking CBElement failed, ", err)
