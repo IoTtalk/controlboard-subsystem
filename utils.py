@@ -5,7 +5,7 @@ import os
 import uuid
 import json
 import asyncio
-
+import time
 
 import zmq
 
@@ -294,7 +294,7 @@ def get_iottalk_info(logger):
         iottalk_info['df_id'] = list()
         for df in response["df_list"]:
             order = int(re.search(r"\d+", df["df_name"]).group(0))
-            if order < 6:
+            if order < 10:
                 iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
 
@@ -403,6 +403,7 @@ def create_proj_ag(cb_name, logger):
     }
     try:
         state, response = _post('ccm_api', data, logger)
+        print("create_proj_ag response : ", response)
         if not state:
             raise CCMAPIFailError
         logger.info('\tCreate Project\t......done')
@@ -593,6 +594,9 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                     "do_id": do_id[0]
                 }
             }
+            print("sleep 1 seconds...")
+            time.sleep(1)
+            print("sleep done")
             status, response = _post('ccm_api', data, logger)
             if not status:
                 raise CCMAPIFailError
