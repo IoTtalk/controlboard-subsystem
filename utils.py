@@ -538,7 +538,7 @@ def register_ag(cb, logger):
             raise CCMAPIFailError
         return state, response["token"]
     except KeyError:
-        logger.exception('CB_SA.py Key Error, check parameter passed in or brackets in the code')
+        logger.exception('CB_SA.py Key Error, check parameter passed in or brackets in the code, format will replace the string in brackets')
         return False, "Error"
     except Exception as err:
         logger.exception(err)
