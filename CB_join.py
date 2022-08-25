@@ -2,7 +2,6 @@ import time
 import datetime
 
 rule = {}
-prev_trigger = -10000 # duty trigger time
 status = 0  # 1 for open, 0 for close
 
 
@@ -27,127 +26,63 @@ condition_handler = {
 }
 
 
-def timer_checker():
-    global rule, status, prev_trigger
-
-    current = datetime.datetime.now()
-    current_epoch = time.time()
-    temp_open = datetime.time(hour=rule["time_open"][0], minute=rule["time_open"][1], second=rule["time_open"][2])
-    temp_close = datetime.time(hour=rule["time_close"][0], minute=rule["time_close"][1], second=rule["time_close"][2])
-    time_open = datetime.datetime.combine(datetime.date.today(), temp_open)
-    time_close = datetime.datetime.combine(datetime.date.today(), temp_close)
-
-    # next day e.g. 23:00-1:00
-    if time_open > time_close:
-        time_close = time_close + datetime.timedelta(days=1)
-
-    satisfied = (current > time_open and current < time_close)
-    
-    # if setup <10 it will not work because CB_SA.py time.sleep
-    # rule["duty_pos"] + rule["duty_neg"] > 10s o.w. it will trigger line here, and line here2 will make it always red
- 
-    has_duty = rule["duty_pos"] != 0
- 
-    if not satisfied:
-        status = 0
-        return 0
-    else:
-        if has_duty:
-            if prev_trigger == -10000: 
-                prev_trigger = current_epoch
-            elif prev_trigger + rule["duty_pos"] + rule["duty_neg"] < current_epoch: # line here
-                prev_trigger = current_epoch
- 
-            if current_epoch - prev_trigger < rule["duty_pos"]: # line here2
-                status = 1
-                return 1
-            else:
-                status = 0
-                return 0
-        else:
-            status = 1
-            return 1
- 
-    '''
-    duty = current_epoch < (prev_trigger + rule["duty_pos"]) \
-        or current_epoch > (prev_trigger + rule["duty_pos"] + rule["duty_neg"])  # Pos -> True, Neg -> False
-    if duty:
-        if not satisfied:
-            status = 0
-            return 0
-        else:
-            prev_trigger = current_epoch
-            status = 1
-            return 1
-    return 0
-    '''
-
-
 def sensor_checker(sensor_val):
-    global rule, status, prev_trigger
-    if sensor_val is None: return status   ###
-    satisfied = 0  ###
-    if "notset" in rule["comparison_open"] and "notset" in rule["comparison_close"]:
-        status = 0
-        return 0
-    elif "notset" in rule["comparison_open"]:
-        action = "CLOSE"
-        satisfied = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"])
-
-    elif "notset" in rule["comparison_close"]:
-        action = "OPEN"
-        satisfied = condition_handler[rule["comparison_open"]](sensor_val, rule["threshold_open"])
-    else:
-        satisfied = condition_handler[rule["comparison_open"]](sensor_val, rule["threshold_open"])
-        action = "OPEN"
-        if not satisfied:
-            action = "CLOSE"
-            satisfied = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"]) 
-
-
-
-    current = time.time()
-    has_duty = rule["duty_pos"] != 0
-    if has_duty:
-        duty = (current < (prev_trigger + rule["duty_pos"])) or (current > (prev_trigger + rule["duty_pos"] + rule["duty_neg"]))  # Pos -> True, Neg -> False
-    else:
-        duty = True
-    if duty:
-        if action == "CLOSE" and satisfied:
-            status = 0    ###
-        elif action == "OPEN" and satisfied:
-            prev_trigger = current
-            status = 1   ###
+    global rule, status
     
-    return status  ###
+    if "notset" in rule["comparison_open"] and "notset" in rule["comparison_close"]: # both not set
+        status = 0
+    elif "notset" in rule["comparison_open"]: # set close
+        satisfied = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"])
+        if satisfied:
+            status = 0 # close
+    elif "notset" in rule["comparison_close"]: # set open
+        satisfied = condition_handler[rule["comparison_open"]](sensor_val, rule["threshold_open"])
+        if satisfied:
+            status = 1 # open
+    else: # both set
+        satisfied_open = condition_handler[rule["comparison_open"]](sensor_val, rule["threshold_open"])
+        satisfied_close = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"])
+        
+        # no need to handle both satisfied, since it will contradict
+        if not satisfied_open and not satisfied_close:
+            return status # keep status
+        elif satisfied_open:
+            status = 1
+        elif satisfied_close:
+            status = 0
+
+    return status
 
 
 def run(*args):
-    # -10000 -> Open, -10001 -> Close
-    global rule, status, prev_trigger
+    global rule, status
+
+    OpenSig = -10000  # open -> status : 1
+    CloseSig = -10001 # close -> status : 0
+
     data = args[0]
+
     if "mode" in data:
         rule = data
-    if "sensor_val" not in data or data["sensor_val"] is None:
-        if rule["mode"] == "Sensor":
-            if status: return 1 - 10001   ###
-            else:  -10001   ###
 
     if rule["mode"] == "ON":
         status = 1
-        return -10000
+        return OpenSig
     elif rule["mode"] == "OFF":
-#        if status: return 1 - 10001   ###
-#        else:  -10001   ###
         status = 0
-        return -10001
-    else:
-        weekdays = [int(x) for x in rule["weekday"].split(",")] if len(rule["weekday"]) else list()
-        if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
-            if rule["mode"] == "Sensor":
-                return sensor_checker(data["sensor_val"]) - 10001
-            elif rule["mode"] == "Timer":
-                return timer_checker() - 10001
+        return CloseSig
+    else: # i.e. rule["mode"] == Sensor
+        if "sensor_val" not in data or data["sensor_val"] is None:
+            # keep status
+            if status: 
+                return OpenSig
+            else:  
+                return CloseSig
         else:
-            status = 0
-            return -10001
+            sensor_valid = sensor_checker(data["sensor_val"])
+            if sensor_valid:
+                status = 1
+                return OpenSig
+            else:
+                status = 0
+                return CloseSig
