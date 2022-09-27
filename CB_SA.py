@@ -6,7 +6,7 @@ import datetime
 import zmq
 
 
-import DAN
+import csmapi, DAN
 
 
 class AG_SA():
@@ -61,6 +61,29 @@ class AG_SA():
 
         DAN.profile = ctlboard_profile
         DAN.device_registration_with_retry(f'http://{{config["iottalk_server"]}}:9999', self.mac_addr)
+
+
+
+        not_bind = 1
+        timestamp = time.time()
+        while not_bind:
+            if time.time() - timestamp > 1: break
+            try:
+                resultCtrlO = csmapi.pull(self.mac_addr, '__Ctl_O__')
+                if resultCtrlO != [] and resultCtrlO != None:
+                    print('resultCtrlO:', resultCtrlO[0][1][0])
+                    if resultCtrlO[0][1][0] == 'RESUME':
+                        not_bind = 0
+                    else:
+                        time.sleep(0.05)
+            except Exception as e:
+                print(e)
+                time.sleep(0.1)
+        
+        
+        time.sleep(0.6) # essential! Wait for ESM project restart!
+
+
 
     def recover(self):
         '''
@@ -306,9 +329,8 @@ class AG_SA():
 
 sa = AG_SA('{sa_id}', {config}, '{mac_addr}', '{sa_name}', {rules})
 sa.recover()
-DAN.state = "RESUME"
 
 while True:
-    print('start checking rules of', sa.sa_id)
+    print('\nstart checking rules of', sa.sa_id)
     sa.check_rules()
     time.sleep(2)
