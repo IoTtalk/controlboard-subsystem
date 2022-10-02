@@ -72,6 +72,66 @@ Vue.component('sensor-row', {
     `
 })
 
+var HelloWorld = {
+    template:`
+        <div> hello world </div>
+    `
+}
+
+Vue.component('hi-word', {
+    template:`
+        <div> hiii </div>
+    `
+})
+
+
+Vue.component('sensor-condition-row', {
+    props: ["comparisons", "setting", "current-cb","on-select-compare"],
+    computed:{
+        sensor(){
+            return this.setting.sensors[this.setting.selectedSensor]
+        },
+        value(){
+            return this.setting.mode==='Timer'? this.setting.time: this.setting.value
+        }
+    },
+    template: `
+        <div class="card border-dark" style="margin-bottom: 20px;">
+            <div class="card-header">
+                <span class="ml-auto mr-1"><b>val</b></span>
+            </div>
+            <div class="card-body">
+                <div class="setting-sensor">
+                    <custom-sel
+                        v-bind:options="comparisons"
+                        v-bind:select="setting.content.openSensor"
+                        v-bind:status="currentCb.status"
+                        v-on:update-option="onSelectCompare($event, index, 'open')"
+                    ></custom-sel>
+                    <b-form-input size="sm" class="custom-input"
+                        v-model="setting.content.openSensorVal"
+                        v-bind:disabled="setting.content.openSensor==='notset'"
+                        v-on:input="setting.dirty=true"
+                    ></b-form-input>
+                    <span class="setting-text-mid">ON.</span>
+                    <custom-sel
+                        v-bind:options="comparisons"
+                        v-bind:select="setting.content.closeSensor"
+                        v-bind:status="currentCb.status"
+                        v-on:update-option="onSelectCompare($event, index, 'close')"
+                    ></custom-sel> 
+                    <b-form-input size="sm" class="custom-input"
+                        v-model="setting.content.closeSensorVal"
+                        v-bind:disabled="setting.content.closeSensor==='notset'"
+                        v-on:input="setting.dirty=true"
+                    ></b-form-input>
+                    <span class="setting-text">OFF.</span>
+                </div>
+            </div>
+        </div>
+    `
+})
+
 
 Vue.component('project', {
     props: ['field'],

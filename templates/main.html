@@ -13,6 +13,7 @@
         <!-- Load Vue followed by BootstrapVue -->
         <!-- Develop version -->
         <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+        <script src="https://unpkg.com/vuex@3.4.0/dist/vuex.js"></script>
         <!-- Production version -->
         <!-- <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script> -->
         <script src="https://unpkg.com/bootstrap-vue@2.21.2/dist/bootstrap-vue.min.js"></script>
@@ -85,9 +86,23 @@
           </b-card-header>
 
           <b-card-body class="text-center custom-card-body">
+
+            <!-- FOR DEBUG -->
+            <div
+            v-for="(cb, index) in controlboards"
+            v-if="!manageMode && index < maxPinnedCBs && currentCB.value > 0 && cb.value===currentCB.value"
+            ><% cb %><% index%></div>
+
+            
+
             <div v-for="(setting, index) in settings" class="setting-card" 
               v-if="!manageMode && currentCB.value > 0">
+
+
+              <!-- FOR DEBUG -->
+              <% currentCB%>
               
+
               <!-- Actuator Row -->
               <actuator-row
                 v-bind:actuator="setting.actuator"
@@ -115,32 +130,47 @@
                   </span> -->
                 </div>
 
+
                 <!-- Sensor settings -->
-                <div v-if="setting.mode==='Sensor'" class="setting-sensor">
-                  <custom-sel
-                    v-bind:options="comparisons"
-                    v-bind:select="setting.content.openSensor"
-                    v-bind:status="currentCB.status"
-                    v-on:update-option="onSelectCompare($event, index, 'open')"
-                  ></custom-sel>
-                  <b-form-input size="sm" class="custom-input"
-                    v-model="setting.content.openSensorVal"
-                    v-bind:disabled="setting.content.openSensor==='notset'"
-                    v-on:input="setting.dirty=true"
-                  ></b-form-input>
-                  <span class="setting-text-mid">ON.</span>
-                  <custom-sel
-                    v-bind:options="comparisons"
-                    v-bind:select="setting.content.closeSensor"
-                    v-bind:status="currentCB.status"
-                    v-on:update-option="onSelectCompare($event, index, 'close')"
-                  ></custom-sel> 
-                  <b-form-input size="sm" class="custom-input"
-                    v-model="setting.content.closeSensorVal"
-                    v-bind:disabled="setting.content.closeSensor==='notset'"
-                    v-on:input="setting.dirty=true"
-                  ></b-form-input>
-                  <span class="setting-text">OFF.</span>
+                <div v-if="setting.mode==='Sensor'">
+                  <sensor-condition-row
+                    :comparisons="comparisons"
+                    :setting="setting"
+                    :current-cb="currentCB"
+                    :on-select-compare="onSelectCompare"
+                  ></sensor-condition-row>
+                  
+                  
+                  
+                  <!-- <b-card border-variant="dark" header="Dark" style="margin-bottom: 20px;">
+                    <div class="setting-sensor">
+                      <custom-sel
+                        v-bind:options="comparisons"
+                        v-bind:select="setting.content.openSensor"
+                        v-bind:status="currentCB.status"
+                        v-on:update-option="onSelectCompare($event, index, 'open')"
+                      ></custom-sel>
+                      <b-form-input size="sm" class="custom-input"
+                        v-model="setting.content.openSensorVal"
+                        v-bind:disabled="setting.content.openSensor==='notset'"
+                        v-on:input="setting.dirty=true"
+                      ></b-form-input>
+                      <span class="setting-text-mid">ON.</span>
+                      <custom-sel
+                        v-bind:options="comparisons"
+                        v-bind:select="setting.content.closeSensor"
+                        v-bind:status="currentCB.status"
+                        v-on:update-option="onSelectCompare($event, index, 'close')"
+                      ></custom-sel> 
+                      <b-form-input size="sm" class="custom-input"
+                        v-model="setting.content.closeSensorVal"
+                        v-bind:disabled="setting.content.closeSensor==='notset'"
+                        v-on:input="setting.dirty=true"
+                      ></b-form-input>
+                      <span class="setting-text">OFF.</span>
+                    </div>
+                  </b-card> -->
+                 
                 </div>
 
                 <!-- Timer setting area -->

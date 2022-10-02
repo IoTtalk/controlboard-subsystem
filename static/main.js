@@ -1,8 +1,22 @@
-Vue.config.devtools = true;
+Vue.config.devtools = true
+
+Vue.use(Vuex)
+
+const store = new Vuex.Store({
+  state: {
+    count: 0
+  },
+  mutations: {
+    increment (state) {
+      state.count++
+    }
+  }
+})
 
 var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
+  store,
   data: {
     mainPage: true,    // In main page or pop-uped maintain page
     manageMode: false,  // Switch bwtween CB page & manage page
@@ -76,7 +90,7 @@ var app = new Vue({
       .catch( (err) => {
         console.log(err);
       })
-    
+ 
     // there are two strategy: local storage and postMessage, where postMessage is not available in this scenario.
     // ref: https://stackoverflow.com/questions/57503980/pass-data-between-components-in-a-new-tab
     var cb = window.localStorage.getItem("cb");  
@@ -87,12 +101,12 @@ var app = new Vue({
       this.currentCB = cb;
       this.mainPage = false;
       this.refreshRuleWorker();
-
+ 
       window.addEventListener("beforeunload", function() {
         // clear the cb stored in local storage
         window.localStorage.clear();
       })
-
+ 
     } else {  // Main page
       if (this.privilege) {
         this.manageMode = true;
@@ -258,12 +272,12 @@ var app = new Vue({
             var m = ~~((rule.content.dutyPos - h * 3600) / 60);  // minutes
             var s = rule.content.dutyPos - h * 3600 - m * 60;  // seconds
             rule.content.dutyPosStamp = [h, m, s];
-
+ 
             h = ~~(rule.content.dutyNeg / 3600);  // hours
             m = ~~((rule.content.dutyNeg - h * 3600) / 60);  // minutes
             s = rule.content.dutyNeg - h * 3600 - m * 60;  // seconds
             rule.content.dutyNegStamp = [h, m, s];
-
+ 
             var old_rule = this.settings.find(element => element.ruleID === rule.ruleID)
             if (old_rule === undefined) {
               new_rules.push(rule);
@@ -394,6 +408,8 @@ var app = new Vue({
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
       this.currentCB = selected;
+      this.refreshRuleWorker();
+      this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       return;
     },
     onSelectProject: function(selected) {
@@ -551,7 +567,49 @@ var app = new Vue({
         });
       });
       console.log(toChange);
-
+ 
+      axios.post("/cb/" + this.currentCB.value.toString() + "/new_rules", toChange)
+        .then( (msg) => {
+          window.clearInterval(this.statusTrackWorker);
+          this.statusTrackWorker = -1;
+          console.log(msg);
+          this.refreshRuleWorker();
+          this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
+        })
+        .catch( (err) => {
+          if (err.response) {
+            alert(err.response.data);
+          }
+        })
+      return;
+    },
+    onManualChange: function(ruleIdx) {
+      // not done!!! copied above 
+      // see component.js onSelectMode this.$emit("update-mode", nextMode);
+      // to call this func at component.js b-form-checkbox
+      // put this func in main.js's onSelectMode case0 and case1 only
+      toChange = [];
+      ruleIdx.forEach( idx => {
+        var setting = this.settings[idx];
+        setting["dirty"] = false;
+        toChange.push({
+          "rule_id": setting["ruleID"],
+          "actuator_alias": setting["actuator"],
+          "mode": setting["mode"],
+          "sensor_index": setting["selectedSensor"],
+          "threshold_open": setting["content"]["openSensorVal"],
+          "threshold_close": setting["content"]["closeSensorVal"],
+          "comparison_open": setting["content"]["openSensor"],
+          "comparison_close": setting["content"]["closeSensor"],
+          "time_open": setting["content"]["openTimer"],
+          "time_close": setting["content"]["closeTimer"],
+          "weekday": setting["content"]["weekdays"],
+          "duty_pos": setting["content"]["dutyPos"],
+          "duty_neg": setting["content"]["dutyNeg"]
+        });
+      });
+      console.log(toChange);
+ 
       axios.post("/cb/" + this.currentCB.value.toString() + "/new_rules", toChange)
         .then( (msg) => {
           window.clearInterval(this.statusTrackWorker);
