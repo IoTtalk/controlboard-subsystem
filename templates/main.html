@@ -87,6 +87,7 @@
           <b-card-body class="text-center custom-card-body">
             <div v-for="(setting, index) in settings" class="setting-card" 
               v-if="!manageMode && currentCB.value > 0">
+              
               <!-- Actuator Row -->
               <actuator-row
                 v-bind:actuator="setting.actuator"
@@ -199,11 +200,11 @@
                     ></b-form-checkbox-group>
                   </b-form-group>
                 </div>
-
-                <div class="duty-area">
+                
+                <!-- Duty Setting Area, only appear in timer block -->
+                <div v-if="setting.mode==='Timer'" class="duty-area">
                   <!-- Using modifiers -->
                   <b-button v-b-toggle.collapse-2 class="m-1" variant="link">Duty Cycle</b-button>
-
 
                   <!-- Element to collapse -->
                   <b-collapse id="collapse-2">
@@ -212,13 +213,9 @@
                       <span v-if="setting.content.dutyPos > 0"><b><% onJudgeDutyCycle(setting) %></b></span>
 
                       <div class="setting-sensor">
+                        
+                        <!-- ON duty setting -->
                         <span class="setting-text-start">ON</span>
-                        <!-- <b-form-input placeholder="Seconds" size="sm" class="custom-input"
-                          v-model="setting.content.dutyPos"
-                          v-on:input="setting.dirty=true"
-                          v-bind:disabled="!currentCB.status"
-                        ></b-form-input>
-                        <span class="setting-text-mid">Seconds.</span> -->
                         <custom-sel
                           v-bind:options="hours"
                           v-bind:select="setting.content.dutyPosStamp[0]"
@@ -239,13 +236,9 @@
                           v-bind:status="currentCB.status"
                           v-on:update-option="onSelectTimeStamp($event, index, 2)"
                         ></custom-sel>
+
+                        <!-- OFF duty setting -->
                         <span class="setting-text-start">OFF</span>
-                        <!-- <b-form-input placeholder="Seconds" size="sm" class="custom-input"
-                          v-model="setting.content.dutyNeg"
-                          v-on:input="setting.dirty=true"
-                          v-bind:disabled="setting.content.dutyPos===0"
-                        ></b-form-input>
-                        <span class="setting-text-mid">Seconds.</span> -->
                         <custom-sel
                           v-bind:options="hours"
                           v-bind:select="setting.content.dutyNegStamp[0]"
@@ -272,31 +265,6 @@
                   </b-collapse>
                 </div>
 
-                <!-- Duty Cycle Area -->
-                <!--
-                <div class="duty-area">
-                  <div class="d-flex justify-content-between">
-                    <span><b>Duty Cycle</b></span>
-                    <span v-if="setting.content.dutyPos > 0"><b><% onJudgeDutyCycle(setting) %></b></span>
-                  </div>
-                  <div class="setting-sensor">
-                    <span class="setting-text-start">ON</span>
-                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"
-                      v-model="setting.content.dutyPos"
-                      v-on:input="setting.dirty=true"
-                      v-bind:disabled="!currentCB.status"
-                    ></b-form-input>
-                    <span class="setting-text-mid">Seconds.</span>
-                    <span class="setting-text-start">OFF</span>
-                    <b-form-input placeholder="Seconds" size="sm" class="custom-input"
-                      v-model="setting.content.dutyNeg"
-                      v-on:input="setting.dirty=true"
-                      v-bind:disabled="setting.content.dutyPos===0"
-                    ></b-form-input>
-                    <span class="setting-text-mid">Seconds.</span>
-                  </div>               
-                </div>
-                -->
               </div>
             </div>
 
