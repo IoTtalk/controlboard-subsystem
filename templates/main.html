@@ -190,7 +190,7 @@
                 </div>
 
                 <!-- Weekdays Setting Area -->
-                <div>
+                <div v-if="setting.mode==='Timer'">
                   <b-form-group>
                     <b-form-checkbox-group
                       :options="weekdays" size="sm" plain
