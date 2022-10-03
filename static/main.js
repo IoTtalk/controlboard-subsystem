@@ -1,22 +1,24 @@
 Vue.config.devtools = true
 
-Vue.use(Vuex)
+// Vue.use(Vuex)
 
-const store = new Vuex.Store({
-  state: {
-    count: 0
-  },
-  mutations: {
-    increment (state) {
-      state.count++
-    }
-  }
-})
+// const store = new Vuex.Store({
+//   state: {
+//     settings: []
+//   },
+//   mutations: {
+//     SET_SETTINGS(state, newSettings) {
+//       state.settings = newSettings
+//     }
+//   },
+//   actions:{
+//   }
+// })
 
 var app = new Vue({
   el: '#app',
   delimiters: ["<%", "%>"],
-  store,
+  // store,
   data: {
     mainPage: true,    // In main page or pop-uped maintain page
     manageMode: false,  // Switch bwtween CB page & manage page
@@ -847,6 +849,26 @@ var app = new Vue({
           if (err.response.status != 403)
             console.log("logout failed");
         })
+    },
+    onUpdateSensorCod({ ruleID, data }){
+      // TODO
+      //   sensorCod:{
+      //     comparisonOpen: '',
+      //     comparisonOpenInput: '',
+      //     comparisonClose: '',
+      //     comparisonCloseInput: '',
+      // }
+      const index = this.settings.findIndex((item) => {
+        return item.ruleID === ruleID;
+      });
+      console.log(index);
+      // console.log(ruleID,data)
+      this.settings[index].content.openSensor = data.comparisonOpen;
+      this.settings[index].content.openSensorVal = data.comparisonOpenInput;
+      this.settings[index].content.closeSensor = data.comparisonClose;
+      this.settings[index].content.closeSensorVal = data.comparisonCloseInput;
+      
     }
-  }
+  },
 })
+

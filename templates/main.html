@@ -13,7 +13,7 @@
         <!-- Load Vue followed by BootstrapVue -->
         <!-- Develop version -->
         <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
-        <script src="https://unpkg.com/vuex@3.4.0/dist/vuex.js"></script>
+        <!-- <script src="https://unpkg.com/vuex@3.4.0/dist/vuex.js"></script> -->
         <!-- Production version -->
         <!-- <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script> -->
         <script src="https://unpkg.com/bootstrap-vue@2.21.2/dist/bootstrap-vue.min.js"></script>
@@ -138,6 +138,7 @@
                     :setting="setting"
                     :current-cb="currentCB"
                     :on-select-compare="onSelectCompare"
+                    @update-sensor-cod="onUpdateSensorCod"
                   ></sensor-condition-row>
                   
                   

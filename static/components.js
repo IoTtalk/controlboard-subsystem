@@ -1,17 +1,16 @@
 Vue.component('custom-sel', {
     props: ['options', 'select', 'status'],
     methods:{
-        onSelect(val) {
+        onChange(val) {
             this.$emit("update-option", val);
-            return;
         }
     },
     template: `
         <b-form-select required size="sm" class="custom-select"
             :options="options"
-            v-on:change="onSelect"
-            v-model="select"
-            v-bind:disabled="!status"
+            @change="onChange"
+            :value="select"
+            :disabled="!status"
         ></b-form-select>
     `
 })
@@ -72,58 +71,57 @@ Vue.component('sensor-row', {
     `
 })
 
-var HelloWorld = {
-    template:`
-        <div> hello world </div>
-    `
-}
-
-Vue.component('hi-word', {
-    template:`
-        <div> hiii </div>
-    `
-})
-
 
 Vue.component('sensor-condition-row', {
-    props: ["comparisons", "setting", "current-cb","on-select-compare"],
-    computed:{
-        sensor(){
-            return this.setting.sensors[this.setting.selectedSensor]
-        },
-        value(){
-            return this.setting.mode==='Timer'? this.setting.time: this.setting.value
+    props: ["comparisons", "currentCb","on-select-compare", "setting"],
+    data(){
+        return{
+            sensorCod:{
+                comparisonOpen: '',
+                comparisonOpenInput: '',
+                comparisonClose: '',
+                comparisonCloseInput: '',
+            }
+        }
+    },
+    watch:{
+        sensorCod:{
+            handler(val, oldVal){
+                console.log(this.setting);
+                this.$emit('update-sensor-cod', {
+                    ruleID: this.setting.ruleID,
+                    data: this.sensorCod
+                })
+            },
+            deep:true
         }
     },
     template: `
         <div class="card border-dark" style="margin-bottom: 20px;">
             <div class="card-header">
+                {{setting}}
                 <span class="ml-auto mr-1"><b>val</b></span>
             </div>
             <div class="card-body">
                 <div class="setting-sensor">
                     <custom-sel
-                        v-bind:options="comparisons"
-                        v-bind:select="setting.content.openSensor"
-                        v-bind:status="currentCb.status"
-                        v-on:update-option="onSelectCompare($event, index, 'open')"
+                        :options="comparisons"
+                        :select="sensorCod.comparisonOpen"
+                        :status="currentCb.status"
+                        @update-option="sensorCod.comparisonOpen = $event"
                     ></custom-sel>
                     <b-form-input size="sm" class="custom-input"
-                        v-model="setting.content.openSensorVal"
-                        v-bind:disabled="setting.content.openSensor==='notset'"
-                        v-on:input="setting.dirty=true"
+                        v-model="sensorCod.comparisonOpenInput"
                     ></b-form-input>
                     <span class="setting-text-mid">ON.</span>
                     <custom-sel
-                        v-bind:options="comparisons"
-                        v-bind:select="setting.content.closeSensor"
-                        v-bind:status="currentCb.status"
-                        v-on:update-option="onSelectCompare($event, index, 'close')"
+                        :options="comparisons"
+                        :select="sensorCod.comparisonClose"
+                        :status="currentCb.status"
+                        @update-option="sensorCod.comparisonClose = $event"
                     ></custom-sel> 
                     <b-form-input size="sm" class="custom-input"
-                        v-model="setting.content.closeSensorVal"
-                        v-bind:disabled="setting.content.closeSensor==='notset'"
-                        v-on:input="setting.dirty=true"
+                        v-model="sensorCod.comparisonCloseInput"
                     ></b-form-input>
                     <span class="setting-text">OFF.</span>
                 </div>
