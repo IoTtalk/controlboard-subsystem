@@ -1,0 +1,200 @@
+import time
+import datetime
+
+rule = {}
+status = 0  # 1 for open, 0 for close
+
+
+def bigger(data, threshold):
+    if data is None or threshold is None: return status   #####
+    if data > threshold:
+        return 1
+    else:
+        return 0
+
+
+def smaller(data, threshold):
+    if data < threshold:
+        return 1
+    else:
+        return 0
+
+
+condition_handler = {
+    'bigger': bigger,
+    'smaller': smaller,
+}
+
+def sensor_checker(sen_data): #ver2
+    ''' 
+    Rule checker for each sensor condition.
+    
+    Args: for example, 
+            sen_data = {
+                "sensor_id": 9,
+                "sensor_alias": "Geolocation",
+                "sensor_df": "Geolocation",
+                "sensor_index": 538,
+                "threshold_open": 30.0,
+                "threshold_close": 60.0,
+                "comparison_open": "smaller",
+                "comparison_close": "bigger",
+                "cbelement": 3,
+                "sensor_value": 29.671857294070392
+            }
+
+    Returns: this_sen_status = -1, default, means both not set or both not satisfied, keep status
+                             =  0, false for this sensor
+                             =  1, true for this sensor        
+    '''
+    this_sen_status = -1 # default -1 means not set, keep status
+
+    if "sensor_value" not in sen_data or sen_data["sensor_val"] is None: # if no sensor value
+        return this_sen_status # -1, keep status
+    
+    if "notset" in sen_data["comparison_open"] and "notset" in sen_data["comparison_close"]: # both not set
+        this_sen_status = -1 # keep status
+    elif "notset" in sen_data["comparison_open"]: # set close
+        satisfied = condition_handler[sen_data["comparison_close"]](sen_data["sensor_value"], sen_data["threshold_close"])
+        if satisfied:
+            this_sen_status = 0 # false
+    elif "notset" in sen_data["comparison_close"]: # set open
+        satisfied = condition_handler[sen_data["comparison_open"]](sen_data["sensor_value"], sen_data["threshold_open"])
+        if satisfied:
+            this_sen_status = 1 # true
+    else: # both set
+        satisfied_open = condition_handler[sen_data["comparison_open"]](sen_data["sensor_value"], sen_data["threshold_open"])
+        satisfied_close = condition_handler[sen_data["comparison_close"]](sen_data["sensor_value"], sen_data["threshold_close"])
+        
+        # no need to handle both satisfied, since it will contradict
+        if not satisfied_open and not satisfied_close:
+            return this_sen_status # -1, keep status
+        elif satisfied_open:
+            this_sen_status = 1 # true
+        elif satisfied_close:
+            this_sen_status = 0 # false
+
+    return this_sen_status
+
+def sensor_checker_v1(sensor_val):
+    global rule, status
+    
+    if "notset" in rule["comparison_open"] and "notset" in rule["comparison_close"]: # both not set
+        status = 0
+    elif "notset" in rule["comparison_open"]: # set close
+        satisfied = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"])
+        if satisfied:
+            status = 0 # close
+    elif "notset" in rule["comparison_close"]: # set open
+        satisfied = condition_handler[rule["comparison_open"]](sensor_val, rule["threshold_open"])
+        if satisfied:
+            status = 1 # open
+    else: # both set
+        satisfied_open = condition_handler[rule["comparison_open"]](sensor_val, rule["threshold_open"])
+        satisfied_close = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"])
+        
+        # no need to handle both satisfied, since it will contradict
+        if not satisfied_open and not satisfied_close:
+            return status # keep status
+        elif satisfied_open:
+            status = 1
+        elif satisfied_close:
+            status = 0
+
+    return status
+
+def op_cal(a, op_str, b):
+    '''
+    a operation b 
+    
+    Args: a op_str b => a operation b, (eg. a "AND" b),
+          a,b will be -1 / 0 / 1
+
+    Returns: -1, means keep status, no influence from this operation
+              0, false
+              1, true 
+    
+    '''
+    if a == -1 and b == -1:
+        return -1
+    if a == -1:
+        return b
+    if b == -1:
+        return a
+    if op_str == "AND":
+        return (a and b)
+    else: # op_str == "OR"
+        return (a or b)
+
+
+def sensor_do_op(sensor_check_list, op_list):
+    ans = -1 # keep status
+    for i in range(len(sensor_check_list)):
+        if i == 0:
+            prev_op = "OR"
+        else:
+            prev_op = op_list[i*2 - 1]
+        ans = op_cal(ans, prev_op, sensor_check_list[i])
+    return ans
+
+
+def run(*args):
+    global rule, status
+
+    OpenSig = -10000  # open -> status : 1
+    CloseSig = -10001 # close -> status : 0
+    errorSig = 555 # error signal
+
+    data = args[0]
+
+    if "mode" in data:
+        rule = data
+
+    if rule["mode"] == "ON":
+        status = 1
+        return OpenSig
+    elif rule["mode"] == "OFF":
+        status = 0
+        return CloseSig
+    else: # i.e. rule["mode"] == Sensor
+        all_sen_data = rule["sensors_data"]
+        sensor_check_list = list()
+        for sen in all_sen_data:
+            sensor_check_list.extend(sensor_checker(sen))
+
+        op_list = rule["operation"].split(",") # "538,AND,544" -> ["538","AND","544"]
+
+        # easy check if there is data lost 
+        if len(op_list) != (len(sensor_check_list)*2 - 1):
+            return errorSig 
+
+        sensor_after_op_ans = sensor_do_op(sensor_check_list, op_list)
+        if sensor_after_op_ans == -1:
+            # keep status
+            if status: 
+                return OpenSig
+            else:  
+                return CloseSig
+        elif sensor_after_op_ans == 0:
+            status = 0
+            return CloseSig
+        else: # sensor_after_op_ans == 1
+            status = 1
+            return OpenSig
+
+        '''
+        if "sensor_val" not in data or data["sensor_val"] is None:
+            # keep status
+            if status: 
+                return OpenSig
+            else:  
+                return CloseSig
+        else:
+            sensor_valid = sensor_checker(data["sensor_val"])
+            if sensor_valid:
+                status = 1
+                return OpenSig
+            else:
+                status = 0
+                return CloseSig
+        '''
