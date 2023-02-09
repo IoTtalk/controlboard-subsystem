@@ -50,7 +50,9 @@ class AG_SA():
             "is_sim": False,
             "df_list": ["CBElement-O1", "CBElement-TI1", "CBElement-O2", "CBElement-TI2",
                         "CBElement-O3", "CBElement-TI3", "CBElement-O4", "CBElement-TI4",
-                        "CBElement-O5", "CBElement-TI5"]
+                        "CBElement-O5", "CBElement-TI5", "CBElement-O6", "CBElement-TI6",
+                        "CBElement-O7", "CBElement-TI7", "CBElement-O8", "CBElement-TI8",
+                        "CBElement-O9", "CBElement-TI9" ]
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
@@ -97,7 +99,7 @@ class AG_SA():
                 actuator_df = "CBElement-TI" + str(df_order)
                 sensor_df = "CBElement-O" + str(df_order)
                 data = DAN.pull(sensor_df)
-                print(data)
+                #print(data)
                 if data is None:
                     print("No sensor data pulled")
                 else:
@@ -140,4 +142,4 @@ DAN.state = "RESUME"
 while True:
     print('start checking rules of', sa.sa_id)
     sa.check_rules()
-    time.sleep(5)
+    time.sleep(60)

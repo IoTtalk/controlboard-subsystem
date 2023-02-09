@@ -130,6 +130,9 @@ var app = new Vue({
     /* API data getter Methods, including CB, SA, Rule, Status, User, 
     *  Reachable Project
     */
+    /*test: function(cb){
+      console.log('test cb', cb);
+    },*/
     projectURL: function(cb) {
       return this.IoTtalkURL.concat(cb);
     },
@@ -204,7 +207,7 @@ var app = new Vue({
       }
       this.getAvailableCBs(req)
         .then( (controlboards) => {
-          console.log(controlboards);
+          //console.log("controlboards", controlboards);
           this.controlboards = controlboards;
           if (controlboards.length === 0) {
             this.currentCB = {
@@ -253,6 +256,16 @@ var app = new Vue({
           this.backupSettings = JSON.parse(JSON.stringify(rules));
           new_rules = [];
           rules.forEach( (rule) => {
+            // timeStamp to time
+            var h = ~~(rule.content.dutyPos / 3600);  // hours
+            var m = ~~((rule.content.dutyPos - h * 3600) / 60);  // minutes
+            var s = rule.content.dutyPos - h * 3600 - m * 60;  // seconds
+            rule.content.dutyPosStamp = [h, m, s];
+ 
+            h = ~~(rule.content.dutyNeg / 3600);  // hours
+            m = ~~((rule.content.dutyNeg - h * 3600) / 60);  // minutes
+            s = rule.content.dutyNeg - h * 3600 - m * 60;  // seconds
+            rule.content.dutyNegStamp = [h, m, s];
             var old_rule = this.settings.find(element => element.ruleID === rule.ruleID)
             if (old_rule === undefined) {
               new_rules.push(rule);
@@ -336,7 +349,7 @@ var app = new Vue({
         allReady = true;
         this.controlboards.forEach( (cb) => {
           if (!cb.status) {
-            console.log(cb);
+            console.log("?????? : ",cb);
             window.open(this.projectURL(cb.text));
             allReady = false;
           }
@@ -375,14 +388,17 @@ var app = new Vue({
           }
         })
     },
-    onSwitchManagePage: function() {
-      this.managePage = !this.managePage;
-      return;
+     onSwitchManagePage: function() {
+       this.managePage = !this.managePage;
+       return;
     },
     onSwitchCB: function(selected) {
+      //console.log("selected : ", selected);
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
       this.currentCB = selected;
+      //this.refreshRuleWorker();
+      //this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       return;
     },
     onSelectProject: function(selected) {
@@ -650,6 +666,32 @@ var app = new Vue({
         this.settings[settingIndex].content.openTimer[content] = val;
       } else {
         this.settings[settingIndex].content.closeTimer[content - 3] = val;
+      }
+    },
+    onSelectTimeStamp: function(val, settingIndex, content) {
+      //  time to timeStamp
+      console.log(val, settingIndex, content);
+      this.settings[settingIndex].dirty = true;
+      if (content < 3) {
+        this.settings[settingIndex].content.dutyPosStamp[content] = val;
+      } else {
+        this.settings[settingIndex].content.dutyNegStamp[content - 3] = val;
+      }
+      // compute dutyPos
+      if (content < 3) {
+        var h = this.settings[settingIndex].content.dutyPosStamp[0];
+        var m = this.settings[settingIndex].content.dutyPosStamp[1];
+        var s = this.settings[settingIndex].content.dutyPosStamp[2];
+        console.log(h,m,s);
+        this.settings[settingIndex].content.dutyPos = h * 3600 + m * 60 + s;
+        console.log(this.settings[settingIndex].content.dutyPos);
+      } else{
+        var h = this.settings[settingIndex].content.dutyNegStamp[0];
+        var m = this.settings[settingIndex].content.dutyNegStamp[1];
+        var s = this.settings[settingIndex].content.dutyNegStamp[2];
+        console.log(h,m,s);
+        this.settings[settingIndex].content.dutyNeg = h * 3600 + m * 60 + s;
+        console.log(this.settings[settingIndex].content.dutyNeg);
       }
     },
     onSelectWeekdays: function(event, settingIndex) {

@@ -6,7 +6,7 @@ html, body {
 
 .fieldName > a{
   overflow-x: hidden;
-  width: 80px;
+  //width: 80px;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
