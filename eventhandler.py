@@ -552,8 +552,9 @@ def get_rules(cb_id): # ver2
                 "value": 0
             }
             '''
-
-        return jsonify(rule_list), 200
+        sorted_rule_list = sorted(rule_list, key=lambda d: d["ruleID"]) # sort tmp by ruleID
+        #return jsonify(rule_list), 200
+        return jsonify(sorted_rule_list), 200
     except orm.core.ObjectNotFound:
         return jsonify([]), 200
     except Exception as err:

@@ -82,7 +82,7 @@ class AG_SA():
                 time.sleep(0.1)
         
         
-        time.sleep(2) # essential! Wait for ESM project restart!
+        time.sleep(0.6) # essential! Wait for ESM project restart!
 
 
 
