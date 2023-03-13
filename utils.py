@@ -16,14 +16,14 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 
 from config import env_config, reg_config, use_v1
-from exceptions import CCMAPIFailError
-from models import CBElement, CB_Account, CB
+from exceptions import CCMAPIFailError #pass
+from models import CBElement, CB_Account, CB, CB_Sensor
 
 
 # used to record AG SA. In format {sa_id: CB_SA entity}
 running_cb = dict()
 
-'''
+'''#TODO
 used to record AG SA's rule status. In format
     {
         rule_id: {
@@ -213,6 +213,17 @@ def status_receiver(msgs):
     '''
     Receive execution status from AG SAs.
 
+    e.g. msg in msgs = {
+            "prev_trigger": -10000, 
+            "status": "GREEN", 
+            "value": {
+                "538": -27.391017263337368, 
+                "544": 21.475446558578696
+            }, 
+            "rule_id": 3, 
+            "prev_status": "OFF"
+        }
+
     Args:
         msgs: Messages sent from AG SAs.
 
@@ -312,11 +323,19 @@ def get_iottalk_info(logger):
                 iottalk_info["fn_join"] = fn["fn_id"]
             elif fn["fn_name"] == "cb_transform":
                 iottalk_info["fn_transform"] = fn["fn_id"]
+            elif fn["fn_name"] == "cb_sensor_idf":
+                iottalk_info["fn_sensor_idf"] = fn["fn_id"]
+            elif fn["fn_name"] == "cb_multi_join":
+                iottalk_info["fn_multi_join"] = fn["fn_id"]
 
         if "fn_join" not in iottalk_info:
-            iottalk_info["fn_join"] = create_fn_ag("./CB_join.py", "cb_join", logger)
+            iottalk_info["fn_join"] = create_fn_ag("./v1_func/CB_join.py", "cb_join", logger)
         if "fn_transform" not in iottalk_info:
-            iottalk_info["fn_transform"] = create_fn_ag("./CB_transform.py", "cb_transform", logger)
+            iottalk_info["fn_transform"] = create_fn_ag("./v1_func/CB_transform.py", "cb_transform", logger)
+        if "fn_sensor_idf" not in iottalk_info:
+            iottalk_info["fn_sensor_idf"] = create_fn_ag("./v1_func/CB_sensorIDF.py", "cb_sensor_idf", logger)
+        if "fn_multi_join" not in iottalk_info:
+            iottalk_info["fn_multi_join"] = create_fn_ag("./v1_func/CB_multijoin.py", "cb_multi_join", logger)
         logger.info(iottalk_info)
     except CCMAPIFailError:
         logger.exception("Getting IoTtalk info failed. check log")
@@ -525,7 +544,13 @@ def register_ag(cb, logger):
     try:
         rules = dict()
         for rule in cb.rule_set:
-            rules[rule.df_order] = rule.to_dict()
+            sen_data = list()
+            for sen_rule in rule.sensor_set:
+                sen_data.append(sen_rule.to_dict())
+            sorted_sen_data = sorted(sen_data, key=lambda d: d['sensor_index']) # sort CB_Sensor by sensor_index
+            cb_sa_data = rule.to_dict()
+            cb_sa_data["sensors_data"] = sorted_sen_data # add CB_Sensor data into CBElement data in dict type
+            rules[rule.df_order] = cb_sa_data
         new_sa = open('./CB_SA.py', 'r').read().format(
             sa_id=cb.cb_id, config=reg_config, mac_addr=cb.mac_addr, sa_name=cb.cb_name, rules=rules)
         data = {
@@ -807,10 +832,50 @@ def create_fn_ag(file_name, fn_name, logger):
         logger.exception(err)
         return -1
 
+def set_multi_sensor_fn_ag(p_id, na_info, logger):
+    '''
+    Set specified na's multi_join function and sensor_idf funtion
+    iottalk_info["fn_sensor_idf"] store cb_sensor_idf funtion index
+    iottalk_info["fn_multi_join"] store cb_multi_join funtion index
+
+    Args:
+        na_info: result from `get_na_ag`
+    '''
+    dfm_list = list()
+
+    for index in na_info["input"]:
+        if index["dm_name"] != "ControlBoard":  # The IDF is an input device.
+            index["dfmp"][0]["fn_id"] = iottalk_info["fn_sensor_idf"]
+        dfm_list.append({"dfo_id": index["dfo_id"], "dfmp_list": index["dfmp"]})
+
+    data = {
+        "api_name": "networkapplication.update",
+        "payload": {
+            "p_id": p_id,
+            "na_id": na_info["na_id"],
+            "dfm_list": dfm_list,
+            "na_name": na_info["na_name"],
+            "multiplejoin_fn_id": iottalk_info["fn_multi_join"] # Set the multiple join function
+        }
+    }
+    try:
+        state, res = _post("ccm_api", data, logger)
+        print("change multi-sensor fn result:", res)
+        if not state:
+            raise CCMAPIFailError
+        return state, res["result"]
+    except CCMAPIFailError:
+        logger.exception("Change multi-sensor FN failed")
+        return False, "AG returned bad response"
+    except Exception as err:
+        logger.exception(err)
+        return False, "Send request to query NA failed, check API log."
 
 def set_fn_ag(p_id, na_info, logger):
     '''
     Set specified na's join function to CB's function
+    iottalk_info["fn_join"] store cb_join funtion index
+    iottalk_info["fn_transform"] store cb_transform funtion index
 
     Args:
         na_info: result from `get_na_ag`

@@ -17,7 +17,7 @@ from flask import url_for
 from pony import orm
 
 
-from config import default_rules, default_status
+from config import default_rules, default_status, sensor_default
 from config import env_config
 from config import use_v1
 from email_tracker import email_notifier
@@ -28,9 +28,10 @@ from utils import make_logger
 from utils import create_proj_ag, delete_proj_ag, get_proj_ag
 from utils import create_do_ag, delete_do_ag
 from utils import register_ag, deregister_ag, bind_device_ag
-from utils import get_na_ag, delete_na_ag, set_fn_ag, create_na_ag
+from utils import get_na_ag, delete_na_ag, set_fn_ag, create_na_ag, set_multi_sensor_fn_ag
 from models import cb_db
-from models import CBElement, CB_Account, CB
+from models import CBElement, CB_Account, CB, CB_Sensor
+from enums import SensorDataEnum, ActuatorDataEnum
 
 
 api_logger = make_logger('API', 'API')
@@ -90,9 +91,189 @@ def get_infos():
 
 
 @apis.route('/cb/<int:cb_id>/new_rules', methods=['POST'])
+#@requires_login
+@orm.db_session
+def set_rules(cb_id): # ver2
+    # data validation
+    '''
+    Set the rules contained in the request sent from the specified CB.
+
+    Args:
+        cb_id: ID of the requester SA.
+        request: A list of CBElements in json format.
+            each CBElement will contain the following fields
+                `rule_id`
+                `actuator_alias`
+                `mode`
+                `sensor_index`
+                `threshold_open`
+                `threshold_close`
+                `comparison_open`
+                `comparison_close`
+                `time_open`
+                `time_close`
+                `weekday`
+                `duty_pos`
+                `duty_neg`
+            Refer to models.py for each field's meaning.
+
+    Returns:
+        Status code: 200 / 400 / 500
+        msg: Depends on status code.
+            200: "Configuration Saved".
+            400: a string containing invalid actuators.
+            500: "Internal Server Error".
+    '''
+    cb = CB[cb_id]
+    api_logger.info(f'Start setting new rules of CB {cb.cb_name}')
+    invalid_list = list()
+    rules = request.json
+    try:
+        print('*' * 30)
+        #print(type(rules))
+        print("hihihihihihihi",rules)
+
+        '''
+        ******************************
+        rules = [
+            {
+                "rule_id": 1,
+                "actuator_alias": "Dummy_Control",
+                "mode": "Sensor",
+                "time_open": [0,0,0],
+                "time_close": [0,0,0],
+                "weekday": [],
+                "duty_pos": 0,
+                "duty_neg": 0,
+                "sensors": [
+                    {
+                        "sensor_index": 463,
+                        "threshold_open": 30,
+                        "threshold_close": 60,
+                        "comparison_open": "smaller",
+                        "comparison_close": "bigger",
+                        "sensor_alias": "hiixddd"
+                    },
+                    {
+                        "sensor_index": 465,
+                        "threshold_open": 20,
+                        "threshold_close": 40,
+                        "comparison_open": "smaller",
+                        "comparison_close": "bigger",
+                        "sensor_alias": "Dummy_Sensor"
+                    }
+                ],
+                "operation": ["463","AND","465"]
+            }
+        ]
+        '''
+
+        for rule_setting in rules:
+            invalid = False
+
+            # Sensor threshold setup < 0
+            if rule_setting["mode"] == "Sensor":
+                #print("\n!!!!!!!! : ",rule_setting["sensors"], " \n ? ", type(rule_setting["sensors"]))
+                for s_rule in rule_setting["sensors"]:
+                    if s_rule["comparison_open"] != "notset" and float(s_rule["threshold_open"]) < 0.0:
+                        invalid = True
+                    elif s_rule["comparison_close"] != "notset" and float(s_rule["threshold_close"]) < 0.0:
+                        invalid = True
+
+            # dutyPos > 0 but no dutyNeg
+            if int(rule_setting["duty_pos"]) > 0:
+                if rule_setting["duty_neg"] is None or int(rule_setting["duty_neg"]) <= 0:
+                    invalid = True
+            if invalid:
+                invalid_list.append(rule_setting["actuator_alias"])
+
+        if len(invalid_list):
+            raise WrongSettingError
+
+        api_logger.info('\tStart setting rules')
+        #accessible_users = [user.account for user in cb.account_set]
+        #title = f"ControlBoard {cb.cb_name} has CBElements changed by {session['user']}, detail as follows\n"
+
+        for rule_setting in rules:
+            actuator = rule_setting["actuator_alias"]
+            rule_setting["weekday"] = ",".join([str(weekday) for weekday in rule_setting["weekday"]])
+            
+            # change type list to type string to match database
+            #rule_setting["operation"] = ",".join([things for things in rule_setting["operation"]]) 
+            
+            if rule_setting["time_open"] is not None:
+                time_open = datetime.time(
+                    hour=rule_setting["time_open"][0],
+                    minute=rule_setting["time_open"][1],
+                    second=rule_setting["time_open"][2]
+                )
+                rule_setting["time_open"] = time_open
+
+            if rule_setting["time_close"] is not None:
+                time_close = datetime.time(
+                    hour=rule_setting["time_close"][0],
+                    minute=rule_setting["time_close"][1],
+                    second=rule_setting["time_close"][2]
+                )
+                rule_setting["time_close"] = time_close
+
+            rule = CBElement[rule_setting["rule_id"]]
+            
+            rule_setting_sensor_data = rule_setting["sensors"] # list of dict, dict contains sensor data
+            rule_setting.pop("sensors")
+            print("\n\n 1 rule_setting : ", rule_setting)
+
+            rule.set(**rule_setting)
+            print("\n\n 2 :", rule_setting_sensor_data)
+
+            #if rule_setting["mode"] == "Sensor":
+            for s_rule in rule_setting_sensor_data:
+                cbsensor_set_sensor = CB_Sensor.get(sensor_index=s_rule["sensor_index"])
+                cbsensor_set_sensor.set(**s_rule)
+                    
+        cb_db.commit()
+        #email_notifier.notify_user(title, rules, accessible_users)
+        if cb_id in running_cb:
+            status = deregister_ag(running_cb[cb_id].ag_token, api_logger)
+            if not status:
+                api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
+                return "Internal Server Error", 500
+        cb_db.commit()
+
+        status, ag_token = register_ag(cb, api_logger)
+        if not status:
+            api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
+            return "Internal Server Error", 500
+        cb.ag_token = ag_token
+        running_cb[cb.cb_id] = cb
+
+        do_id = [int(id) for id in cb.do_id.split(',')]
+        status = bind_device_ag(cb.mac_addr, cb.p_id, do_id, api_logger)
+        if not status:
+            api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
+            return "Internal Server Error", 500
+        cb_db.commit()
+        return 'Configuration Saved', 200
+    except WrongSettingError:
+        invalid_actuators = str()
+        for actuator in invalid_list:
+            invalid_actuators += (actuator + ' ')
+        api_logger.exception(f"Invalid new rules of CB {cb.cb_name} detected, abort all")
+        abort(400, f"Abnormal threshold setting of {invalid_actuators} detected, aborting all")
+    except orm.RowNotFound:
+        api_logger.exception("Specified rule not found")
+        abort(400, "Specified CB not found")
+    except orm.MultipleRowsFound:
+        api_logger.exception("Multiple Rule found for the same actuator")
+        abort(400, "Multiple Rules for the same actuator detected")
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500)
+
+#@apis.route('/cb/<int:cb_id>/new_rules', methods=['POST'])
 @requires_login
 @orm.db_session
-def set_rules(cb_id):
+def set_rules_v1(cb_id):
     '''
     Set the rules contained in the request sent from the specified CB.
 
@@ -211,11 +392,178 @@ def set_rules(cb_id):
         api_logger.exception(err)
         abort(500)
 
-
 @apis.route('/cb/<int:cb_id>/rules', methods=['GET'])
 @requires_login
 @orm.db_session
-def get_rules(cb_id):
+def get_rules(cb_id): # ver2
+    '''
+    Get the rules contained in the specified CB.
+
+    Args:
+        cb_id: ID of the requester CB.
+
+    Returns:
+        Status code: 200 / 500.
+        rule_list: A list containing rules of the specific CB. Each element of this list is a rule in dictionary format.
+            Each rule will contain the following information
+                `ruleID`: integer, primary key of the rule in database table `CBElement`.
+                `actuator`: string, indicating user-defined actuator df-alias on IoTtalk GUI.
+                `sensors`: list of strings, indicating user-defined sensor df-alias on IoTtalk GUI.
+                `mode`: string, indicating manual on/off or sensor/timer.
+                `content`: dictionary, the rule's content. including the following fields.
+                    `openSensor`: string, should be one of bigger/smaller/null.
+                    `openSensorVal`: integer, the threshold value to trigger the actuator.
+                    `closeSensor`: string, should be one of bigger/smaller/null.
+                    `closeSensorVal`: integer, the threshold value to close the actuator.
+                    `openTimer`: list of length 3, represent the timing allowed to trigger the actuator.
+                    `closeTimer`: list of length 3, represent the timing allowed to close the actuator.
+                    `dutyPos`: integer, time in seconds representing the positive cycle length of one Duty cycle.
+                    `dutyNeg`: integer, time in seconds representing the negative cycle length of one Duty cycle.
+                    `weekdays`: list of integers representing weekdays. Mon <=> 0, Sun <=> 6, All <=> 7.
+
+            The following 5 fields are dummy data for frontend rendering.
+                `dirty`: False,
+                `prevTrigger`: -10000,
+                `status`: False,
+                `time`: "00:00",
+                `value`: 0
+            `rule_list` will be empty if the specified CB is not running.
+    '''
+    rule_list = list()
+    try:
+        cb = CB[cb_id]
+        for rule in cb.rule_set:
+
+            content = dict()
+
+            content["openTimer"] = [int(data) for data in rule.time_open.strftime('%H:%M:%S').split(":")]
+            content["closeTimer"] = [int(data) for data in rule.time_close.strftime('%H:%M:%S').split(":")]
+            content["dutyPos"] = rule.duty_pos
+            content["dutyNeg"] = rule.duty_neg
+
+            if len(rule.weekday):
+                content["weekdays"] = rule.weekday.split(",")
+            else:
+                content["weekdays"] = list()
+
+            # deal with new class for sensor
+            # TODO above comment need to change
+            '''
+            "content": { 
+                "closeTimer": [ 23, 0, 0 ], 
+                "dutyNeg": 20, 
+                "dutyPos": 10, 
+                "openTimer": [ 6, 0, 0 ],
+                "weekdays": [ "0", "1", "2", "3", "4", "5", "6", "7" ]
+            }, 
+            "sensors": [
+                {
+                    "sensorName": "Dummy_Sensor1", 
+                    "selectedSensor": 0, 
+                    "closeSensor": "notset", 
+                    "closeSensorVal": 0, 
+                    "openSensor": "notset", 
+                    "openSensorVal": 0,
+                    "operation": "AND",
+                    "is_show_operation": true
+                },
+                {
+                    "sensorName": "Dummy_Sensor1", 
+                    "selectedSensor": 1, 
+                    "closeSensor": "notset", 
+                    "closeSensorVal": 0, 
+                    "openSensor": "notset", 
+                    "openSensorVal": 0,
+                    "operation": "AND",
+                    "is_show_operation": false
+                }
+            ]
+            '''
+            sensor_rule_all = list()
+            for s_rule in rule.sensor_set:
+                sensor_rule = dict()
+                sensor_rule["sensorName"] = s_rule.sensor_alias
+                sensor_rule["selectedSensor"] = s_rule.sensor_index
+                sensor_rule["openSensor"] = s_rule.comparison_open
+                sensor_rule["closeSensor"] = s_rule.comparison_close
+                sensor_rule["openSensorVal"] = s_rule.threshold_open
+                sensor_rule["closeSensorVal"] = s_rule.threshold_close
+                sensor_rule["operation"] = s_rule.operation
+                sensor_rule["is_show_operation"] = s_rule.is_show_operation
+                sensor_rule_all.append(sensor_rule)
+
+            sorted_sen_data = sorted(sensor_rule_all, key=lambda d: d["selectedSensor"]) # sort CB_Sensor by sensor_index
+            #op = rule.operation.split(",") if len(rule.operation) else list()
+            
+            tmp = {
+                "ruleID": rule.rule_id,
+                "actuator": rule.actuator_alias,
+                "sensors": sorted_sen_data,
+                "mode": rule.mode,
+                "content": content,
+                "dirty": False,
+                "prevTrigger": -10000,
+                "status": False,
+                "time": "00:00",
+                "value": 0,
+                #"operation": op
+            }
+            rule_list.append(tmp)
+
+            '''
+            tmp = {
+                "actuator": "Dummy_Control",
+                "content": {
+                    "closeTimer": [0,0,0],
+                    "dutyNeg": 0,
+                    "dutyPos": 0,
+                    "openTimer": [0,0,0],
+                    "weekdays": [],
+                    "dutyPosStamp": [0,0,0],
+                    "dutyNegStamp": [0,0,0]
+                },
+                "dirty": true,
+                "mode": "Sensor",
+                "ruleID": 3,
+                "sensors": [
+                    {
+                        "closeSensor": "notset",
+                        "closeSensorVal": 0,
+                        "is_show_operation": true,
+                        "openSensor": "notset",
+                        "openSensorVal": 0,
+                        "operation": "AND",
+                        "selectedSensor": 747,
+                        "sensorName": "Dummy_Sensor"
+                    },
+                    {
+                        "closeSensor": "notset",
+                        "closeSensorVal": 0,
+                        "is_show_operation": false,
+                        "openSensor": "notset",
+                        "openSensorVal": 0,
+                        "operation": "AND",
+                        "selectedSensor": 749,
+                        "sensorName": "Geolocation"
+                    }
+                ],
+                "status": false,
+                "time": "13:13",
+                "value": 0
+            }
+            '''
+
+        return jsonify(rule_list), 200
+    except orm.core.ObjectNotFound:
+        return jsonify([]), 200
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500, "Internal server error")
+
+#@apis.route('/cb/<int:cb_id>/rules', methods=['GET'])
+@requires_login
+@orm.db_session
+def get_rules_v1(cb_id):
     '''
     Get the rules contained in the specified CB.
 
@@ -327,11 +675,268 @@ def get_datum(cb_id):
         api_logger.warning(running_status)
         abort(500, err)
 
-
 @apis.route('/cb/refresh_cb/<int:cb_id>', methods=['GET'])
 @requires_login
 @orm.db_session
-def refresh_cb(cb_id):
+def refresh_cb(cb_id): #ver2
+    '''
+    Fetch NetworkApplications to read IDF/ODF name.
+
+    Args:
+        cb_id: ID of the cb to sync with IoTtalk Project.
+
+    Returns:
+        Status code: 200 / 400 / 500
+        Msg: Corresponding execution result.
+    '''
+    try:
+        cb = CB[cb_id]
+        if use_v1:
+            NAs = requests.post(  # Workaround for V1 CCM API project.get lacking NA info.
+                f"http://{env_config['IoTtalk']['ServerIP']}:7788/reload_data",
+                data={"p_id": cb.p_id}
+            )
+            NAs = json.loads(NAs.text)["join"]
+        else:
+            raise NotImplementedError
+        print("NAs : ", NAs)
+        import pdb; pdb.set_trace
+        if not len(NAs):
+            raise NotFoundError
+        # Create CBElements for each NA
+        src, dst = dict(), dict()
+        na_ids = list()
+        for na in NAs:
+            # na: [<na_id>, <na_name>, <na_idx>]
+            state, na_info = get_na_ag(cb.p_id, na[0], api_logger)
+            if not state:
+                raise CCMAPIFailError
+            # print("=============")
+            # print("na_info: ", na_info)
+            # print("=============")
+            order, input_device, output_device = 0, list(), list()
+
+            first_idf = na_info["input"][0]
+            if first_idf["df_name"].startswith("CBElement"):
+                set_fn_ag(cb.p_id, na_info, api_logger)
+                na_ids.append(na[0])
+                order = int(first_idf["df_name"].replace("CBElement-TI", ""))
+
+                for odf in na_info["output"]:
+                    if not odf["df_name"].startswith("CBElement"):
+                        output_device.append([odf["dfo_id"], odf["df_name"], odf["alias_name"].replace("-O", "")])
+            else:
+                cb_related = False
+                for odf in na_info["output"]:
+                    if odf["df_name"].startswith("CBElement"):
+                        cb_related = True
+                        order = int(odf["df_name"].replace("CBElement-O", ""))
+                        break
+                if cb_related:
+                    set_multi_sensor_fn_ag(cb.p_id, na_info, api_logger) # new set_fn_ag for setting sensor_idf and multi_join funtion
+                    for idf in na_info["input"]:
+                        input_device.append([idf["dfo_id"], idf["df_name"], idf["alias_name"].replace("-I", "")])
+            if len(input_device):
+                src[order] = input_device
+            if len(output_device):
+                dst[order] = output_device
+        print("src : ", src)
+        print("dst : ", dst)
+        nas = ",".join(str(na_id) for na_id in na_ids)
+
+        print("nas : ",nas)
+        
+        cb.na_id = nas
+        #src : {1: [[144,'Dummy_Sensor', 'Dummy_Sensor'],[145,'Dummy_Sensor', 'Dummy_Sensor']]} 
+        #dst : {1: [['dfo_id','Dummy_Control', 'Dummy_Control']]}
+        actuators = list()
+        for order, actuator in dst.items():
+            old_rule = CBElement.get(df_order=order, cb=cb)
+            has_actuator = False
+            if old_rule is not None:
+                #if not old_rule.sensor_set.is_empty():
+                if old_rule.actuator_alias == actuator[0][ActuatorDataEnum.ALIAS.value]:
+                    has_actuator = True
+                else:
+                    old_rule.delete()
+
+            actuators.append(actuator[0][ActuatorDataEnum.ALIAS.value]) # only one actuator for each CBElement
+            
+            # print("\n\n!!!!!!!!!\n\n")
+            # print("order : ", order)
+            # print("actuator : ", actuator)
+            # print("actuators : ", actuators)
+            # print("old_rule : ", old_rule)
+            # print("cb.rule_set : ", cb.rule_set)
+            # print("\n\n!!!!!!!!!\n\n")
+
+            if order not in src:  # Timer Type, No Sensors connected.
+                if has_actuator:
+                    old_rule.set(
+                        #actuator_alias=actuator[0][ActuatorDataEnum.ALIAS.value],
+                        actuator_df=actuator[0][ActuatorDataEnum.DF.value],
+                        #sensor_alias="",
+                        mode="OFF",
+                        df_order=order,
+                    )
+                else:
+                    cb.rule_set.add(
+                        CBElement(
+                            **default_rules,
+                            actuator_alias=actuator[0][ActuatorDataEnum.ALIAS.value],
+                            actuator_df=actuator[0][ActuatorDataEnum.DF.value],
+                            df_order=order,
+                            mode="OFF",
+                            cb=cb
+                        )
+                    )
+            else:  # Sensor type
+                if has_actuator:
+                    # cbelement
+                    old_rule.set(
+                        actuator_alias=actuator[0][ActuatorDataEnum.ALIAS.value],
+                        actuator_df=actuator[0][ActuatorDataEnum.DF.value],
+                        #sensor_alias=",".join([row[1] for row in src[order]]),
+                        #sensor_df=",".join([row[0] for row in src[order]]),
+                        df_order=order,
+                    )
+        
+                    # src : {1: [[144,'Dummy_Sensor', 'Dummy_Sensor'],[155,'Dummy_Sensor', 'Dummy_Sensor']]} 
+                    # sen_data = [144,'Dummy_Sensor', 'Dummy_Sensor'], [155,'xx', 'xx']
+                    
+                    # add, modify, delete sensor in this current CBelement
+                    
+                    # src : {1: [[142,'Dummy_Sensor', 'Dummy_Sensor']]} 
+                    # src : {1: [[142,'Dummy_Sensor', 'Dummy_Sensor'], [144,'Dummy_Sensor', 'Dummy_Sensor']]}  -> add 144
+                    # src : {1: [[144,'Dummy_Sensor', 'Dummy_Sensor']]}  -> modify
+
+                    cbsen_dfo_id = set()
+                    for sen_data in src[order]:
+                        cbsen_dfo_id.add(sen_data[SensorDataEnum.INDEX.value])
+                        cbsen = CB_Sensor.get(cbelement=old_rule, sensor_index=sen_data[SensorDataEnum.INDEX.value])
+                        if cbsen is None: # add new CB_Sensor
+                            old_rule.sensor_set.add(
+                                CB_Sensor(
+                                    **sensor_default,
+                                    sensor_index=sen_data[SensorDataEnum.INDEX.value],
+                                    sensor_alias=sen_data[SensorDataEnum.ALIAS.value],
+                                    sensor_df=sen_data[SensorDataEnum.DF.value],
+                                    cbelement=old_rule
+                                )
+                            )
+                        else: # modified origin appear CB_Sensor
+                            cbsen.set(
+                                sensor_alias=sen_data[SensorDataEnum.ALIAS.value],
+                                sensor_df=sen_data[SensorDataEnum.DF.value]
+                            )
+                    # make largest sensor_index's "is_show_operation" be false
+                    max_sensor_idx = max(cbsen_dfo_id)
+                    print("\n\n old - ????????? : ", max_sensor_idx,"\n\n")
+                    max_sen_idx_cbsensor = CB_Sensor.get(cbelement=old_rule, sensor_index=max_sensor_idx)
+                    max_sen_idx_cbsensor.set(
+                        is_show_operation=False
+                    )
+
+                    cbsenList = list(CB_Sensor.select(lambda p: p.cbelement==old_rule)) # delete no use CB_Sensor
+                    for cs in cbsenList:
+                        if cs.sensor_index not in cbsen_dfo_id:
+                            cs.delete()
+                else:
+                    cb_ele = CBElement(
+                            **default_rules,
+                            actuator_alias=actuator[0][ActuatorDataEnum.ALIAS.value],
+                            actuator_df=actuator[0][ActuatorDataEnum.DF.value],
+                            #sensor_alias=",".join([row[1] for row in src[order]]),
+                            #sensor_df=",".join([row[0] for row in src[order]]),
+                            df_order=order,
+                            mode="OFF",
+                            cb=cb
+                        )    
+                                        
+                    # simply add
+                    cbsen_dfo_id = set()
+                    for sen_data in src[order]:
+                        cbsen_dfo_id.add(sen_data[SensorDataEnum.INDEX.value])
+                        cb_ele.sensor_set.add(
+                            CB_Sensor(
+                                **sensor_default,
+                                sensor_index=sen_data[SensorDataEnum.INDEX.value],
+                                sensor_alias=sen_data[SensorDataEnum.ALIAS.value],
+                                sensor_df=sen_data[SensorDataEnum.DF.value],
+                                cbelement=cb_ele
+                            )
+                        )
+                    cb.rule_set.add(cb_ele)
+                    
+                    cb_db.commit() # need to commit here to let CB_Sensor.get can get the CB_Sensor object
+                
+                    # make largest sensor_index's "is_show_operation" be false
+                    max_sensor_idx = max(cbsen_dfo_id)
+                    print("\n\n new - ????????? : ", max_sensor_idx,"\n\n")
+                    max_sen_idx_cbsensor = CB_Sensor.get(cbelement=cb_ele, sensor_index=max_sensor_idx)
+                    max_sen_idx_cbsensor.set(
+                        is_show_operation=False
+                    )
+
+        cb_db.commit()
+
+        for rule in cb.rule_set:
+            if rule.actuator_alias not in actuators:
+                cb.rule_set.remove(rule)
+
+        cb.status = True
+
+        if cb.ag_token != "NotCreated":
+            status = deregister_ag(cb.ag_token, api_logger)
+            if not status:
+                api_logger.exception(f"Deregister CB {cb.cb_name} failed")
+                abort(500, "Deregister AG CB failed, check api log and AG")
+
+        # Register device
+        status, ag_token = register_ag(cb, api_logger)
+        if not status:
+            cb.delete()
+            cb_db.commit()
+            abort(500, f"Create CB {cb.cb_name} failed at registering device, check api log and AG")
+        cb.ag_token = ag_token
+
+        # Bind device to DO
+        time.sleep(1)  # Uncomment this if the IoTtalk Server cannot create DO in time.
+        do_id = cb.do_id.split(",")
+        status, dm_name = bind_device_ag(cb.mac_addr, cb.p_id, do_id, api_logger)
+        if not status:
+            deregister_ag(cb.ag_token, api_logger)
+            cb.delete()
+            cb_db.commit()
+            abort(400, f"Create CB {cb.cb_name} failed at auto binding, check api log files")
+        running_cb[cb.cb_id] = cb
+        for rule in cb.rule_set:
+            if rule.rule_id not in running_status:
+                running_status[rule.rule_id] = default_status
+        cb_db.commit()
+        api_logger.info(f"Create New CB, DM Name: {dm_name}")
+
+        #title = f"ControlBoard {cb.cb_name} is refreshed by {session['user']}, new CBElements as follows\n"
+        #rules = [rule.to_dict() for rule in cb.rule_set] #TODO CB_Sensor to dict if need email notifier
+        #users = [user.account for user in cb.account_set]
+        #email_notifier.notify_user(title, rules, users)
+        return f"Create New CB, DM Name: {dm_name}", 200
+    except NotFoundError:
+        api_logger.warning("No NAs found, remind user to create NAs")
+        cb = CB[cb_id]
+        abort(400, "No NA detected, please create Join point in Project {cb.cb_name}")
+    except CCMAPIFailError:
+        api.logger.exception("CCMAPI failed, check which part of the procedure fails")
+        abort(500, "Internal Server Error")
+    except Exception as err:
+        api_logger.exception(err)
+        abort(500, "Internal Server Error")
+
+
+#@apis.route('/cb/refresh_cb/<int:cb_id>', methods=['GET'])
+@requires_login
+@orm.db_session
+def refresh_cb_v1(cb_id):
     '''
     Fetch NetworkApplications to read IDF/ODF name.
 
@@ -392,6 +997,9 @@ def refresh_cb(cb_id):
                 dst[order] = output_device
         print(src, dst)
         nas = ",".join(str(na_id) for na_id in na_ids)
+
+        print("nas : ",nas)
+        
         cb.na_id = nas
 
         actuators = list()
@@ -399,16 +1007,16 @@ def refresh_cb(cb_id):
             old_rule = CBElement.get(df_order=order, cb=cb)
             has_record = False
             if None is not old_rule:
-                if old_rule.actuator_alias == actuator[0][1]:
+                if old_rule.actuator_alias == actuator[0][ActuatorDataEnum.ALIAS.value]:
                     has_record = True
                 else:
                     old_rule.delete()
-            actuators.append(actuator[0][1])
+            actuators.append(actuator[0][ActuatorDataEnum.ALIAS.value])
             if order not in src:  # Timer Type, No Sensors connected.
                 if has_record:
                     old_rule.set(
-                        actuator_alias=actuator[0][1],
-                        actuator_df=actuator[0][0],
+                        actuator_alias=actuator[0][ActuatorDataEnum.ALIAS.value],
+                        actuator_df=actuator[0][ActuatorDataEnum.DF.value],
                         sensor_alias="",
                         mode="OFF",
                         df_order=order,
@@ -417,8 +1025,8 @@ def refresh_cb(cb_id):
                     cb.rule_set.add(
                         CBElement(
                             **default_rules,
-                            actuator_alias=actuator[0][1],
-                            actuator_df=actuator[0][0],
+                            actuator_alias=actuator[0][ActuatorDataEnum.ALIAS.value],
+                            actuator_df=actuator[0][ActuatorDataEnum.DF.value],
                             df_order=order,
                             mode="OFF",
                             cb=cb
@@ -427,8 +1035,8 @@ def refresh_cb(cb_id):
             else:  # Sensor type
                 if has_record:
                     old_rule.set(
-                        actuator_alias=actuator[0][1],
-                        actuator_df=actuator[0][0],
+                        actuator_alias=actuator[0][ActuatorDataEnum.ALIAS.value],
+                        actuator_df=actuator[0][ActuatorDataEnum.DF.value],
                         sensor_alias=",".join([row[1] for row in src[order]]),
                         sensor_df=",".join([row[0] for row in src[order]]),
                         df_order=order,
@@ -437,8 +1045,8 @@ def refresh_cb(cb_id):
                     cb.rule_set.add(
                         CBElement(
                             **default_rules,
-                            actuator_alias=actuator[0][1],
-                            actuator_df=actuator[0][0],
+                            actuator_alias=actuator[0][ActuatorDataEnum.ALIAS.value],
+                            actuator_df=actuator[0][ActuatorDataEnum.DF.value],
                             sensor_alias=",".join([row[1] for row in src[order]]),
                             sensor_df=",".join([row[0] for row in src[order]]),
                             df_order=order,
@@ -710,6 +1318,7 @@ def get_cb(usr_account):
             raise NotAuthorizedError
         accessible_cb = list()
         if "all" == usr_account:
+            print("CB : ", CB.select()[:])
             for cb in CB.select()[:]:
                 accessible_cb.append({
                     "value": cb.cb_id,

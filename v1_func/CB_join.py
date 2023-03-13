@@ -40,7 +40,9 @@ def sensor_checker(sen_data): #ver2
                 "comparison_open": "smaller",
                 "comparison_close": "bigger",
                 "cbelement": 3,
-                "sensor_value": 29.671857294070392
+                "sensor_value": 29.671857294070392,
+                'operation': 'AND', 
+                'is_show_operation': False
             }
 
     Returns: this_sen_status = -1, default, means both not set or both not satisfied, keep status
@@ -49,16 +51,16 @@ def sensor_checker(sen_data): #ver2
     '''
     this_sen_status = -1 # default -1 means not set, keep status
 
-    if "sensor_value" not in sen_data or sen_data["sensor_val"] is None: # if no sensor value
+    if "sensor_value" not in sen_data or sen_data["sensor_value"] is None: # if no sensor value
         return this_sen_status # -1, keep status
     
-    if "notset" in sen_data["comparison_open"] and "notset" in sen_data["comparison_close"]: # both not set
+    if sen_data["comparison_open"] == "notset" and sen_data["comparison_close"] == "notset": # both not set
         this_sen_status = -1 # keep status
-    elif "notset" in sen_data["comparison_open"]: # set close
+    elif sen_data["comparison_open"] == "notset": # set close
         satisfied = condition_handler[sen_data["comparison_close"]](sen_data["sensor_value"], sen_data["threshold_close"])
         if satisfied:
             this_sen_status = 0 # false
-    elif "notset" in sen_data["comparison_close"]: # set open
+    elif sen_data["comparison_close"] == "notset": # set open
         satisfied = condition_handler[sen_data["comparison_open"]](sen_data["sensor_value"], sen_data["threshold_open"])
         if satisfied:
             this_sen_status = 1 # true
@@ -127,16 +129,23 @@ def op_cal(a, op_str, b):
         return (a or b)
 
 
-def sensor_do_op(sensor_check_list, op_list):
-    ans = -1 # keep status
-    for i in range(len(sensor_check_list)):
-        if i == 0:
-            prev_op = "OR"
-        else:
-            prev_op = op_list[i*2 - 1]
-        ans = op_cal(ans, prev_op, sensor_check_list[i])
-    return ans
+# def sensor_do_op(sensor_check_list, op_list): #old version
+#     ans = -1 # keep status
+#     for i in range(len(sensor_check_list)):
+#         if i == 0:
+#             prev_op = "OR"
+#         else:
+#             prev_op = op_list[i*2 - 1]
+#         ans = op_cal(ans, prev_op, sensor_check_list[i])
+#     return ans
 
+def sensor_do_op(sensor_check_list, op_list):
+    ans = sensor_check_list[0] # first element
+    for i in range(len(sensor_check_list)):
+        if i == 0: # if is first sensor
+            continue
+        ans = op_cal(ans, op_list[i-1], sensor_check_list[i])
+    return ans
 
 def run(*args):
     global rule, status
@@ -158,14 +167,18 @@ def run(*args):
         return CloseSig
     else: # i.e. rule["mode"] == Sensor
         all_sen_data = rule["sensors_data"]
-        sensor_check_list = list()
-        for sen in all_sen_data:
-            sensor_check_list.extend(sensor_checker(sen))
 
-        op_list = rule["operation"].split(",") # "538,AND,544" -> ["538","AND","544"]
+        # a list of senor results e.g. [0,1,-1,0], 0 for false, 1 for true, -1 for keep status
+        sensor_check_list = list() 
+        # operation list of all sensor data, e.g. ["AND", "OR", "AND"]
+        op_list = list()
+        for sen in all_sen_data:
+            sensor_check_list.append(sensor_checker(sen))
+            if sen["is_show_operation"] == True:
+                op_list.append(sen["operation"])
 
         # easy check if there is data lost 
-        if len(op_list) != (len(sensor_check_list)*2 - 1):
+        if len(op_list) != (len(sensor_check_list) - 1):
             return errorSig 
 
         sensor_after_op_ans = sensor_do_op(sensor_check_list, op_list)

@@ -5,7 +5,7 @@ Vue.component('custom-sel', {
             this.$emit("update-option", val);
         }
     },
-    template: `
+    template: /*html*/`
         <b-form-select required size="sm" class="custom-select"
             :options="options"
             @change="onChange"
@@ -15,9 +15,31 @@ Vue.component('custom-sel', {
     `
 })
 
+Vue.component('custom-sel-sensor-comparison', {
+    props: ['select', 'options', 'status'],
+    computed: {
+        selectValue: {
+            get(){
+                return this.select
+            },
+            set(val){
+                this.$emit('update:select', val)
+            },
+        }
+    },
+    template: /*html*/`
+        <b-form-select required size="sm" class="custom-select"
+            :options="options"
+            :disabled="!status"
+            v-model="selectValue"
+        ></b-form-select>
+    `
+})
+
+
 Vue.component('actuator-row', {
     props: ['actuator', 'status'],
-    template: `
+    template: /*html*/`
         <b-row v-bind:class="['element-status', status?'triggered':'']" class="text-left">
             <b-col align-self="start" text-align="start" class="pl-0">
                 <b-dropdown class="one-item-dropdown"
@@ -44,7 +66,7 @@ Vue.component('sensor-row', {
             return;
         }
     },
-    template: `
+    template: /*html*/`
         <b-row class="text-left sensor-list">
             <b-col>
                 <b-button-group>
@@ -63,17 +85,37 @@ Vue.component('sensor-row', {
                     <b-button variant="outline-success" 
                         v-bind:pressed="mode==='Sensor'"
                         v-on:click="onSelectMode(2)"
-                    >{{sensor}}</b-button>
+                    >Sensor</b-button>
                 </b-button-group>
             </b-col>
-            <span class="ml-auto mr-1"><b>{{value}}</b></span>
+            <!-- <span class="ml-auto mr-1"><b>{{value}}</b></span> -->
         </b-row>
     `
 })
 
-
 Vue.component('sensor-condition-row', {
-    props: ["comparisons", "currentCb","on-select-compare", "setting"],
+    props: {
+        comparisons: {
+            type: Array
+        },
+        currentCb: {
+            type: Object
+        },
+        onSelectCompare: {
+            type: Function
+        },
+        sensor:{
+            type: Object
+        },
+        value:{
+            type: Object
+        }
+    },
+    methods: {
+        onClickOperator: function() {
+            this.sensor.operation = (this.sensor.operation === "AND") ? "OR" : "AND";
+        },
+    },
     data(){
         return{
             sensorCod:{
@@ -84,47 +126,40 @@ Vue.component('sensor-condition-row', {
             }
         }
     },
-    watch:{
-        sensorCod:{
-            handler(val, oldVal){
-                console.log(this.setting);
-                this.$emit('update-sensor-cod', {
-                    ruleID: this.setting.ruleID,
-                    data: this.sensorCod
-                })
-            },
-            deep:true
-        }
-    },
-    template: `
-        <div class="card border-dark" style="margin-bottom: 20px;">
-            <div class="card-header">
-                {{setting}}
-                <span class="ml-auto mr-1"><b>val</b></span>
-            </div>
-            <div class="card-body">
-                <div class="setting-sensor">
-                    <custom-sel
-                        :options="comparisons"
-                        :select="sensorCod.comparisonOpen"
-                        :status="currentCb.status"
-                        @update-option="sensorCod.comparisonOpen = $event"
-                    ></custom-sel>
-                    <b-form-input size="sm" class="custom-input"
-                        v-model="sensorCod.comparisonOpenInput"
-                    ></b-form-input>
-                    <span class="setting-text-mid">ON.</span>
-                    <custom-sel
-                        :options="comparisons"
-                        :select="sensorCod.comparisonClose"
-                        :status="currentCb.status"
-                        @update-option="sensorCod.comparisonClose = $event"
-                    ></custom-sel> 
-                    <b-form-input size="sm" class="custom-input"
-                        v-model="sensorCod.comparisonCloseInput"
-                    ></b-form-input>
-                    <span class="setting-text">OFF.</span>
+    template: /*html*/`
+        <div>
+            <div class="card border-dark" style="margin-bottom: 20px;">
+                <div class="card-header d-flex">
+                    <!-- {{sensor}} {{sensor.selectedSensor}} -->
+                    {{sensor.sensorName}} 
+                    <span class="ml-auto mr-1"><b>{{ value[sensor.selectedSensor] }}</b></span>
                 </div>
+                <div class="card-body">
+                    <div class="setting-sensor">
+                        <custom-sel-sensor-comparison
+                            :options="comparisons"
+                            :status="currentCb.status"
+                            :select.sync="sensor.openSensor"
+                        ></custom-sel-sensor-comparison>
+                        <b-form-input size="sm" class="custom-input"
+                            v-model="sensor.openSensorVal"
+                        ></b-form-input>
+                        <span class="setting-text-mid">ON.</span>
+                        <custom-sel-sensor-comparison
+                            :options="comparisons"
+                            :status="currentCb.status"
+                            :select.sync="sensor.closeSensor"
+                        ></custom-sel-sensor-comparison> 
+                        <b-form-input size="sm" class="custom-input"
+                            v-model="sensor.closeSensorVal"
+                        ></b-form-input>
+                        <span class="setting-text">OFF.</span>
+                    </div>
+                </div>
+            </div>
+            <div v-if="sensor.is_show_operation" style="margin-bottom: 20px;">
+                <b-button @click="onClickOperator">{{ sensor.operation }}</b-button>
+                <!-- <p>Pressed State: <strong>{{ sensor.operation }}</strong></p> -->
             </div>
         </div>
     `
@@ -139,7 +174,7 @@ Vue.component('project', {
             return;
         }
     },
-    template: `
+    template: /*html*/`
         <b-dropdown-item
             v-on:click="onSelectCB"
         >   <b-img v-bind:src="field.icon"></b-img>
@@ -186,7 +221,7 @@ Vue.component('select-projects', {
             return selected;
         }
     },
-    template: `
+    template: /*html*/`
         <div>
             <b-navbar-nav>
                 <b-nav-item-dropdown v-on:toggle="$emit('pressed')" v-on:show="onShow">

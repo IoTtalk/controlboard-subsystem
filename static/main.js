@@ -35,23 +35,23 @@ var app = new Vue({
       pinned: false
     },
     comparisons: [
-      {value: "notset", text: ""},
-      {value: "smaller", html: "&lt;"},
-      {value: "bigger", html:"&gt;"}
+      { value: "notset", text: "" },
+      { value: "smaller", html: "&lt;" },
+      { value: "bigger", html: "&gt;" }
     ],
     userlvls: [
-      {value: 0, text: "User"},
-      {value: 1, text: "Admin"}
+      { value: 0, text: "User" },
+      { value: 1, text: "Admin" }
     ],
     weekdays: [
-      {value: 0, text: "Mon"},
-      {value: 1, text: "Tue"},
-      {value: 2, text: "Wen"},
-      {value: 3, text: "Thu"},
-      {value: 4, text: "Fri"},
-      {value: 5, text: "Sat"},
-      {value: 6, text: "Sun"},
-      {value: 7, text: "All"}
+      { value: 0, text: "Mon" },
+      { value: 1, text: "Tue" },
+      { value: 2, text: "Wen" },
+      { value: 3, text: "Thu" },
+      { value: 4, text: "Fri" },
+      { value: 5, text: "Sat" },
+      { value: 6, text: "Sun" },
+      { value: 7, text: "All" }
     ],
     hours: [
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
@@ -59,13 +59,13 @@ var app = new Vue({
     ],
     minutes: [
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-      15, 16, 17, 18, 19, 20 ,21 ,22 ,23 ,24, 25, 26, 27, 28, 29,
+      15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
       30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
       45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
     ],
     seconds: [
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-      15, 16, 17, 18, 19, 20 ,21 ,22 ,23 ,24, 25, 26, 27, 28, 29,
+      15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
       30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
       45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
     ],
@@ -78,7 +78,7 @@ var app = new Vue({
     backupSettings: [],
     settings: []
   },
-  created: function() {
+  created: function () {
     // Procedures to correctly render data:
     // get CBs -> get Rules -> get Status
     this.width = window.innerWidth;
@@ -86,16 +86,16 @@ var app = new Vue({
     this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
     axios
       .get("/subsystem/infos")
-      .then( (res) => {
+      .then((res) => {
         this.IoTtalkURL = res.data;
       })
-      .catch( (err) => {
+      .catch((err) => {
         console.log(err);
       })
- 
+
     // there are two strategy: local storage and postMessage, where postMessage is not available in this scenario.
     // ref: https://stackoverflow.com/questions/57503980/pass-data-between-components-in-a-new-tab
-    var cb = window.localStorage.getItem("cb");  
+    var cb = window.localStorage.getItem("cb");
     if (cb !== null) {  // Create a new tab for the admin to view the CB Elements
       cb = JSON.parse(cb);
       this.controlboards = [cb];
@@ -103,21 +103,21 @@ var app = new Vue({
       this.currentCB = cb;
       this.mainPage = false;
       this.refreshRuleWorker();
- 
-      window.addEventListener("beforeunload", function() {
+
+      window.addEventListener("beforeunload", function () {
         // clear the cb stored in local storage
         window.localStorage.clear();
       })
- 
+
     } else {  // Main page
       if (this.privilege) {
         this.manageMode = true;
         console.log("get user");
         this.getAllUsers()
-          .then( (users) => {
+          .then((users) => {
             this.users = users;
           })
-          .catch( (err) => {
+          .catch((err) => {
             if (err.response.status != 403) {
               alert(err.response.data);
             }
@@ -129,12 +129,12 @@ var app = new Vue({
     return;
   },
   computed: {
-    maxPinnedCBs: function() {
+    maxPinnedCBs: function () {
       return Math.floor(this.width / 80) - 1;
     },
-    hasIncompleteCBs: function() {
+    hasIncompleteCBs: function () {
       var status = false;
-      this.controlboards.forEach( (cb) => {
+      this.controlboards.forEach((cb) => {
         if (!cb.status) {
           status = true;
         }
@@ -146,27 +146,27 @@ var app = new Vue({
     /* API data getter Methods, including CB, SA, Rule, Status, User, 
     *  Reachable Project
     */
-    projectURL: function(cb) {
+    projectURL: function (cb) {
       return this.IoTtalkURL.concat(cb);
     },
-    getAvailableCBs: function(account) {
+    getAvailableCBs: function (account) {
       return new Promise(function (resolve, reject) {
         axios
           .get("/cb/get_cb/" + account)
-          .then(function(res) {
-            res.data.sort((a, b) => b.value - a. value);
+          .then(function (res) {
+            res.data.sort((a, b) => b.value - a.value);
             resolve(res.data);
           })
-          .catch(function(err) {
+          .catch(function (err) {
             reject(err);
           });
       });
     },
-    getCBRules: function(cbID) {
+    getCBRules: function (cbID) {
       return new Promise(function (resolve, reject) {
         axios
           .get("/cb/" + cbID.toString() + "/rules")
-          .then( (rules) => {
+          .then((rules) => {
             rules.data.sort((a, b) => {
               actuator1 = a.actuator.toUpperCase();
               actuator2 = b.actuator.toUpperCase();
@@ -180,38 +180,38 @@ var app = new Vue({
             })
             resolve(rules.data);
           })
-          .catch( (err) => {
+          .catch((err) => {
             reject(err);
           });
       });
     },
-    getRuleStatus: function(cbID) {
+    getRuleStatus: function (cbID) {
       return new Promise(function (resolve, reject) {
         axios
           .get("/cb/" + cbID.toString() + "/current_data")
-          .then( (status) => {
+          .then((status) => {
             resolve(status.data);
           })
-          .catch( (err) => {
+          .catch((err) => {
             reject(err);
           });
       });
     },
-    getAllUsers: function() {
+    getAllUsers: function () {
       return new Promise(function (resolve, reject) {
         axios
           .get("/account/get_accounts")
-          .then( (res) => {
+          .then((res) => {
             res.data.sort((a, b) => b.superuser - a.superuser);
             resolve(res.data);
           })
-          .catch( (err) => {
+          .catch((err) => {
             reject(err);
           })
       })
     },
     /* Refresh routine procedures, including CB, SA, Rule, Status */
-    refreshCBWorker: function(next_currentCB) {
+    refreshCBWorker: function (next_currentCB) {
       var req;
       if (this.manageMode) {
         req = "all";
@@ -219,7 +219,7 @@ var app = new Vue({
         req = "self";
       }
       this.getAvailableCBs(req)
-        .then( (controlboards) => {
+        .then((controlboards) => {
           console.log(controlboards);
           this.controlboards = controlboards;
           if (controlboards.length === 0) {
@@ -230,7 +230,7 @@ var app = new Vue({
           }
           if (next_currentCB !== undefined) {
             controlboards.forEach((cb) => {
-              if (cb.text===next_currentCB.text) {
+              if (cb.text === next_currentCB.text) {
                 this.currentCB = cb;
               }
             })
@@ -242,7 +242,7 @@ var app = new Vue({
             this.refreshRuleWorker();
           }
         })
-        .catch( (err) => {
+        .catch((err) => {
           console.log(err);
           if (err.response.status != 403) {
             alert(err.response.data);
@@ -250,51 +250,44 @@ var app = new Vue({
           window.location = "/";
         })
     },
-    refreshSAWorker: function() {
+    refreshSAWorker: function () {
       this.getAvailableSAs(this.currentProject)
-        .then( (fields) => {
+        .then((fields) => {
           this.setupFields(fields);
           this.refreshRuleWorker();
         })
-        .catch( (err) => {
+        .catch((err) => {
           if (err.response) {
             alert(err.response.data);
           }
           window.location = "/";
         })
     },
-    refreshRuleWorker: function() {
+    refreshRuleWorker: function () {
       this.getCBRules(this.currentCB.value)
-        .then( (rules) => {
+        .then((rules) => {
+          console.log("🚀 ~ file: main.js ~ line 269 ~ .then ~ rules", rules)
           this.backupSettings = JSON.parse(JSON.stringify(rules));
           new_rules = [];
-          rules.forEach( (rule) => {
-            // timeStamp to time
+          rules.forEach((rule) => {
+            // Transform dutyPos and dutyNeg seconds to [hours, minutes, seconds]
             var h = ~~(rule.content.dutyPos / 3600);  // hours
             var m = ~~((rule.content.dutyPos - h * 3600) / 60);  // minutes
             var s = rule.content.dutyPos - h * 3600 - m * 60;  // seconds
             rule.content.dutyPosStamp = [h, m, s];
- 
+
             h = ~~(rule.content.dutyNeg / 3600);  // hours
             m = ~~((rule.content.dutyNeg - h * 3600) / 60);  // minutes
             s = rule.content.dutyNeg - h * 3600 - m * 60;  // seconds
             rule.content.dutyNegStamp = [h, m, s];
- 
-            var old_rule = this.settings.find(element => element.ruleID === rule.ruleID)
-            if (old_rule === undefined) {
-              new_rules.push(rule);
-            } else {
-              if (!old_rule.dirty) {
-                new_rules.push(rule);
-              } else {
-                new_rules.push(old_rule);
-              }
-            }
+
+            new_rules.push(rule);
+            console.log("🚀 ~ file: main.js ~ line 285 ~ .then ~ new_rules", new_rules)
           })
           this.settings = new_rules;
           this.refreshStatusWorker();
         })
-        .catch( (err) => {
+        .catch((err) => {
           console.log(err);
           if (err.response) {
             alert(err.response.data);
@@ -302,13 +295,13 @@ var app = new Vue({
           // window.location = "/";
         })
     },
-    refreshStatusWorker: function() {
+    refreshStatusWorker: function () {
       if (this.settings.length) {
         this.getRuleStatus(this.currentCB.value)
-          .then( (status) => {
+          .then((status) => {
             this.setupRuleStatus(status);
           })
-          .catch( (err) => {
+          .catch((err) => {
             // console.log(err);
             // if (err.response.status != 403) {
             //   alert(err.response.data);
@@ -319,7 +312,7 @@ var app = new Vue({
       return;
     },
     /* API data parser for ControlBoard and Status*/
-    setupFields: function(fields) {
+    setupFields: function (fields) {
       fields.sort((a, b) => b.value - a.value);
       pinnedFieldObjects = [];
       this.pinnedFields = [];
@@ -344,16 +337,16 @@ var app = new Vue({
       }
       console.log(this.fields);
     },
-    setupRuleStatus: function(status) {
-      this.settings.forEach( setting => {
+    setupRuleStatus: function (status) {
+      this.settings.forEach(setting => {
         setting["time"] = status[setting.ruleID]["time"];
         setting["prevTrigger"] = status[setting.ruleID]["prev_trigger"];
-        setting["value"] = status[setting.ruleID]["value"].toFixed(2);
-        setting["status"] = status[setting.ruleID]["status"] === "RED"? true: false;
+        setting["value"] = status[setting.ruleID]["value"];
+        setting["status"] = status[setting.ruleID]["status"] === "RED" ? true : false;
       });
       return;
     },
-    onSwitchManage: function() {
+    onSwitchManage: function () {
       if (this.manageMode === false) {
         window.clearInterval(this.statusTrackWorker);
         this.statusTrackWorker = -1;
@@ -361,7 +354,7 @@ var app = new Vue({
       }
       else if (this.controlboards.length) {
         allReady = true;
-        this.controlboards.forEach( (cb) => {
+        this.controlboards.forEach((cb) => {
           if (!cb.status) {
             console.log(cb);
             window.open(this.projectURL(cb.text));
@@ -370,12 +363,12 @@ var app = new Vue({
         })
         if (allReady && this.currentCB.value !== 0) {
           this.onRefreshCB(this.currentCB)
-            .then( (res) => {
+            .then((res) => {
               this.manageMode = !this.manageMode;
               console.log(res);
               this.refreshCBWorker();
             })
-            .catch( (err) => {
+            .catch((err) => {
               console.log(err);
               window.open(this.projectURL(this.currentCB.text))
             })
@@ -383,18 +376,18 @@ var app = new Vue({
       }
       return;
     },
-    onGUIOpen: function(cb) {
+    onGUIOpen: function (cb) {
       console.log("test");
       this.onRefreshCB(cb)
-        .then( (res) => {
+        .then((res) => {
           console.log(res);
           this.refreshCBWorker(cb);
           cb.status = true;
-          window.localStorage.setItem("cb",JSON.stringify(cb));
+          window.localStorage.setItem("cb", JSON.stringify(cb));
           window.localStorage.setItem("privilege", this.privilege);
           window.open("/");
         })
-        .catch( (err) => {
+        .catch((err) => {
           if (err.response.status === 400) {
             window.open(this.projectURL(cb.text));
           } else {
@@ -402,11 +395,11 @@ var app = new Vue({
           }
         })
     },
-    onSwitchManagePage: function() {
+    onSwitchManagePage: function () {
       this.managePage = !this.managePage;
       return;
     },
-    onSwitchCB: function(selected) {
+    onSwitchCB: function (selected) {
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
       this.currentCB = selected;
@@ -414,7 +407,7 @@ var app = new Vue({
       this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       return;
     },
-    onSelectProject: function(selected) {
+    onSelectProject: function (selected) {
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
       this.currentProject = selected;
@@ -427,18 +420,18 @@ var app = new Vue({
     /* CB(Project) related procedures 
     *  including create / delete / pin field
     */
-    onCBCreate: function(action) {
+    onCBCreate: function (action) {
       console.log(action);
       if (1 === action) {
         axios
           .post("/cb/create_cb", this.newCB)
-          .then( (res) => {
+          .then((res) => {
             console.log("Response of creating CB", res);
             this.refreshCBWorker();
             window.open(this.projectURL(this.newCB)).focus();
             this.newCB = "";
           })
-          .catch(function(err) {
+          .catch(function (err) {
             if (err.response) {
               alert(err.response.data);
             }
@@ -446,38 +439,38 @@ var app = new Vue({
       }
       return;
     },
-    onCBDelete: function(cbID, action) {
+    onCBDelete: function (cbID, action) {
       if (1 === action) {
         axios
-        .post("/cb/delete_cb", cbID)
-        .then( (res) => {
-          console.log(res);
-          window.clearInterval(this.statusTrackWorker);
-          this.statusTrackWorker = -1;
-          this.refreshCBWorker();
-        })
-        .catch(function(err) {
-          if (err.response) {
-            alert(err.response.data);
-          }
-        });
+          .post("/cb/delete_cb", cbID)
+          .then((res) => {
+            console.log(res);
+            window.clearInterval(this.statusTrackWorker);
+            this.statusTrackWorker = -1;
+            this.refreshCBWorker();
+          })
+          .catch(function (err) {
+            if (err.response) {
+              alert(err.response.data);
+            }
+          });
       }
     },
-    onCBConfig: function(cb) {
+    onCBConfig: function (cb) {
       axios
         .put("/cb/disable_cb/" + cb.value.toString())
-        .then( () => {
+        .then(() => {
           this.onSAReset();
           window.setTimeout(() => { window.open(this.projectURL(cb.text)) }, 2000);
         })
-        .catch( (err) => {
+        .catch((err) => {
           console.log(err.response);
         })
     },
     /* SA(Field) related procedures 
     *  including create / delete / refresh / confirm / reset / undo / Resize pinned SA
     */
-    onSACreate: function(action) {
+    onSACreate: function (action) {
       if (1 === action) {
         window.clearInterval(this.statusTrackWorker);
         this.statusTrackWorker = -1;
@@ -487,12 +480,12 @@ var app = new Vue({
         }
         axios
           .post("/sa/create_sa", data)
-          .then( (res) => {
+          .then((res) => {
             console.log(res);
             this.refreshSAWorker();
             this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
           })
-          .catch( (err) => {
+          .catch((err) => {
             alert(err.response.data);
           })
       }
@@ -502,96 +495,100 @@ var app = new Vue({
       };
       return;
     },
-    onSADelete: function(action) {
+    onSADelete: function (action) {
       if (1 === action) {
         window.clearInterval(this.statusTrackWorker);
         this.statusTrackWorker = -1;
         axios
           .post("sa/delete_sa", this.currentField)
-          .then( (res) => {
+          .then((res) => {
             console.log(res);
             this.refreshSAWorker();
             this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
           })
-          .catch( (err) => {
+          .catch((err) => {
             if (err.response) {
               alert(err.response.data);
             }
           })
       }
     },
-    onSAConfirm: function() {
+    onSAConfirm: function () {
+      console.log("confirm");
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
-      ruleIDs = [];
-      this.settings.forEach((setting, index) => {
-        if (setting["dirty"]) {
-          ruleIDs.push(index);
-        }
-      });
-      console.log(ruleIDs);
-      this.onSettingSaveChange(ruleIDs);
+      this.onSettingSaveChange();
       this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       return;
     },
-    onSAReset: function() {
+    onSAReset: function () {
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
-      ruleIDs = [];
       this.settings.forEach((setting, index) => {
-        ruleIDs.push(index);
         setting["mode"] = "OFF";
       });
-      console.log(ruleIDs);
-      this.onSettingSaveChange(ruleIDs);
+      this.onSettingSaveChange();
       this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       return;
     },
-    onSettingSaveChange: function(ruleIdx) {
+    onSettingSaveChange: function () {
       toChange = [];
-      ruleIdx.forEach( idx => {
-        var setting = this.settings[idx];
-        setting["dirty"] = false;
+      this.settings.forEach((setting, idx) => {
+        var sensetting = [];
+        setting["sensors"].forEach((elem, index) => {
+          sensetting.push({
+            "sensor_index": elem["selectedSensor"],
+            "threshold_open": elem["openSensorVal"],
+            "threshold_close": elem["closeSensorVal"],
+            "comparison_open": elem["openSensor"],
+            "comparison_close": elem["closeSensor"],
+            "sensor_alias": elem["sensorName"],
+            "operation": elem["operation"],
+            "is_show_operation": elem["is_show_operation"]
+          });
+        });
         toChange.push({
           "rule_id": setting["ruleID"],
           "actuator_alias": setting["actuator"],
           "mode": setting["mode"],
-          "sensor_index": setting["selectedSensor"],
-          "threshold_open": setting["content"]["openSensorVal"],
-          "threshold_close": setting["content"]["closeSensorVal"],
-          "comparison_open": setting["content"]["openSensor"],
-          "comparison_close": setting["content"]["closeSensor"],
+          // "sensor_index": setting["selectedSensor"],
+          // "threshold_open": setting["content"]["openSensorVal"],
+          // "threshold_close": setting["content"]["closeSensorVal"],
+          // "comparison_open": setting["content"]["openSensor"],
+          // "comparison_close": setting["content"]["closeSensor"],
           "time_open": setting["content"]["openTimer"],
           "time_close": setting["content"]["closeTimer"],
           "weekday": setting["content"]["weekdays"],
           "duty_pos": setting["content"]["dutyPos"],
-          "duty_neg": setting["content"]["dutyNeg"]
+          "duty_neg": setting["content"]["dutyNeg"],
+          "sensors": sensetting
         });
       });
-      console.log(toChange);
- 
+      console.log('🚀 ~ file: main.js:622 ~ toChange', toChange)
+
       axios.post("/cb/" + this.currentCB.value.toString() + "/new_rules", toChange)
-        .then( (msg) => {
+        .then((msg) => {
           window.clearInterval(this.statusTrackWorker);
           this.statusTrackWorker = -1;
           console.log(msg);
           this.refreshRuleWorker();
           this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
         })
-        .catch( (err) => {
+        .catch((err) => {
           if (err.response) {
             alert(err.response.data);
           }
         })
       return;
     },
-    onManualChange: function(ruleIdx) {
+    /*
+    onManualChange: function (ruleIdx) {
       // not done!!! copied above 
       // see component.js onSelectMode this.$emit("update-mode", nextMode);
       // to call this func at component.js b-form-checkbox
       // put this func in main.js's onSelectMode case0 and case1 only
       toChange = [];
-      ruleIdx.forEach( idx => {
+      ruleIdx.forEach(idx => {
         var setting = this.settings[idx];
         setting["dirty"] = false;
         toChange.push({
@@ -611,23 +608,24 @@ var app = new Vue({
         });
       });
       console.log(toChange);
- 
+
       axios.post("/cb/" + this.currentCB.value.toString() + "/new_rules", toChange)
-        .then( (msg) => {
+        .then((msg) => {
           window.clearInterval(this.statusTrackWorker);
           this.statusTrackWorker = -1;
           console.log(msg);
           this.refreshRuleWorker();
           this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
         })
-        .catch( (err) => {
+        .catch((err) => {
           if (err.response) {
             alert(err.response.data);
           }
         })
       return;
     },
-    onRefreshCB: function(cb) {
+    */
+    onRefreshCB: function (cb) {
       return new Promise(function (resolve, reject) {
         console.log(this.currentCB);
         console.log(cb);
@@ -640,32 +638,33 @@ var app = new Vue({
         }
         axios
           .get("/cb/refresh_cb/" + value.toString())
-          .then( (res)=> {
+          .then((res) => {
             this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
             resolve(res);
           })
-          .catch( (err) => {
+          .catch((err) => {
+            debugger
             reject(err);
           })
-        })
+      })
     },
-    onSettingUndoChange: function(settingIndex) {
-      this.$set(this.settings, settingIndex, 
+    onSettingUndoChange: function (settingIndex) {
+      this.$set(this.settings, settingIndex,
         JSON.parse(JSON.stringify(this.backupSettings[settingIndex])));
       this.settings[settingIndex]["dirty"] = false;
       console.log(this.settings[settingIndex]);
       return;
     },
-    onWindowResize: function() {
+    onWindowResize: function () {
       this.width = window.innerWidth * 0.98;
       return;
     },
     /* Rule related procedures 
     *  including selecting mode / which sensor to use /  comparison method / Timing / Calculate Duty Cycle Stage.
     */
-    onSelectSensor: function(selected, ruleID) {
+    onSelectSensor: function (selected, ruleID) {
       console.log(selected, ruleID);
-      this.settings.forEach( (setting) => {
+      this.settings.forEach((setting) => {
         if (setting.ruleID === ruleID) {
           setting.dirty = true;
           setting.selectedSensor = selected;
@@ -673,28 +672,28 @@ var app = new Vue({
         }
       })
     },
-    onSelectMode: function(nextMode, settingIndex) {
+    onSelectMode: function (nextMode, settingIndex) {
       console.log(nextMode);
       this.$set(this.settings[settingIndex], "dirty", true);
       if (nextMode === undefined || settingIndex === undefined) return;
       switch (nextMode) {
         case 0: // OFF
-          if (this.settings[settingIndex].mode!=="OFF") {
+          if (this.settings[settingIndex].mode !== "OFF") {
             this.$set(this.settings[settingIndex], "mode", "OFF");
           }
           break;
         case 1:
-          if (this.settings[settingIndex].mode!=="ON") {
+          if (this.settings[settingIndex].mode !== "ON") {
             this.$set(this.settings[settingIndex], "mode", "ON");
           }
           break;
         case 2: // Sensor mode
-          if (this.settings[settingIndex].mode!=="Sensor") {
+          if (this.settings[settingIndex].mode !== "Sensor") {
             this.$set(this.settings[settingIndex], "mode", "Sensor");
           }
           break;
         case 3: // Timer mode
-          if (this.settings[settingIndex].mode!=="Timer") {
+          if (this.settings[settingIndex].mode !== "Timer") {
             this.$set(this.settings[settingIndex], "mode", "Timer");
           }
           break;
@@ -705,16 +704,16 @@ var app = new Vue({
       console.log(this.settings[settingIndex]);
       return;
     },
-    onSelectCompare: function(val, settingIndex, content) {
+    onSelectCompare: function (val, settingIndex, content) {
       console.log(val, settingIndex, content);
       this.settings[settingIndex].dirty = true;
-      if (content==="open") {
+      if (content === "open") {
         this.settings[settingIndex].content.openSensor = val;
       } else {
         this.settings[settingIndex].content.closeSensor = val;
       }
     },
-    onSelectTime: function(val, settingIndex, content) {
+    onSelectTime: function (val, settingIndex, content) {
       console.log(val, settingIndex, content);
       this.settings[settingIndex].dirty = true;
       if (content < 3) {
@@ -723,7 +722,7 @@ var app = new Vue({
         this.settings[settingIndex].content.closeTimer[content - 3] = val;
       }
     },
-    onSelectTimeStamp: function(val, settingIndex, content) {
+    onSelectTimeStamp: function (val, settingIndex, content) {
       //  time to timeStamp
       console.log(val, settingIndex, content);
       this.settings[settingIndex].dirty = true;
@@ -737,19 +736,19 @@ var app = new Vue({
         var h = this.settings[settingIndex].content.dutyPosStamp[0];
         var m = this.settings[settingIndex].content.dutyPosStamp[1];
         var s = this.settings[settingIndex].content.dutyPosStamp[2];
-        console.log(h,m,s);
+        console.log(h, m, s);
         this.settings[settingIndex].content.dutyPos = h * 3600 + m * 60 + s;
         console.log(this.settings[settingIndex].content.dutyPos);
-      } else{
+      } else {
         var h = this.settings[settingIndex].content.dutyNegStamp[0];
         var m = this.settings[settingIndex].content.dutyNegStamp[1];
         var s = this.settings[settingIndex].content.dutyNegStamp[2];
-        console.log(h,m,s);
+        console.log(h, m, s);
         this.settings[settingIndex].content.dutyNeg = h * 3600 + m * 60 + s;
         console.log(this.settings[settingIndex].content.dutyNeg);
       }
     },
-    onSelectWeekdays: function(event, settingIndex) {
+    onSelectWeekdays: function (event, settingIndex) {
       console.log(event, settingIndex);
       console.log(this.settings[settingIndex].content.weekdays);
       this.settings[settingIndex].dirty = true;
@@ -769,14 +768,14 @@ var app = new Vue({
           }
         } else {
           event.forEach(element => {
-              tempArr.push(element);
+            tempArr.push(element);
           });
         }
       }
       this.$set(this.settings[settingIndex].content, "weekdays", tempArr);
       return;
     },
-    onJudgeDutyCycle: function(setting) {
+    onJudgeDutyCycle: function (setting) {
       if (setting.prevTrigger === -10000) {
         return "";
       }
@@ -786,89 +785,89 @@ var app = new Vue({
         return "NEG";
       }
     },
-    lvlToText: function(userLvl) {
+    lvlToText: function (userLvl) {
       if (userLvl === 1) {
         return "Admin";
       } else {
         return "User";
       }
     },
-    onSelectUserLvl: function(event, userIndex) {
+    onSelectUserLvl: function (event, userIndex) {
       this.users[userIndex].superuser = event;
       return;
     },
-    onUserUpdate: function(index, action) {
+    onUserUpdate: function (index, action) {
       if (1 === action) {
         data = {
           "privilege": this.users[index].superuser,
           "accessible_cb": this.accessibleCBs
         };
         axios.post("/account/adjust_privilege/" + this.users[index].email, data)
-          .then( (res) => {
+          .then((res) => {
             console.log(res);
             this.getAllUsers()
-              .then( (usrs) => {
+              .then((usrs) => {
                 this.users = usrs;
               })
-              .catch( (err) => {
+              .catch((err) => {
                 if (err.response.status != 403) {
                   alert(err.response.data);
                 }
               });
             this.refreshCBWorker();
           })
-          .catch( (err) => {
+          .catch((err) => {
             if (err.response) {
               alert(err.response.data);
             }
           });
       }
     },
-    onAccessibleCB: function(userName) {
+    onAccessibleCB: function (userName) {
       this.getAvailableCBs(userName)
-        .then( (cbs) => {
+        .then((cbs) => {
           this.accessibleCBs = [];
-          cbs.forEach( (cb) => {
+          cbs.forEach((cb) => {
             this.accessibleCBs.push(cb.value);
           });
         })
-        .catch( (err) => {
+        .catch((err) => {
           if (err.response) {
             alert(err.response.data);
           }
         })
     },
-    onLogout: function() {
+    onLogout: function () {
       axios
         .put("/account/logout")
-        .then( (res) => {
+        .then((res) => {
           console.log("logout succeeded");
           window.location = "/";
         })
-        .catch( (err) => {
+        .catch((err) => {
           if (err.response.status != 403)
             console.log("logout failed");
         })
     },
-    onUpdateSensorCod({ ruleID, data }){
-      // TODO
-      //   sensorCod:{
-      //     comparisonOpen: '',
-      //     comparisonOpenInput: '',
-      //     comparisonClose: '',
-      //     comparisonCloseInput: '',
-      // }
-      const index = this.settings.findIndex((item) => {
-        return item.ruleID === ruleID;
-      });
-      console.log(index);
-      // console.log(ruleID,data)
-      this.settings[index].content.openSensor = data.comparisonOpen;
-      this.settings[index].content.openSensorVal = data.comparisonOpenInput;
-      this.settings[index].content.closeSensor = data.comparisonClose;
-      this.settings[index].content.closeSensorVal = data.comparisonCloseInput;
-      
-    }
+    // onUpdateSensorCod({ ruleID, data }) {
+    //   // TODO
+    //   //   sensorCod:{
+    //   //     comparisonOpen: '',
+    //   //     comparisonOpenInput: '',
+    //   //     comparisonClose: '',
+    //   //     comparisonCloseInput: '',
+    //   // }
+    //   const index = this.settings.findIndex((item) => {
+    //     return item.ruleID === ruleID;
+    //   });
+    //   console.log(index);
+    //   // console.log(ruleID,data)
+    //   this.settings[index].content.openSensor = data.comparisonOpen;
+    //   this.settings[index].content.openSensorVal = data.comparisonOpenInput;
+    //   this.settings[index].content.closeSensor = data.comparisonClose;
+    //   this.settings[index].content.closeSensorVal = data.comparisonCloseInput;
+
+    // }
   },
 })
 

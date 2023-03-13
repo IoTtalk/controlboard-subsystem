@@ -88,10 +88,10 @@
           <b-card-body class="text-center custom-card-body">
 
             <!-- FOR DEBUG -->
-            <div
+            <!-- <div
             v-for="(cb, index) in controlboards"
             v-if="!manageMode && index < maxPinnedCBs && currentCB.value > 0 && cb.value===currentCB.value"
-            ><% cb %><% index%></div>
+            ><% cb %><% index %></div> -->
 
             
 
@@ -100,7 +100,7 @@
 
 
               <!-- FOR DEBUG -->
-              <% currentCB%>
+              <!-- <% currentCB %> -->
               
 
               <!-- Actuator Row -->
@@ -118,6 +118,16 @@
                 v-on:update-mode="onSelectMode($event, index)"
               ></sensor-row>
 
+              <!-- below is the modify of above for manual change dont need save -->
+              <!-- <sensor-row
+                v-bind:mode="setting.mode"
+                v-bind:sensor="setting.sensors[setting.selectedSensor]"
+                v-bind:value="setting.mode==='Timer'? setting.time: setting.value"
+                v-bind:dirty="setting.dirty"
+                v-on:update-mode="onSelectMode($event, index)"
+                v-on:update-mode1="onSAConfirm"
+              ></sensor-row> -->
+
               <!-- Trigger Area -->
               <div class="setting-area" v-if="setting.mode!=='ON' && setting.mode!=='OFF'">
                 <div class="mb-2">
@@ -130,47 +140,29 @@
                   </span> -->
                 </div>
 
+                <!-- test for and / or switch -->
+                <!-- <template>
+                  <and-or-button
+                    :operation="setting.operation"
+                  ></and-or-button>
+                </template> -->
+                
+
 
                 <!-- Sensor settings -->
                 <div v-if="setting.mode==='Sensor'">
-                  <sensor-condition-row
-                    :comparisons="comparisons"
-                    :setting="setting"
-                    :current-cb="currentCB"
-                    :on-select-compare="onSelectCompare"
-                    @update-sensor-cod="onUpdateSensorCod"
-                  ></sensor-condition-row>
+                  <template v-for="sensor in setting.sensors">
+                    <sensor-condition-row
+                      :comparisons="comparisons"
+                      :sensor="sensor"
+                      :value="setting.value"
+                      :current-cb="currentCB"
+                      :on-select-compare="onSelectCompare"
+                    ></sensor-condition-row>
+                  </template>
                   
-                  
-                  
-                  <!-- <b-card border-variant="dark" header="Dark" style="margin-bottom: 20px;">
-                    <div class="setting-sensor">
-                      <custom-sel
-                        v-bind:options="comparisons"
-                        v-bind:select="setting.content.openSensor"
-                        v-bind:status="currentCB.status"
-                        v-on:update-option="onSelectCompare($event, index, 'open')"
-                      ></custom-sel>
-                      <b-form-input size="sm" class="custom-input"
-                        v-model="setting.content.openSensorVal"
-                        v-bind:disabled="setting.content.openSensor==='notset'"
-                        v-on:input="setting.dirty=true"
-                      ></b-form-input>
-                      <span class="setting-text-mid">ON.</span>
-                      <custom-sel
-                        v-bind:options="comparisons"
-                        v-bind:select="setting.content.closeSensor"
-                        v-bind:status="currentCB.status"
-                        v-on:update-option="onSelectCompare($event, index, 'close')"
-                      ></custom-sel> 
-                      <b-form-input size="sm" class="custom-input"
-                        v-model="setting.content.closeSensorVal"
-                        v-bind:disabled="setting.content.closeSensor==='notset'"
-                        v-on:input="setting.dirty=true"
-                      ></b-form-input>
-                      <span class="setting-text">OFF.</span>
-                    </div>
-                  </b-card> -->
+                  <!-- FOR DEBUG -->
+                  <!-- <pre class="language-json"><code><% setting %></code></pre> -->
                  
                 </div>
 
@@ -408,7 +400,7 @@
           </b-card-body>
         </b-card>
       </div>
-      <script type="text/javascript" src="/static/components.js"></script>
-      <script type="text/javascript" src="/static/main.js"></script>
+      <script type="text/javascript" src="/static/components.js?v=4"></script>
+      <script type="text/javascript" src="/static/main.js?v=20"></script>
     </body>
 </html>
