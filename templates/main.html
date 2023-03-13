@@ -100,8 +100,8 @@
 
 
               <!-- FOR DEBUG -->
-              <!-- <% currentCB %> -->
-              
+              <!-- <% currentCB %>
+              <% setting %> <% index %> -->
 
               <!-- Actuator Row -->
               <actuator-row
@@ -227,10 +227,10 @@
                 <!-- Duty Setting Area, only appear in timer block -->
                 <div v-if="setting.mode==='Timer'" class="duty-area">
                   <!-- Using modifiers -->
-                  <b-button v-b-toggle.collapse-2 class="m-1" variant="link">Duty Cycle</b-button>
+                  <b-button v-b-toggle="`collapse-${setting.ruleID}`" class="m-1" variant="link">Duty Cycle</b-button>
 
                   <!-- Element to collapse -->
-                  <b-collapse id="collapse-2">
+                  <b-collapse :id="`collapse-${setting.ruleID}`"> 
                     <b-card>
                       <span><b>Duty Cycle</b></span>
                       <span v-if="setting.content.dutyPos > 0"><b><% onJudgeDutyCycle(setting) %></b></span>
@@ -400,7 +400,7 @@
           </b-card-body>
         </b-card>
       </div>
-      <script type="text/javascript" src="/static/components.js?v=4"></script>
-      <script type="text/javascript" src="/static/main.js?v=20"></script>
+      <script type="text/javascript" src="/static/components.js?v=26"></script>
+      <script type="text/javascript" src="/static/main.js?v=2"></script>
     </body>
 </html>
