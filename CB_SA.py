@@ -1,3 +1,4 @@
+from pickle import FALSE
 import time
 import uuid
 import datetime
@@ -81,7 +82,7 @@ class AG_SA():
                 time.sleep(0.1)
         
         
-        time.sleep(0.6) # essential! Wait for ESM project restart!
+        time.sleep(2) # essential! Wait for ESM project restart!
 
 
 
@@ -96,11 +97,16 @@ class AG_SA():
         self.status = dict()  # diff status data for diff rule_id
         print("print sa's rules")
         for (df_order, rule) in self.rules.items():
+
+            default_all_sensor_value = dict() # initialize all sensors value 0
+            for each_sensor in rule["sensors_data"]:
+                default_all_sensor_value[each_sensor["sensor_index"]] = 0
+            
             rule_id = rule["rule_id"]
             self.status[rule_id] = {{
                 "prev_trigger": -10000,  # for recording the first time calculating duty.
                 "status": "GREEN",  # RED / YELLOW / GREEN
-                "value": 0,  # Current value of the selected sensor.
+                "value": default_all_sensor_value,  # Current value of all selected sensor. eg. "value" : a dict with (sensor_index : sensor_value) mapping
                 "rule_id": rule_id,  # rule_id of this status recorder.
                 'prev_status': "NONE"  # record previous status, DAN push only if it is diff status or is "Sensor".
             }}
@@ -202,7 +208,74 @@ class AG_SA():
             return 0
         return 1
 
-    def pre_processing(self, rule_id, tmp_rule):
+    def pre_processing(self, rule_id, tmp_rule): #ver2
+        '''
+        to check timer and duty then create different rules to push to DAN
+
+        Args:
+            rule_id: rule id from rules item, for duty get status prev_trigger
+            temp_rule: rules from below check_rules function
+
+        Returns: #TODO change here
+            pre_pro_rule: a dictionary rules may be different in each case
+            # if time & duty are valid, and sensor condition has been set
+                pre_pro_rule is a dict with :
+                    "mode": the mode select -> ON / OFF / Sensor,
+                    "sensors_data": a list of dictionary which is sorted by sensor_index of each dictionary
+                                    each dict in sensors_data contains below infos
+                        "sensor_id": the sensor id of CB_Sensor in CB database,
+                        "sensor_alias": sensor alias name,
+                        "sensor_df": sensor df name,
+                        "sensor_index": sensor index of v1 which is only,
+                        "threshold_open": ,
+                        "threshold_close": 60.0,
+                        "comparison_open": "smaller",
+                        "comparison_close": "bigger",
+                        "cbelement": 3,
+                        "sensor_value": 29.671857294070392,
+                        "operation": 'OR', 
+                        "is_show_operation": True
+                    
+                    "threshold_open": tmp_rule["threshold_open"],
+                    "threshold_close": tmp_rule["threshold_close"],
+                    "comparison_open": tmp_rule["comparison_open"],
+                    "comparison_close": tmp_rule["comparison_close"],
+                    "mode": "Sensor",
+                    "sensor_val": tmp_rule["sensor_val"]
+        '''
+
+        pre_pro_rule = {{
+            "mode": tmp_rule["mode"],
+        }}
+
+        if tmp_rule["mode"] == "ON" or tmp_rule["mode"] == "OFF": # manual
+            return pre_pro_rule
+
+        if self.is_timer_valid(tmp_rule["weekday"], tmp_rule["time_open"], tmp_rule["time_close"]) == 1:
+            if self.is_duty_valid(rule_id, tmp_rule["duty_pos"], tmp_rule["duty_neg"]) == 1:
+                
+                flag_for_sensor_has_at_least_one_set = 0
+                for i in range(len(tmp_rule["sensors_data"])):
+                    cur_sensor_data = tmp_rule["sensors_data"][i]
+                    if self.is_sensor_set(cur_sensor_data["comparison_open"], cur_sensor_data["comparison_close"], cur_sensor_data["threshold_open"], cur_sensor_data["threshold_close"]) == 1:
+                        flag_for_sensor_has_at_least_one_set = 1
+                        break
+                
+                if flag_for_sensor_has_at_least_one_set:
+                    pre_pro_rule["mode"] = "Sensor"
+                    pre_pro_rule["sensors_data"] = tmp_rule["sensors_data"]
+                    #pre_pro_rule["operation"] = tmp_rule["operation"]
+                    return pre_pro_rule
+                else: # all sensor condition not set
+                    pre_pro_rule["mode"] = "ON"
+                    return pre_pro_rule
+
+        # else => time/duty invalid
+        pre_pro_rule["mode"] = "OFF"
+        return pre_pro_rule
+
+
+    def pre_processing_v1(self, rule_id, tmp_rule):
         '''
         to check timer and duty then create different rules to push to DAN
 
@@ -249,7 +322,99 @@ class AG_SA():
 
     ############
 
-    def check_rules(self):
+    def check_rules(self): #ver2
+        '''
+        Rule checker for all rules of this SA.
+        Iteratively executed to generate status and open / close actuators.
+
+        Args: None
+
+        Returns: None
+        '''
+        try:
+            print("self.rules.items() : ",self.rules.items())
+            for df_order, rule in self.rules.items():
+                status = self.status[rule["rule_id"]]
+                prev_status = status["prev_status"]
+
+                new_sensor_data = rule["sensors_data"] # to put the sensor data get from CBElement into rule
+
+                # print("\n\nAAA status : ",status,"\n\n")
+                # print("\n\nBBB rule : ",rule,"\n\n")
+                actuator_df = "CBElement-TI" + str(df_order)
+                sensor_df = "CBElement-O" + str(df_order)
+                data = DAN.pull(sensor_df)
+                '''
+                data here:  # be careful here if one of the sensor is None then data will be None
+                [
+                    [
+                        [-40.35571174163307, 'Geolocation', 'SimDev224'], 
+                        [-32.51651155297341, 'Geolocation', 'SimDev230']
+                    ]
+                ] => sensor val list
+                or
+                [-10001] -> OFF / [-10000] -> ON => impoossible nums represent signal from CBElement-I
+                '''
+                print("\ndata : ",data,"\n")
+                if data is None:
+                    print("No sensor data pulled")
+                else:
+                    if len(data) == 1 and (data[0] == -10000 or data[0] == -10001): # if data is signal from CBElement-I
+                        data[0] += 10001
+                        # print("\n\n!!!!!!!!??????!!!!!!!!\n\n")
+                        status["status"] = "RED" if data[0] else "GREEN" #TODO status
+                        continue
+                    else: # if data is sensors val list
+                        if isinstance(data[0][0], list): # deal with the difference between single and multi snesor
+                            data = data[0]
+
+                        #data = data[0] 
+                        for i in range(len(data)):
+                            new_sensor_data[i]["sensor_value"] = data[i][0]
+                            if data[i][0] is not None: # update all sensors value into status (for frontend to use)
+                                status["value"][new_sensor_data[i]["sensor_index"]] = data[i][0] # if is not None, keep origin sensor value in status
+
+                # print("-----------------\n")
+                # print(status)
+                
+                temp_rule = {{
+                    "time_open": [rule["time_open"].hour, rule["time_open"].minute, rule["time_open"].second],
+                    "time_close": [rule["time_close"].hour, rule["time_close"].minute, rule["time_close"].second],
+                    "mode": rule["mode"],
+                    "weekday": rule["weekday"],
+                    "duty_pos": rule["duty_pos"],
+                    "duty_neg": rule["duty_neg"],
+                    "sensors_data": new_sensor_data,
+                    #"operation": rule["operation"]
+                }}
+                print("*" * 30)
+                print("\ntemp rule : ", temp_rule)
+                
+                push_rule = self.pre_processing(rule["rule_id"],temp_rule)
+                print("\npush_rule : ", push_rule)
+                print("\nnow actuator : ", rule["actuator_alias"])
+
+                # not pushing while no sensor condition and same status
+                now_status = push_rule["mode"]
+                print("now_status", now_status)
+                print("prev_status", prev_status)
+                if prev_status != "NONE":
+                    if now_status != "Sensor" and now_status == prev_status:
+                        self.socket.send_json(status) # let frontend get status
+                        continue
+
+                DAN.push(actuator_df, push_rule)
+
+                status["prev_status"] = now_status # be aware of call by reference and call by value
+
+                print("CCC status ", status)
+                self.socket.send_json(status)
+                
+        except Exception as err:
+            print("Checking CBElement failed, ", err)
+        return
+
+    def check_rules_v1(self):
         '''
         Rule checker for all rules of this SA.
         Iteratively executed to generate status and open / close actuators.
