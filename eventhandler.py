@@ -751,6 +751,7 @@ def refresh_cb(cb_id): #ver2
         #src : {1: [[144,'Dummy_Sensor', 'Dummy_Sensor'],[145,'Dummy_Sensor', 'Dummy_Sensor']]} 
         #dst : {1: [['dfo_id','Dummy_Control', 'Dummy_Control']]}
         actuators = list()
+        cbelement_set = set() # a set to record used cbelement 
         for order, actuator in dst.items():
             old_rule = CBElement.get(df_order=order, cb=cb)
             has_actuator = False
@@ -830,6 +831,8 @@ def refresh_cb(cb_id): #ver2
                                 sensor_alias=sen_data[SensorDataEnum.ALIAS.value],
                                 sensor_df=sen_data[SensorDataEnum.DF.value]
                             )
+                    
+                    
                     # make largest sensor_index's "is_show_operation" be false
                     max_sensor_idx = max(cbsen_dfo_id)
                     print("\n\n old - ????????? : ", max_sensor_idx,"\n\n")
@@ -838,11 +841,12 @@ def refresh_cb(cb_id): #ver2
                         is_show_operation=False
                     )
 
-                    cbsenList = list(CB_Sensor.select(lambda p: p.cbelement==old_rule)) # delete no use CB_Sensor
+                    cbelement_set.add(old_rule)
+                    cbsenList = list(CB_Sensor.select(lambda p: p.cbelement==old_rule)) # delete old_rule's CB_Sensor
                     for cs in cbsenList:
                         if cs.sensor_index not in cbsen_dfo_id:
                             cs.delete()
-                else:
+                else: # no this cbelement, create a cbelement
                     cb_ele = CBElement(
                             **default_rules,
                             actuator_alias=actuator[0][ActuatorDataEnum.ALIAS.value],
@@ -878,6 +882,14 @@ def refresh_cb(cb_id): #ver2
                     max_sen_idx_cbsensor.set(
                         is_show_operation=False
                     )
+
+                    cbelement_set.add(cb_ele)
+
+        # deal with the case that CBelement appears before but no longer now, need to delete this cbelement
+        all_cbelement = list(CBElement.select(lambda p: p.cb==cb)) # get all cb's cbelement in DB
+        for x in all_cbelement:
+            if x not in cbelement_set:
+                x.delete()
 
         cb_db.commit()
 
