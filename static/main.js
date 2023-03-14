@@ -400,6 +400,7 @@ var app = new Vue({
       return;
     },
     onSwitchCB: function (selected) {
+      console.log('🚀 ~ file: main.js:403 ~ onSwitchCB', selected)
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
       this.currentCB = selected;
