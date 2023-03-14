@@ -11,8 +11,8 @@ profile = {
 }
 mac_addr = None
 
-state = 'SUSPEND'     #for control channel
-#state = 'RESUME'
+#state = 'SUSPEND'     #for control channel
+state = 'RESUME'
 
 SelectedDF = []
 def ControlChannel():
@@ -32,8 +32,8 @@ def ControlChannel():
                     print('Device state: RESUME.') 
                     state = 'RESUME'
                 elif cmd == 'SUSPEND': 
-                    print('Device state: SUSPEND.') 
-                    state = 'SUSPEND'
+                    print('ignore: Device state: SUSPEND .') 
+                    #state = 'SUSPEND'
                 elif cmd == 'SET_DF_STATUS':
                     csmapi.push(MAC,'__Ctl_I__',['SET_DF_STATUS_RSP',{'cmd_params':CH[0][1][1]['cmd_params']}], NewSession)
                     DF_STATUS = list(CH[0][1][1]['cmd_params'][0])

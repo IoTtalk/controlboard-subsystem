@@ -45,6 +45,11 @@ Vue.component('sensor-row', {
             return;
         }
     },
+    /*computed:{
+        state() {
+            return this.mode==="ON"? true: false
+        },
+    },*/
     template: `
         <b-row class="text-left sensor-list">
             <b-col>

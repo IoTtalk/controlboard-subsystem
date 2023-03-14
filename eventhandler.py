@@ -36,6 +36,9 @@ from models import CBElement, CB_Account, CB
 api_logger = make_logger('API', 'API')
 apis = Blueprint('api', __name__)
 
+@apis.before_request
+def setup():
+    session.permanent = True
 
 def requires_login(f):
     @wraps(f)
@@ -464,7 +467,7 @@ def refresh_cb(cb_id):
         cb.ag_token = ag_token
 
         # Bind device to DO
-        time.sleep(1)  # Uncomment this if the IoTtalk Server cannot create DO in time.
+        time.sleep(3)  # Uncomment this if the IoTtalk Server cannot create DO in time.
         do_id = cb.do_id.split(",")
         status, dm_name = bind_device_ag(cb.mac_addr, cb.p_id, do_id, api_logger)
         if not status:

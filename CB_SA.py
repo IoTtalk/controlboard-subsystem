@@ -6,7 +6,7 @@ import datetime
 import zmq
 
 
-import DAN
+import csmapi, DAN
 
 
 class AG_SA():
@@ -50,7 +50,9 @@ class AG_SA():
             "is_sim": False,
             "df_list": ["CBElement-O1", "CBElement-TI1", "CBElement-O2", "CBElement-TI2",
                         "CBElement-O3", "CBElement-TI3", "CBElement-O4", "CBElement-TI4",
-                        "CBElement-O5", "CBElement-TI5"]
+                        "CBElement-O5", "CBElement-TI5", "CBElement-O6", "CBElement-TI6",
+                        "CBElement-O7", "CBElement-TI7", "CBElement-O8", "CBElement-TI8",
+                        "CBElement-O9", "CBElement-TI9"]
         }}
         context = zmq.Context()
         self.socket = context.socket(zmq.PUB)
@@ -60,6 +62,29 @@ class AG_SA():
         DAN.profile = ctlboard_profile
         DAN.device_registration_with_retry(f'http://{{config["iottalk_server"]}}:9999', self.mac_addr)
 
+
+
+        not_bind = 1
+        timestamp = time.time()
+        while not_bind:
+            if time.time() - timestamp > 1: break
+            try:
+                resultCtrlO = csmapi.pull(self.mac_addr, '__Ctl_O__')
+                if resultCtrlO != [] and resultCtrlO != None:
+                    print('resultCtrlO:', resultCtrlO[0][1][0])
+                    if resultCtrlO[0][1][0] == 'RESUME':
+                        not_bind = 0
+                    else:
+                        time.sleep(0.05)
+            except Exception as e:
+                print(e)
+                time.sleep(0.1)
+        
+        
+        time.sleep(0.6) # essential! Wait for ESM project restart!
+        
+
+
     def recover(self):
         '''
         Recover SA CBElements & generate Rule status.
@@ -68,19 +93,161 @@ class AG_SA():
 
         Returns: None
         '''
-        self.status = dict()
+        self.status = dict()  # diff status data for diff rule_id
         print("print sa's rules")
         for (df_order, rule) in self.rules.items():
             rule_id = rule["rule_id"]
             self.status[rule_id] = {{
-                "prev_trigger": -10000,  # An apparently impossible number.
+                "prev_trigger": -10000,  # for recording the first time calculating duty.
                 "status": "GREEN",  # RED / YELLOW / GREEN
                 "value": 0,  # Current value of the selected sensor.
-                "rule_id": rule_id  # rule_id of this status recorder.
+                "rule_id": rule_id,  # rule_id of this status recorder.
+                'prev_status': "NONE"  # record previous status, DAN push only if it is diff status or is "Sensor".
             }}
         print("recovered rules:", self.rules)
         print("status recorder: ", self.status)
         return
+
+    ############
+
+    def is_timer_valid(self, weekday_setup, time_open_setup, time_close_setup):
+        '''
+        check if current time is in [time_open, time_close]
+
+        Args:
+            weekday_setup: user setup weekday open
+            time_open_setup: (list of datetime.time) user setup time open
+            time_close_setup: (list of datetime.time) user setup time close
+            
+        Returns:
+            0: time condition false
+            1: time condition true (time not set / in correct time)
+        '''
+
+        weekdays = [int(x) for x in weekday_setup.split(",")] if len(weekday_setup) else list()
+        if len(weekdays) == 0 or (datetime.datetime.today().weekday() in weekdays) or 7 in weekdays:
+            if time_open_setup == [0,0,0] and time_close_setup == [0,0,0]:
+                return 1 # time not set
+
+            current = datetime.datetime.now()
+            current_epoch = time.time()
+            temp_open = datetime.time(hour=time_open_setup[0], minute=time_open_setup[1], second=time_open_setup[2])
+            temp_close = datetime.time(hour=time_close_setup[0], minute=time_close_setup[1], second=time_close_setup[2])
+            time_open = datetime.datetime.combine(datetime.date.today(), temp_open)
+            time_close = datetime.datetime.combine(datetime.date.today(), temp_close)
+
+            # next day e.g. 23:00-1:00
+            if time_open > time_close:
+                time_close = time_close + datetime.timedelta(days=1)
+
+            satisfied = (current > time_open and current < time_close)
+
+            if satisfied:
+                return 1 # time condition true
+            
+        return 0 # time condition false
+
+    def is_duty_valid(self, rule_id, duty_pos, duty_neg):
+        '''
+        check if duty has been set, and current time is needs open/close
+        Notice : if setup(pos+neg) <10 it will not work because CB_SA.py time.sleep
+
+        Args:
+            rule_id: rule id from rules item, for duty get status prev_trigger
+            duty_pos: duty positive sustained time (actuator on)
+            duty_neg: duty negitive sustained time (actuator off)
+
+        Instance variables:
+            status["prev_trigger"]: record the first time we start this function, and reset when duty not set
+            which_cycle: to get now time is in which cycle for open/close actuator
+            current_epoch: now time
+
+        Returns:
+            0: duty condition false
+            1: duty condition true (duty not set / duty condition is on)
+        '''
+
+        status = self.status[rule_id]
+
+        if duty_pos == 0:
+            status["prev_trigger"] = -10000
+            return 1; # duty not set
+        
+        current_epoch = int(time.time())
+
+        if status["prev_trigger"] == -10000:
+            status["prev_trigger"] = current_epoch
+
+        which_cycle = (current_epoch - status["prev_trigger"]) % (duty_pos + duty_neg)
+        if which_cycle <= duty_pos:
+            return 1 # actuator on
+        else:
+            return 0 # actuator off
+
+    def is_sensor_set(self, comparison_open_setup, comparison_close_setup, threshold_open_setup, threshold_close_setup):
+        '''
+        check if sensor condition has been set
+
+        Args:
+            comparison_open_setup: comparison user set for actuator on
+            comparison_close_setup: comparison user set for actuator off
+
+        Returns:
+            0: sensor condition not set
+            1: sensor condition set
+        '''
+        if comparison_open_setup == "notset" and comparison_close_setup == "notset":
+            return 0
+        if threshold_open_setup == 0 and threshold_close_setup == 0:
+            return 0
+        return 1
+
+    def pre_processing(self, rule_id, tmp_rule):
+        '''
+        to check timer and duty then create different rules to push to DAN
+
+        Args:
+            rule_id: rule id from rules item, for duty get status prev_trigger
+            temp_rule: rules from below check_rules function
+
+        Returns:
+            pre_pro_rule: a dictionary rules may be different in each case
+            # if time & duty are valid, and sensor condition has been set
+                pre_pro_rule :
+                    "threshold_open": tmp_rule["threshold_open"],
+                    "threshold_close": tmp_rule["threshold_close"],
+                    "comparison_open": tmp_rule["comparison_open"],
+                    "comparison_close": tmp_rule["comparison_close"],
+                    "mode": "Sensor",
+                    "sensor_val": tmp_rule["sensor_val"]
+        '''
+
+        pre_pro_rule = {{
+            "mode": tmp_rule["mode"],
+        }}
+
+        if tmp_rule["mode"] == "ON" or tmp_rule["mode"] == "OFF": # manual
+            return pre_pro_rule
+
+        if self.is_timer_valid(tmp_rule["weekday"], tmp_rule["time_open"], tmp_rule["time_close"]) == 1:
+            if self.is_duty_valid(rule_id, tmp_rule["duty_pos"], tmp_rule["duty_neg"]) == 1:
+                if self.is_sensor_set(tmp_rule["comparison_open"], tmp_rule["comparison_close"], tmp_rule["threshold_open"], tmp_rule["threshold_close"]) == 1:
+                    pre_pro_rule["mode"] = "Sensor"
+                    pre_pro_rule["sensor_val"] = tmp_rule["sensor_val"]
+                    pre_pro_rule["threshold_open"] = tmp_rule["threshold_open"]
+                    pre_pro_rule["threshold_close"] = tmp_rule["threshold_close"]
+                    pre_pro_rule["comparison_open"] = tmp_rule["comparison_open"]
+                    pre_pro_rule["comparison_close"] = tmp_rule["comparison_close"]
+                    return pre_pro_rule
+                else: # sensor condition not set
+                    pre_pro_rule["mode"] = "ON"
+                    return pre_pro_rule
+
+        # else => time/duty invalid
+        pre_pro_rule["mode"] = "OFF"
+        return pre_pro_rule
+
+    ############
 
     def check_rules(self):
         '''
@@ -92,12 +259,17 @@ class AG_SA():
         Returns: None
         '''
         try:
+            print("self.rules.items() : ",self.rules.items())
             for df_order, rule in self.rules.items():
                 status = self.status[rule["rule_id"]]
+                prev_status = status["prev_status"]
+
+                #print("\n\nAAA status : ",status,"\n\n")
+                #print("\n\nBBB rule : ",rule,"\n\n")
                 actuator_df = "CBElement-TI" + str(df_order)
                 sensor_df = "CBElement-O" + str(df_order)
                 data = DAN.pull(sensor_df)
-                print(data)
+                print("\ndata : ",data,"\n")
                 if data is None:
                     print("No sensor data pulled")
                 else:
@@ -108,8 +280,14 @@ class AG_SA():
                         data = data[0][self.rules[df_order]["sensor_index"]]
                     if data <= -10000:
                         data += 10001
+                        #print("in !!!! \n", data)
+                        #print(status["status"])
                         status["status"] = "RED" if data else "GREEN"
+                        #print("bbb : ",status)
                         continue
+                
+                status["value"] = data if data is not None else status["value"]
+                
                 temp_rule = {{
                     "threshold_open": rule["threshold_open"],
                     "threshold_close": rule["threshold_close"],
@@ -121,13 +299,29 @@ class AG_SA():
                     "weekday": rule["weekday"],
                     "duty_pos": rule["duty_pos"],
                     "duty_neg": rule["duty_neg"],
-                    "sensor_val": data
+                    "sensor_val": status["value"]
                 }}
-                print(temp_rule)
-                DAN.push(actuator_df, temp_rule)
+                #print("temp rule : ", temp_rule)
+                
+                push_rule = self.pre_processing(rule["rule_id"],temp_rule)
+                print("\npush_rule : ", push_rule)
+                print("\nnow actuator : ", rule["actuator_alias"])
 
-                status["value"] = data if data is not None else status["value"]
+                # not pushing while no sensor condition and same status
+                now_status = push_rule["mode"]
+                print("now_status", now_status)
+                print("prev_status", prev_status)
+                if prev_status != "NONE":
+                    if now_status != "Sensor" and now_status == prev_status:
+                        continue
+
+                DAN.push(actuator_df, push_rule)
+
+                status["prev_status"] = now_status # be aware of call by reference and call by value
+
+                print("CCC status ", status)
                 self.socket.send_json(status)
+                
         except Exception as err:
             print("Checking CBElement failed, ", err)
         return
@@ -135,9 +329,8 @@ class AG_SA():
 
 sa = AG_SA('{sa_id}', {config}, '{mac_addr}', '{sa_name}', {rules})
 sa.recover()
-DAN.state = "RESUME"
 
 while True:
-    print('start checking rules of', sa.sa_id)
+    print('\nstart checking rules of', sa.sa_id)
     sa.check_rules()
-    time.sleep(5)
+    time.sleep(2)

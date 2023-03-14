@@ -294,7 +294,7 @@ def get_iottalk_info(logger):
         iottalk_info['df_id'] = list()
         for df in response["df_list"]:
             order = int(re.search(r"\d+", df["df_name"]).group(0))
-            if order < 6:
+            if order < 10:
                 iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
 
