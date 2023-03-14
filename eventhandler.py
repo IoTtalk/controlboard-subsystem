@@ -829,7 +829,8 @@ def refresh_cb(cb_id): #ver2
                         else: # modified origin appear CB_Sensor
                             cbsen.set(
                                 sensor_alias=sen_data[SensorDataEnum.ALIAS.value],
-                                sensor_df=sen_data[SensorDataEnum.DF.value]
+                                sensor_df=sen_data[SensorDataEnum.DF.value],
+                                is_show_operation=True
                             )
                     
                     
