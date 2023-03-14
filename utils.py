@@ -619,9 +619,9 @@ def bind_device_ag(mac_addr, p_id, do_id, logger):
                     "do_id": do_id[0]
                 }
             }
-            print("sleep 1 seconds...")
-            time.sleep(1)
-            print("sleep done")
+            # print("sleep 1 seconds...")
+            # time.sleep(0.2)
+            # print("sleep done")
             status, response = _post('ccm_api', data, logger)
             if not status:
                 raise CCMAPIFailError
