@@ -228,7 +228,7 @@ def set_rules(cb_id): # ver2
 
             #if rule_setting["mode"] == "Sensor":
             for s_rule in rule_setting_sensor_data:
-                cbsensor_set_sensor = CB_Sensor.get(sensor_index=s_rule["sensor_index"])
+                cbsensor_set_sensor = CB_Sensor.get(cbelement=rule, sensor_index=s_rule["sensor_index"])
                 cbsensor_set_sensor.set(**s_rule)
                     
         cb_db.commit()
