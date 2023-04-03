@@ -527,6 +527,22 @@ var app = new Vue({
       this.statusTrackWorker = -1;
       this.settings.forEach((setting, index) => {
         setting["mode"] = "OFF";
+        setting["content"]["closeTimer"] = [0,0,0];
+        setting["content"]["openTimer"] = [0,0,0];
+        setting["content"]["dutyNeg"] = 0;
+        setting["content"]["dutyPos"] = 0;
+        setting["content"]["dutyNegStamp"] = [0,0,0];
+        setting["content"]["dutyPosStamp"] = [0,0,0];
+        setting["content"]["weekdays"] = [];
+        
+        // sensor reset
+        setting["sensors"].forEach((sensor_data) => {
+          sensor_data["closeSensor"] = "notset";
+          sensor_data["closeSensorVal"] = 0;
+          sensor_data["openSensor"] = "notset";
+          sensor_data["openSensorVal"] = 0;
+          sensor_data["operation"] = "AND";
+        });
       });
       this.onSettingSaveChange();
       this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
