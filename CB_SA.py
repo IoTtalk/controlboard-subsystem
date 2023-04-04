@@ -110,6 +110,15 @@ class AG_SA():
                 "rule_id": rule_id,  # rule_id of this status recorder.
                 'prev_status': "NONE"  # record previous status, DAN push only if it is diff status or is "Sensor".
             }}
+
+            # whenever we press "Save", recover each status to OFF in all cb_join
+            actuator_df = "CBElement-TI" + str(df_order)
+            recover_close_rule = {{
+                "mode": "OFF",
+            }}
+            DAN.push(actuator_df, recover_close_rule)
+            time.sleep(2)
+
         print("recovered rules:", self.rules)
         print("status recorder: ", self.status)
         return
