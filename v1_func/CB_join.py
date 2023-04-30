@@ -3,7 +3,17 @@ import datetime
 
 rule = {}
 status = 0  # 1 for open, 0 for close
+sensor_prev_status = [] # list of each sensor prev index (0 or 1)
 
+# update
+# determine
+# reset
+
+# [1,-1]
+# prev status [0,0] <-- add global
+# => [1, 0] -> and or 
+
+# ON / OFF -> reset [0,0]
 
 def bigger(data, threshold):
     if data is None or threshold is None: return status   #####
@@ -110,19 +120,12 @@ def op_cal(a, op_str, b):
     a operation b 
     
     Args: a op_str b => a operation b, (eg. a "AND" b),
-          a,b will be -1 / 0 / 1
+          a,b will be 0 / 1
 
-    Returns: -1, means keep status, no influence from this operation
-              0, false
-              1, true 
+    Returns: 0, false
+             1, true 
     
     '''
-    if a == -1 and b == -1:
-        return -1
-    if a == -1:
-        return b
-    if b == -1:
-        return a
     if op_str == "AND":
         return (a and b)
     else: # op_str == "OR"
@@ -139,16 +142,16 @@ def op_cal(a, op_str, b):
 #         ans = op_cal(ans, prev_op, sensor_check_list[i])
 #     return ans
 
-def sensor_do_op(sensor_check_list, op_list):
-    ans = sensor_check_list[0] # first element
-    for i in range(len(sensor_check_list)):
+def sensor_do_op(sensor_cur_status, op_list):
+    ans = sensor_cur_status[0] # first element
+    for i in range(len(sensor_cur_status)):
         if i == 0: # if is first sensor
             continue
-        ans = op_cal(ans, op_list[i-1], sensor_check_list[i])
+        ans = op_cal(ans, op_list[i-1], sensor_cur_status[i])
     return ans
 
 def run(*args):
-    global rule, status
+    global rule, status, sensor_prev_status
 
     OpenSig = -10000  # open -> status : 1
     CloseSig = -10001 # close -> status : 0
@@ -160,13 +163,20 @@ def run(*args):
         rule = data
 
     if rule["mode"] == "ON":
+        sensor_prev_status.clear() # reset sensor_prev_status
         status = 1
         return OpenSig
     elif rule["mode"] == "OFF":
+        sensor_prev_status.clear() # reset sensor_prev_status
         status = 0
         return CloseSig
     else: # i.e. rule["mode"] == Sensor
         all_sen_data = rule["sensors_data"]
+
+        # initialize sensor_prev_status
+        if len(sensor_prev_status) == 0: 
+            for i in range(len(all_sen_data)):
+                sensor_prev_status.append(0)
 
         # a list of senor results e.g. [0,1,-1,0], 0 for false, 1 for true, -1 for keep status
         sensor_check_list = list() 
@@ -177,18 +187,25 @@ def run(*args):
             if sen["is_show_operation"] == True:
                 op_list.append(sen["operation"])
 
-        # easy check if there is data lost 
-        if len(op_list) != (len(sensor_check_list) - 1):
+        if len(sensor_check_list) != len(sensor_prev_status): # easy check if there is data lost
             return errorSig 
 
-        sensor_after_op_ans = sensor_do_op(sensor_check_list, op_list)
-        if sensor_after_op_ans == -1:
-            # keep status
-            if status: 
-                return OpenSig
-            else:  
-                return CloseSig
-        elif sensor_after_op_ans == 0:
+        # sensor_check_list = [1, -1], sensor_prev_status = [0,0] -> generate sensor_cur_status 
+        sensor_cur_status = []
+        for i in range(len(sensor_check_list)):
+            if sensor_check_list[i] == -1: # read sensor prev status
+                sensor_cur_status.append(sensor_prev_status[i])
+            else: # recover by sensor cur status
+                sensor_cur_status.append(sensor_check_list[i])
+
+        sensor_prev_status = sensor_cur_status # update sensor_prev_status for next time use
+
+        # easy check if there is data lost 
+        if len(op_list) != (len(sensor_cur_status) - 1):
+            return errorSig 
+
+        sensor_after_op_ans = sensor_do_op(sensor_cur_status, op_list) # 0 or 1
+        if sensor_after_op_ans == 0:
             status = 0
             return CloseSig
         else: # sensor_after_op_ans == 1
