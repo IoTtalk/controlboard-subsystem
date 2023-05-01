@@ -3,17 +3,7 @@ import datetime
 
 rule = {}
 status = 0  # 1 for open, 0 for close
-sensor_prev_status = [] # list of each sensor prev index (0 or 1)
-
-# update
-# determine
-# reset
-
-# [1,-1]
-# prev status [0,0] <-- add global
-# => [1, 0] -> and or 
-
-# ON / OFF -> reset [0,0]
+sensor_prev_status = [] # list of each sensor prev status (0 or 1)
 
 def bigger(data, threshold):
     if data is None or threshold is None: return status   #####
@@ -35,7 +25,7 @@ condition_handler = {
     'smaller': smaller,
 }
 
-def sensor_checker(sen_data): #ver2
+def sensor_checker(sen_data): 
     ''' 
     Rule checker for each sensor condition.
     
@@ -88,33 +78,6 @@ def sensor_checker(sen_data): #ver2
 
     return this_sen_status
 
-def sensor_checker_v1(sensor_val):
-    global rule, status
-    
-    if "notset" in rule["comparison_open"] and "notset" in rule["comparison_close"]: # both not set
-        status = 0
-    elif "notset" in rule["comparison_open"]: # set close
-        satisfied = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"])
-        if satisfied:
-            status = 0 # close
-    elif "notset" in rule["comparison_close"]: # set open
-        satisfied = condition_handler[rule["comparison_open"]](sensor_val, rule["threshold_open"])
-        if satisfied:
-            status = 1 # open
-    else: # both set
-        satisfied_open = condition_handler[rule["comparison_open"]](sensor_val, rule["threshold_open"])
-        satisfied_close = condition_handler[rule["comparison_close"]](sensor_val, rule["threshold_close"])
-        
-        # no need to handle both satisfied, since it will contradict
-        if not satisfied_open and not satisfied_close:
-            return status # keep status
-        elif satisfied_open:
-            status = 1
-        elif satisfied_close:
-            status = 0
-
-    return status
-
 def op_cal(a, op_str, b):
     '''
     a operation b 
@@ -130,17 +93,6 @@ def op_cal(a, op_str, b):
         return (a and b)
     else: # op_str == "OR"
         return (a or b)
-
-
-# def sensor_do_op(sensor_check_list, op_list): #old version
-#     ans = -1 # keep status
-#     for i in range(len(sensor_check_list)):
-#         if i == 0:
-#             prev_op = "OR"
-#         else:
-#             prev_op = op_list[i*2 - 1]
-#         ans = op_cal(ans, prev_op, sensor_check_list[i])
-#     return ans
 
 def sensor_do_op(sensor_cur_status, op_list):
     ans = sensor_cur_status[0] # first element
@@ -211,20 +163,3 @@ def run(*args):
         else: # sensor_after_op_ans == 1
             status = 1
             return OpenSig
-
-        '''
-        if "sensor_val" not in data or data["sensor_val"] is None:
-            # keep status
-            if status: 
-                return OpenSig
-            else:  
-                return CloseSig
-        else:
-            sensor_valid = sensor_checker(data["sensor_val"])
-            if sensor_valid:
-                status = 1
-                return OpenSig
-            else:
-                status = 0
-                return CloseSig
-        '''

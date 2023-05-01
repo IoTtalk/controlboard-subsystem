@@ -2,13 +2,8 @@ from pickle import FALSE
 import time
 import uuid
 import datetime
-
-
 import zmq
-
-
 import csmapi, DAN
-
 
 class AG_SA():
     def __init__(self, sa_id, config, mac_addr, sa_name, rules):
@@ -217,7 +212,7 @@ class AG_SA():
             return 0
         return 1
 
-    def pre_processing(self, rule_id, tmp_rule): #ver2
+    def pre_processing(self, rule_id, tmp_rule): 
         '''
         to check timer and duty then create different rules to push to DAN
 
@@ -283,55 +278,7 @@ class AG_SA():
         pre_pro_rule["mode"] = "OFF"
         return pre_pro_rule
 
-
-    def pre_processing_v1(self, rule_id, tmp_rule):
-        '''
-        to check timer and duty then create different rules to push to DAN
-
-        Args:
-            rule_id: rule id from rules item, for duty get status prev_trigger
-            temp_rule: rules from below check_rules function
-
-        Returns:
-            pre_pro_rule: a dictionary rules may be different in each case
-            # if time & duty are valid, and sensor condition has been set
-                pre_pro_rule :
-                    "threshold_open": tmp_rule["threshold_open"],
-                    "threshold_close": tmp_rule["threshold_close"],
-                    "comparison_open": tmp_rule["comparison_open"],
-                    "comparison_close": tmp_rule["comparison_close"],
-                    "mode": "Sensor",
-                    "sensor_val": tmp_rule["sensor_val"]
-        '''
-
-        pre_pro_rule = {{
-            "mode": tmp_rule["mode"],
-        }}
-
-        if tmp_rule["mode"] == "ON" or tmp_rule["mode"] == "OFF": # manual
-            return pre_pro_rule
-
-        if self.is_timer_valid(tmp_rule["weekday"], tmp_rule["time_open"], tmp_rule["time_close"]) == 1:
-            if self.is_duty_valid(rule_id, tmp_rule["duty_pos"], tmp_rule["duty_neg"]) == 1:
-                if self.is_sensor_set(tmp_rule["comparison_open"], tmp_rule["comparison_close"], tmp_rule["threshold_open"], tmp_rule["threshold_close"]) == 1:
-                    pre_pro_rule["mode"] = "Sensor"
-                    pre_pro_rule["sensor_val"] = tmp_rule["sensor_val"]
-                    pre_pro_rule["threshold_open"] = tmp_rule["threshold_open"]
-                    pre_pro_rule["threshold_close"] = tmp_rule["threshold_close"]
-                    pre_pro_rule["comparison_open"] = tmp_rule["comparison_open"]
-                    pre_pro_rule["comparison_close"] = tmp_rule["comparison_close"]
-                    return pre_pro_rule
-                else: # sensor condition not set
-                    pre_pro_rule["mode"] = "ON"
-                    return pre_pro_rule
-
-        # else => time/duty invalid
-        pre_pro_rule["mode"] = "OFF"
-        return pre_pro_rule
-
-    ############
-
-    def check_rules(self): #ver2
+    def check_rules(self): 
         '''
         Rule checker for all rules of this SA.
         Iteratively executed to generate status and open / close actuators.
@@ -422,84 +369,6 @@ class AG_SA():
         except Exception as err:
             print("Checking CBElement failed, ", err)
         return
-
-    def check_rules_v1(self):
-        '''
-        Rule checker for all rules of this SA.
-        Iteratively executed to generate status and open / close actuators.
-
-        Args: None
-
-        Returns: None
-        '''
-        try:
-            print("self.rules.items() : ",self.rules.items())
-            for df_order, rule in self.rules.items():
-                status = self.status[rule["rule_id"]]
-                prev_status = status["prev_status"]
-
-                #print("\n\nAAA status : ",status,"\n\n")
-                #print("\n\nBBB rule : ",rule,"\n\n")
-                actuator_df = "CBElement-TI" + str(df_order)
-                sensor_df = "CBElement-O" + str(df_order)
-                data = DAN.pull(sensor_df)
-                #print("\ndata : ",data,"\n")
-                if data is None:
-                    print("No sensor data pulled")
-                else:
-                    candidate_sensors = rule["sensor_alias"].split(",")
-                    if len(candidate_sensors) == 1:
-                        data = data[0]
-                    else:
-                        data = data[0][self.rules[df_order]["sensor_index"]]
-                    if data <= -10000:
-                        data += 10001
-                        #print("in !!!! \n", data)
-                        #print(status["status"])
-                        status["status"] = "RED" if data else "GREEN"
-                        #print("bbb : ",status)
-                        continue
-                
-                status["value"] = data if data is not None else status["value"]
-                
-                temp_rule = {{
-                    "threshold_open": rule["threshold_open"],
-                    "threshold_close": rule["threshold_close"],
-                    "comparison_open": rule["comparison_open"],
-                    "comparison_close": rule["comparison_close"],
-                    "time_open": [rule["time_open"].hour, rule["time_open"].minute, rule["time_open"].second],
-                    "time_close": [rule["time_close"].hour, rule["time_close"].minute, rule["time_close"].second],
-                    "mode": rule["mode"],
-                    "weekday": rule["weekday"],
-                    "duty_pos": rule["duty_pos"],
-                    "duty_neg": rule["duty_neg"],
-                    "sensor_val": status["value"]
-                }}
-                #print("temp rule : ", temp_rule)
-                
-                push_rule = self.pre_processing(rule["rule_id"],temp_rule)
-                print("\npush_rule : ", push_rule)
-                print("\nnow actuator : ", rule["actuator_alias"])
-
-                # not pushing while no sensor condition and same status
-                now_status = push_rule["mode"]
-                print("now_status", now_status)
-                print("prev_status", prev_status)
-                if prev_status != "NONE":
-                    if now_status != "Sensor" and now_status == prev_status:
-                        continue
-
-                DAN.push(actuator_df, push_rule)
-
-                status["prev_status"] = now_status # be aware of call by reference and call by value
-
-                print("CCC status ", status)
-                self.socket.send_json(status)
-                
-        except Exception as err:
-            print("Checking CBElement failed, ", err)
-        return
-
 
 sa = AG_SA('{sa_id}', {config}, '{mac_addr}', '{sa_name}', {rules})
 sa.recover()
