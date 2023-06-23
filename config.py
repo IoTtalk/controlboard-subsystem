@@ -45,5 +45,10 @@ icon_extensions = env_config["env"]["icon_extensions"].split(",") #["png","svg"]
 reg_config = {
     "iottalk_server": env_config["IoTtalk"]["ServerIP"],
     "host_zmq": env_config["env"]["host"],
-    "port_zmq": env_config["env"]["port_zmq"]
+    "port_zmq": env_config["env"]["port_zmq"],
+    "mqtt_broker": env_config["MQTT"]["MQTT_broker"],
+    "mqtt_port": env_config["MQTT"]["MQTT_port"],
+    "mqtt_encryption": env_config["MQTT"]["MQTT_encryption"],
+    "mqtt_User": env_config["MQTT"]["MQTT_User"],
+    "mqtt_PW": env_config["MQTT"]["MQTT_PW"],
 }

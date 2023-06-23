@@ -362,8 +362,8 @@
                     </span>
                   </template>
                     <b-form>
-                      <b-form-input placeholder="Enter Your IoTtalk Project's Name Here"
-                        size="sm" v-model="newCB" autofocus class="mb-2 mr-sm-2 mb-sm-0"
+                      <b-form-input placeholder="Enter Your IoTtalk Project's Name Here" required
+                        size="sm" v-model="newCB" autofocus class="mb-2 mr-sm-2 mb-sm-0" v-on:keydown.enter="onCBCreate(1)"
                       ></b-form-input>
                     </b-form>
                 </b-modal>
@@ -400,7 +400,11 @@
           </b-card-body>
         </b-card>
       </div>
-      <script type="text/javascript" src="/static/components.js?v=26"></script>
-      <script type="text/javascript" src="/static/main.js?v=2"></script>
+      <script type="text/javascript" src="/static/components.js?v=3"></script>
+      <script type="text/javascript" src="/static/main.js?v=3"></script>
+      <script>
+        onSAConfirm();
+        onSettingSaveChange();
+      </script>
     </body>
 </html>

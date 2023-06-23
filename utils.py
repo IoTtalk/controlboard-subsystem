@@ -305,7 +305,7 @@ def get_iottalk_info(logger):
         iottalk_info['df_id'] = list()
         for df in response["df_list"]:
             order = int(re.search(r"\d+", df["df_name"]).group(0))
-            if order < 10:
+            if order < 4:
                 iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
 
@@ -530,6 +530,8 @@ def delete_do_ag(p_id, do_id, logger):
 
 
 def register_ag(cb, logger):
+    logger.info('\tTimestamp\t--> Function register_ag')
+
     '''
     Worker function to register to AG given cb entity and logger.
 
@@ -551,8 +553,14 @@ def register_ag(cb, logger):
             cb_sa_data = rule.to_dict()
             cb_sa_data["sensors_data"] = sorted_sen_data # add CB_Sensor data into CBElement data in dict type
             rules[rule.df_order] = cb_sa_data
+        print("\nreg_config : ", reg_config)
+        print("\nrules : ", rules)
+        print("\ncb.cb_id : ", cb.cb_id)
+        print("\ncb.mac_addr : ", cb.mac_addr)
+        print("\ncb.cb_name : ", cb.cb_name)
         new_sa = open('./CB_SA.py', 'r').read().format(
             sa_id=cb.cb_id, config=reg_config, mac_addr=cb.mac_addr, sa_name=cb.cb_name, rules=rules)
+        # new_sa = open('./DAI.py', 'r').read()
         data = {
             "version": int(env_config["IoTtalk"]["version"]),
             "code": new_sa
@@ -571,6 +579,8 @@ def register_ag(cb, logger):
 
 
 def deregister_ag(token, logger):
+    logger.info('\tTimestamp\t--> Function deregister_ag')
+
     '''
     Worker function to deregister AG device.
 
@@ -597,6 +607,7 @@ def deregister_ag(token, logger):
 
 
 def bind_device_ag(mac_addr, p_id, do_id, logger):
+    logger.info('\tTimestamp\t--> Function bind_device_ag')
     '''
     Bind corresponding device to assigned DO given do_id and p_id.
 

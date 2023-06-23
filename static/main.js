@@ -515,13 +515,16 @@ var app = new Vue({
       }
     },
     onSAConfirm: function () {
+      console.time('onSAConfirm');
       console.log("confirm");
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
-      this.onSettingSaveChange();
+      this.onSettingSaveChange(() => {
+        console.timeEnd('onSAConfirm');
+      });
       this.statusTrackWorker = setInterval(this.refreshStatusWorker, 1000);
       return;
-    },
+    },    
     onSAReset: function () {
       window.clearInterval(this.statusTrackWorker);
       this.statusTrackWorker = -1;
@@ -549,6 +552,7 @@ var app = new Vue({
       return;
     },
     onSettingSaveChange: function () {
+      console.time('onSettingSaveChange');
       toChange = [];
       this.settings.forEach((setting, idx) => {
         var sensetting = [];
@@ -582,7 +586,8 @@ var app = new Vue({
         });
       });
       console.log('🚀 ~ file: main.js:622 ~ toChange', toChange)
-
+    
+      console.time('axiosPost'); // 开始计时
       axios.post("/cb/" + this.currentCB.value.toString() + "/new_rules", toChange)
         .then((msg) => {
           window.clearInterval(this.statusTrackWorker);
@@ -596,8 +601,12 @@ var app = new Vue({
             alert(err.response.data);
           }
         })
+        .finally(() => {
+          console.timeEnd('axiosPost'); // 结束计时并打印执行时间
+          console.timeEnd('onSettingSaveChange'); // 结束计时并打印执行时间
+        });
       return;
-    },
+    },    
     /*
     onManualChange: function (ruleIdx) {
       // not done!!! copied above 

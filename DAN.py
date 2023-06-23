@@ -1,9 +1,8 @@
-import time, random, threading, requests
+import time, threading, requests
 import csmapi
 
 # example
 profile = {
-#    'd_name': None,
     'dm_name': 'MorSensor',
     'u_name': 'yb',
     'is_sim': False,
@@ -32,8 +31,8 @@ def ControlChannel():
                     print('Device state: RESUME.') 
                     state = 'RESUME'
                 elif cmd == 'SUSPEND': 
-                    print('ignore: Device state: SUSPEND .') 
-                    #state = 'SUSPEND'
+                    print('Device state: SUSPEND.') 
+                    state = 'SUSPEND'
                 elif cmd == 'SET_DF_STATUS':
                     csmapi.push(MAC,'__Ctl_I__',['SET_DF_STATUS_RSP',{'cmd_params':CH[0][1][1]['cmd_params']}], NewSession)
                     DF_STATUS = list(CH[0][1][1]['cmd_params'][0])
@@ -80,37 +79,38 @@ MAC=get_mac_addr()
 thx=None
 def register_device(addr):
     global MAC, profile, timestamp, thx
-
     if csmapi.ENDPOINT == None: detect_local_ec()
-
     if addr != None: MAC = addr
 
     for i in profile['df_list']: timestamp[i] = ''
-
-    print('IoTtalk Server = {}'.format(csmapi.ENDPOINT))
     profile['d_name'] = csmapi.register(MAC,profile)
-    print ('This device has successfully registered.')
-    print ('Device name = ' + profile['d_name'])
          
-    if thx == None:
+    if thx:# == None:
         print ('Create control threading')
         thx=threading.Thread(target=ControlChannel)     #for control channel
         thx.daemon = True                               #for control channel
         thx.start()                                     #for control channel 
 
+    result={}
+    result['d_name'] = profile['d_name']
+    result['server'] = csmapi.ENDPOINT
+    return result
 
 def device_registration_with_retry(URL=None, addr=None):
     if URL != None:
         csmapi.ENDPOINT = URL
     success = False
     while not success:
+        result = register_device(addr)
+        return result
         try:
-            register_device(addr)
+            result = register_device(addr)
             success = True
         except Exception as e:
             print ('Attach failed: '),
             print (e)
         time.sleep(1)
+    return result
 
 def pull(FEATURE_NAME):
     global timestamp
@@ -128,9 +128,9 @@ def pull(FEATURE_NAME):
     else:
         return None
 
-def push(FEATURE_NAME, *data):
+def push(FEATURE_NAME, data):
     if state == 'RESUME':
-        return csmapi.push(MAC, FEATURE_NAME, list(data))
+        return csmapi.push(MAC, FEATURE_NAME, data)
     else: return None
 
 def get_alias(FEATURE_NAME):

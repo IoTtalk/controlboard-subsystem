@@ -125,6 +125,7 @@ def set_rules(cb_id):
             500: "Internal Server Error".
     '''
     cb = CB[cb_id]
+    api_logger.info('\tTimestamp\t--> Function set_rules')
     api_logger.info(f'Start setting new rules of CB {cb.cb_name}')
     invalid_list = list()
     rules = request.json
@@ -482,6 +483,7 @@ def get_datum(cb_id):
 @requires_login
 @orm.db_session
 def refresh_cb(cb_id): 
+    api_logger.info('\tTimestamp\t--> Function refresh_cb')
     '''
     Fetch NetworkApplications to read IDF/ODF name.
 
@@ -879,6 +881,7 @@ def create_cb():
 @requires_login
 @orm.db_session
 def delete_cb(cb_id=None):
+    api_logger.info('\tTimestamp\t--> Function delete_cb')
     '''
     Delete CB with specified cb_id.
 
