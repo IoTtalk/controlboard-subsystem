@@ -56,13 +56,15 @@ class AG_SA():
         #print(type(self.MQTT_broker))
 
         self.MQTT_port = int(config['mqtt_port'])
-        # self.MQTT_User = config['mqtt_User']
-        self.MQTT_User = 'iottalk'
-        # self.MQTT_PW = config['mqtt_PW']
-        self.MQTT_PW = 'iottalk2023'
+        self.MQTT_User = config['mqtt_User']
+        # self.MQTT_User = 'iottalk'
+        self.MQTT_PW = config['mqtt_PW']
+        # self.MQTT_PW = 'iottalk2023'
         self.MQTT_encryption = bool(config['mqtt_encryption'])
-        self.IDF_list = ["CBElement-TI1", "CBElement-TI2", "CBElement-TI3"]
-        self.ODF_list = ["CBElement-O1", "CBElement-O2", "CBElement-O3"]
+        self.IDF_list = ["CBElement-TI1", "CBElement-TI2", "CBElement-TI3", "CBElement-TI4", "CBElement-TI5", 
+                         "CBElement-TI6", "CBElement-TI7", "CBElement-TI8", "CBElement-TI9"]
+        self.ODF_list = ["CBElement-O1", "CBElement-O2", "CBElement-O3", "CBElement-O4", "CBElement-O5", 
+                         "CBElement-O6", "CBElement-O7", "CBElement-O8", "CBElement-O9"]
         self.exec_interval = 0.01
         self.device_model = "ControlBoard"
         self.device_name = None
@@ -99,6 +101,9 @@ class AG_SA():
         self.socket.connect(f"tcp://{{config['host_zmq']}}:{{config['port_zmq']}}")
         self.socket.send(b"hello world")
 
+        print("==========profile:")
+        print(ctlboard_profile)
+        
         DAN.profile = ctlboard_profile
 
         if self.MQTT_broker: 
@@ -107,7 +112,7 @@ class AG_SA():
         print('\n[',time.time(),']','  CB_SA  Function device_registration_with_retry')
         result = DAN.device_registration_with_retry(f'http://{{config["iottalk_server"]}}:9999', self.mac_addr)
         print('\n[',time.time(),']','  CB_SA  Function device_registration_with_retry end')
-        #print("result : ", result)
+        print("result : ", result)
         self.on_register(result)
 
         if self.MQTT_broker: 
@@ -430,7 +435,7 @@ class AG_SA():
                     * data :  [[[5, 'Dummy_Sensor'], [6, 'Dummy_Sensor']]] -> multi_sensnor
                     * data : [0] -> no sensor value
                     * data :  [[7, 'Dummy_Sensor']] -> single sensor
-                type2 : impoossible nums represent signal from CBElement-I
+                type2 : impossible nums represent signal from CBElement-I
                     * data : [-10001] -> OFF
                     * data : [-10000] -> ON
                 '''
@@ -446,6 +451,8 @@ class AG_SA():
                         # #print("\n\n line 430 \n\n")
                         self.data[0][0] += 10001
                         status["status"] = "RED" if self.data[0][0] else "GREEN" #TODO status
+                        #print(self.data[0][0])
+                        #time.sleep(1)
                         continue
                     else: # if data is sensors val list
                         #print("\n\n line 435 \n\n")
