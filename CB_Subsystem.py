@@ -20,6 +20,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import timedelta
 # from utils import test_db
 
+# from flask_cors import CORS
+# from flask_wtf.csrf import CSRFError
 
 @orm.db_session
 def recover_cb(running_cb, logger):
@@ -66,6 +68,12 @@ if __name__ == "__main__":
     system_logger.info('Start Launching ControlBoard Subsystem......')
 
     app = Flask(__name__)
+    # app.config['WTF_CSRF_CHECK_DEFAULT'] = False
+    # CORS(app)
+    # @app.after_request
+    # def add_header(response):
+    #     response.headers['Content-Security-Policy'] = "default-src 'self' http://net.iottalk.tw/ http://farm.iottalk.tw:9999/ *.wise-paas.com https://voicetalk.iottalktw.com/;"
+    #     return response
     app.config['TEMPLATES_AUTO_RELOAD'] = True
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
     app.config.update(

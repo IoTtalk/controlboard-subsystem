@@ -70,14 +70,14 @@ Vue.component('sensor-row', {
         <b-row class="text-left sensor-list">
             <b-col>
                 <b-button-group>
-                    <b-button size="md" variant="outline-success"
+                    <!-- <b-button size="md" variant="outline-success"
                         v-bind:pressed="mode==='ON' || mode==='OFF'"
                     >
                         <b-form-checkbox switch
                             v-model="state"
                             v-on:input="onSelectMode(0)"
                         >Manual</b-form-checkbox>
-                    </b-button>
+                    </b-button> -->
                     <b-button variant="outline-success"
                         v-bind:pressed="mode==='Timer'"
                         v-on:click="onSelectMode(3)"

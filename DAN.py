@@ -72,7 +72,7 @@ def detect_local_ec():
         if str(data.decode()) == 'easyconnect':
             EASYCONNECT_HOST = 'http://{}:9999'.format(addr[0])
             csmapi.ENDPOINT=EASYCONNECT_HOST
-            #print('IoTtalk server = {}'.format(csmapi.ENDPOINT))
+            print('IoTtalk server = {}'.format(csmapi.ENDPOINT))
 
 timestamp={}
 MAC=get_mac_addr()
@@ -100,9 +100,8 @@ def device_registration_with_retry(URL=None, addr=None):
     if URL != None:
         csmapi.ENDPOINT = URL
     success = False
+    print("==========In CB's DAN!==========")
     while not success:
-        result = register_device(addr)
-        return result
         try:
             result = register_device(addr)
             success = True
@@ -120,11 +119,13 @@ def pull(FEATURE_NAME):
         
     if data != []:
         if timestamp[FEATURE_NAME] == data[0][0]:
+            print("timestamp[FEATURE_NAME] == data[0][0]")
             return None
         timestamp[FEATURE_NAME] = data[0][0]
         if data[0][1] != []:
             return data[0][1]
-        else: return None
+        print("else")
+        return None
     else:
         return None
 
