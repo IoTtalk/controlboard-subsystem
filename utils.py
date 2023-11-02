@@ -305,7 +305,7 @@ def get_iottalk_info(logger):
         iottalk_info['df_id'] = list()
         for df in response["df_list"]:
             order = int(re.search(r"\d+", df["df_name"]).group(0))
-            if order < 4:
+            if order < 10:
                 iottalk_info['df_id'].append(df['df_id'])
         logger.info('Fetch DF/DM id......done')
 
@@ -549,6 +549,7 @@ def register_ag(cb, logger):
             sen_data = list()
             for sen_rule in rule.sensor_set:
                 sen_data.append(sen_rule.to_dict())
+            #print(sen_data)
             sorted_sen_data = sorted(sen_data, key=lambda d: d['sensor_index']) # sort CB_Sensor by sensor_index
             cb_sa_data = rule.to_dict()
             cb_sa_data["sensors_data"] = sorted_sen_data # add CB_Sensor data into CBElement data in dict type
@@ -561,6 +562,7 @@ def register_ag(cb, logger):
         new_sa = open('./CB_SA.py', 'r').read().format(
             sa_id=cb.cb_id, config=reg_config, mac_addr=cb.mac_addr, sa_name=cb.cb_name, rules=rules)
         # new_sa = open('./DAI.py', 'r').read()
+        time.sleep(0.02)
         data = {
             "version": int(env_config["IoTtalk"]["version"]),
             "code": new_sa

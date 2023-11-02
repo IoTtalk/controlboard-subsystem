@@ -87,7 +87,7 @@ def render_index():
 @apis.route("/subsystem/infos", methods=["GET"])
 @requires_login
 def get_infos():
-    return f'http://{env_config["IoTtalk"]["ServerIP"]}:7788/connection#', 200
+    return f'https://{env_config["IoTtalk"]["ServerIP"]}/connection#', 200
 
 
 @apis.route('/cb/<int:cb_id>/new_rules', methods=['POST'])
@@ -254,6 +254,8 @@ def set_rules(cb_id):
             api_logger.exception("Error creating new rule, Change User configuraion failed, check API logs")
             return "Internal Server Error", 500
         cb_db.commit()
+        print("new rules set successfully!")
+        # time.sleep(3)
         return 'Configuration Saved', 200
     except WrongSettingError:
         invalid_actuators = str()
@@ -306,7 +308,7 @@ def get_rules(cb_id):
                 `prevTrigger`: -10000,
                 `status`: False,
                 `time`: "00:00",
-                `value`: 0
+                `value`: {}
             `rule_list` will be empty if the specified CB is not running.
     '''
     rule_list = list()
@@ -360,10 +362,12 @@ def get_rules(cb_id):
             ]
             '''
             sensor_rule_all = list()
+            sen_value = dict()
             for s_rule in rule.sensor_set:
                 sensor_rule = dict()
                 sensor_rule["sensorName"] = s_rule.sensor_alias
                 sensor_rule["selectedSensor"] = s_rule.sensor_index
+                sen_value[s_rule.sensor_index] = 0
                 sensor_rule["openSensor"] = s_rule.comparison_open
                 sensor_rule["closeSensor"] = s_rule.comparison_close
                 sensor_rule["openSensorVal"] = s_rule.threshold_open
@@ -385,10 +389,14 @@ def get_rules(cb_id):
                 "prevTrigger": -10000,
                 "status": False,
                 "time": "00:00",
-                "value": 0,
+                "value": sen_value,
                 #"operation": op
             }
             rule_list.append(tmp)
+            
+            #print(type(tmp["value"]))
+            #print(tmp["value"])
+            #time.sleep(2)
 
             '''
             tmp = {
@@ -429,14 +437,19 @@ def get_rules(cb_id):
                 ],
                 "status": false,
                 "time": "13:13",
-                "value": 0
+                "value": {
+                    747: 0,
+                    749: 0
+                }
             }
             '''
         sorted_rule_list = sorted(rule_list, key=lambda d: d["ruleID"]) # sort tmp by ruleID
+        # print(type(sorted_rule_list[0]["value"]))
+        # print(sorted_rule_list[0]["value"])
         #return jsonify(rule_list), 200
         return jsonify(sorted_rule_list), 200
     except orm.core.ObjectNotFound:
-        return jsonify([]), 200
+        return jsonify([]), 414
     except Exception as err:
         api_logger.exception(err)
         abort(500, "Internal server error")
@@ -467,6 +480,8 @@ def get_datum(cb_id):
             status = running_status[rule.rule_id]
             status["time"] = datetime.datetime.now().strftime("%H:%M")
             res_dict[rule.rule_id] = status
+        #print("res_dict : ")
+        #print(res_dict)
         return jsonify(res_dict), 200
     except NotFoundError:
         api_logger.warning(f"Specified CB ID {cb_id} not running")
@@ -498,7 +513,7 @@ def refresh_cb(cb_id):
         cb = CB[cb_id]
         if use_v1:
             NAs = requests.post(  # Workaround for V1 CCM API project.get lacking NA info.
-                f"http://{env_config['IoTtalk']['ServerIP']}:7788/reload_data",
+                f"https://{env_config['IoTtalk']['ServerIP']}/reload_data",
                 data={"p_id": cb.p_id}
             )
             NAs = json.loads(NAs.text)["join"]

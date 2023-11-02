@@ -238,9 +238,9 @@ var app = new Vue({
           else if (controlboards.length) {
             this.currentCB = controlboards[0];
           }
-          if (controlboards.length !== 0) {
-            this.refreshRuleWorker();
-          }
+          //if (controlboards.length !== 0) {
+          //  this.refreshRuleWorker();
+          //}
         })
         .catch((err) => {
           console.log(err);
