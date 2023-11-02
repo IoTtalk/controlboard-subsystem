@@ -101,6 +101,9 @@ class AG_SA():
         self.socket.connect(f"tcp://{{config['host_zmq']}}:{{config['port_zmq']}}")
         self.socket.send(b"hello world")
 
+        print("==========profile:")
+        print(ctlboard_profile)
+        
         DAN.profile = ctlboard_profile
 
         if self.MQTT_broker: 

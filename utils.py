@@ -125,7 +125,7 @@ def connect_db(logger, cb_db):
     if env_config["db"]["reset"] == "1":
         logger.info("Reset Database")
         cb_db.drop_all_tables(with_all_data=True)  # used to clean testcase
-    while (retry_times < 3):
+    while (retry_times < 9):
         try:
             cb_db.create_tables()
             logger.info('\tConnecting to Database\t......done')

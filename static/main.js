@@ -123,7 +123,7 @@ var app = new Vue({
             }
           });
       }
-      this.refreshCBWorker();
+      this.refreshCBWorker();  // Close call current_data when website opened
       this.cbTrackWorker = setInterval(this.cbTrackWorker, 60000);
     }
     return;
